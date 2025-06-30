@@ -1,0 +1,29 @@
+{
+  "availableBikes": [
+    {
+      "_id": 1,
+      "category": "SPORTS",
+      "image": "/home/img16.jpg"
+    },
+    {
+      "_id": 2,
+      "category": "CRUISER",
+      "image": "/home/img17.jpg"
+    },
+    {
+      "_id": 3,
+      "category": "ADVENTURE",
+      "image": "/home/img18.jpg"
+    },
+    {
+      "_id": 4,
+      "category": "TOURING",
+      "image": "/home/img13.jpg"
+    },
+    {
+      "_id": 5,
+      "category": "SCOOTER",
+      "image": "/home/img21.jpg"
+    }
+  ]
+}
