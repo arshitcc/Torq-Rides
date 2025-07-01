@@ -9,6 +9,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -24,11 +25,60 @@ import {
   SunIcon,
   MoonIcon,
   ComputerIcon,
+  UserPlusIcon,
+  UserIcon,
+  MapPinIcon,
+  ArrowUpRightIcon,
 } from "lucide-react";
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+} from "@/components/ui/navigation-menu";
 import { useAuthStore } from "@/store/auth-store";
 import { UserRolesEnum } from "@/types";
 import Image from "next/image";
 import { useTheme } from "next-themes";
+import { ThemeToggle } from "@/app/__components/theme-toggle";
+
+const bikeCategories = [
+  { name: "Royal Enfield Rentals", href: "/bikes/royal-enfield" },
+  { name: "KTM Rentals", href: "/bikes/ktm" },
+  { name: "BMW Rentals", href: "/bikes/bmw" },
+  { name: "Triumph Rentals", href: "/bikes/triumph" },
+  { name: "Superbike Rentals", href: "/bikes/superbike" },
+  { name: "Adventure Motorcycles", href: "/bikes/adventure" },
+];
+
+const carCategories = [
+  { name: "Budget", href: "/cars/budget" },
+  { name: "Premium", href: "/cars/premium" },
+  { name: "Luxury", href: "/cars/luxury" },
+  { name: "SUVs", href: "/cars/suvs" },
+  { name: "Off-roaders", href: "/cars/off-road" },
+  { name: "Vans", href: "/cars/vans" },
+];
+
+const tourCategories = [
+  { name: "Guided Tours", href: "/tours/guided" },
+  { name: "Self-Riding Tours", href: "/tours/self-riding" },
+  { name: "Corporate Tours", href: "/tours/corporate" },
+];
+
+const offRoadCategories = [
+  { name: "Aravali Trail Rides", href: "/off-road/aravali" },
+  { name: "Off-Road Adventure Park", href: "/off-road/adventure-park" },
+];
+
+const locations = [
+  { name: "Gurgaon", href: "/locations/gurgaon" },
+  { name: "MG Road", href: "/locations/mg-road" },
+  { name: "Delhi", href: "/locations/delhi" },
+  { name: "Janakpuri", href: "/locations/janakpuri" },
+];
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -73,74 +123,234 @@ export function Navbar() {
             <Image src="/logo/logo.png" alt="logo" width={150} height={100} />
           </Link>
 
-          <div className="hidden md:flex items-center space-x-6">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="text-sm font-medium transition-colors hover:text-yellow-primary relative group"
-              >
-                {item.label}
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-yellow-primary transition-all group-hover:w-full"></span>
-              </Link>
-            ))}
+          <div className="hidden lg:flex items-center space-x-8">
+            <NavigationMenu>
+              <NavigationMenuList>
+                {/* Bikes Menu */}
+                <NavigationMenuItem>
+                  <NavigationMenuTrigger className="text-sm font-medium hover:text-yellow-primary">
+                    Bikes
+                  </NavigationMenuTrigger>
+                  <NavigationMenuContent>
+                    <div className="grid w-[400px] gap-3 p-4">
+                      {bikeCategories.map((category) => (
+                        <NavigationMenuLink key={category.href} asChild>
+                          <Link
+                            href={category.href}
+                            className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-yellow-primary/10 hover:text-yellow-primary focus:bg-yellow-primary/10 focus:text-yellow-primary"
+                          >
+                            <div className="text-sm font-medium leading-none flex gap-2">
+                              <ArrowUpRightIcon className="hover:text-yellow-primary" />
+                              {category.name}
+                            </div>
+                          </Link>
+                        </NavigationMenuLink>
+                      ))}
+                    </div>
+                  </NavigationMenuContent>
+                </NavigationMenuItem>
+
+                {/* Cars Menu */}
+                <NavigationMenuItem>
+                  <NavigationMenuTrigger className="text-sm font-medium hover:text-yellow-primary">
+                    Cars
+                  </NavigationMenuTrigger>
+                  <NavigationMenuContent>
+                    <div className="grid w-[400px] gap-3 p-4">
+                      {carCategories.map((category) => (
+                        <NavigationMenuLink key={category.href} asChild>
+                          <Link
+                            href={category.href}
+                            className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-yellow-primary/10 hover:text-yellow-primary focus:bg-yellow-primary/10 focus:text-yellow-primary"
+                          >
+                            <div className="text-sm font-medium leading-none flex gap-2">
+                              <ArrowUpRightIcon className="hover:text-yellow-primary" />
+                              {category.name}
+                            </div>
+                          </Link>
+                        </NavigationMenuLink>
+                      ))}
+                    </div>
+                  </NavigationMenuContent>
+                </NavigationMenuItem>
+
+                {/* Tours Menu */}
+                <NavigationMenuItem>
+                  <NavigationMenuTrigger className="text-sm font-medium hover:text-yellow-primary">
+                    Tours
+                  </NavigationMenuTrigger>
+                  <NavigationMenuContent>
+                    <div className="grid w-[300px] gap-3 p-4">
+                      {tourCategories.map((category) => (
+                        <NavigationMenuLink key={category.href} asChild>
+                          <Link
+                            href={category.href}
+                            className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-yellow-primary/10 hover:text-yellow-primary focus:bg-yellow-primary/10 focus:text-yellow-primary"
+                          >
+                            <div className="text-sm font-medium leading-none flex gap-2">
+                              <ArrowUpRightIcon className="hover:text-yellow-primary" />
+                              {category.name}
+                            </div>
+                          </Link>
+                        </NavigationMenuLink>
+                      ))}
+                    </div>
+                  </NavigationMenuContent>
+                </NavigationMenuItem>
+
+                {/* Off-road Menu */}
+                <NavigationMenuItem>
+                  <NavigationMenuTrigger className="text-sm font-medium hover:text-yellow-primary">
+                    Off-road
+                  </NavigationMenuTrigger>
+                  <NavigationMenuContent>
+                    <div className="grid w-[300px] gap-3 p-4">
+                      {offRoadCategories.map((category) => (
+                        <NavigationMenuLink key={category.href} asChild>
+                          <Link
+                            href={category.href}
+                            className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-yellow-primary/10 hover:text-yellow-primary focus:bg-yellow-primary/10 focus:text-yellow-primary"
+                          >
+                            <div className="text-sm font-medium leading-none flex gap-2">
+                              <ArrowUpRightIcon className="hover:text-yellow-primary" />
+                              {category.name}
+                            </div>
+                          </Link>
+                        </NavigationMenuLink>
+                      ))}
+                    </div>
+                  </NavigationMenuContent>
+                </NavigationMenuItem>
+
+                {/* Locations Menu */}
+                <NavigationMenuItem>
+                  <NavigationMenuTrigger className="text-sm font-medium hover:text-yellow-primary">
+                    Locations
+                  </NavigationMenuTrigger>
+                  <NavigationMenuContent>
+                    <div className="grid w-[300px] gap-3 p-4">
+                      {locations.map((location) => (
+                        <NavigationMenuLink key={location.href} asChild>
+                          <Link
+                            href={location.href}
+                            className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-yellow-primary/10 hover:text-yellow-primary focus:bg-yellow-primary/10 focus:text-yellow-primary"
+                          >
+                            <div className="text-sm font-medium leading-none flex gap-2">
+                              <ArrowUpRightIcon className="hover:text-yellow-primary" />
+                              {location.name}
+                            </div>
+                          </Link>
+                        </NavigationMenuLink>
+                      ))}
+                    </div>
+                  </NavigationMenuContent>
+                </NavigationMenuItem>
+              </NavigationMenuList>
+            </NavigationMenu>
           </div>
 
-          <div className="hidden md:flex items-center space-x-4">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon">
-                  <SunIcon className="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
-                  <MoonIcon className="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
-                  <span className="sr-only">Toggle theme</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setTheme("light")}>
-                  <SunIcon />
-                  Light
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setTheme("dark")}>
-                  <MoonIcon />
-                  Dark
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setTheme("system")}>
-                  <ComputerIcon />
-                  System
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+          {/* Right Section */}
+          <div className="hidden lg:flex items-center space-x-4">
+            {/* Location */}
+            <div className="flex items-center space-x-1 text-sm text-muted-foreground">
+              <MapPinIcon className="h-4 w-4 text-yellow-primary" />
+              <span>GURGAON</span>
+            </div>
+
+            <ThemeToggle />
+
+            {/* Auth Section */}
             {user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    className="relative h-8 w-8 rounded-full"
-                  >
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage
-                        src={user?.avatar?.url || "/placeholder.svg"}
-                        alt={user.fullname}
-                      />
-                      <AvatarFallback>
-                        {getInitials(user.fullname)}
-                      </AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end" forceMount>
-                  <DropdownMenuItem asChild>
-                    <Link href="/profile">Profile</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleLogout}>
-                    Logout
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  asChild
+                  className="hover:bg-yellow-primary/10 hover:text-yellow-primary"
+                >
+                  <Link href="/profile">
+                    <UserIcon className="mr-2 h-4 w-4 text-yellow-primary" />
+                    MY ACCOUNT
+                  </Link>
+                </Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className="relative h-8 w-8 rounded-full hover:bg-yellow-primary/10"
+                    >
+                      <Avatar className="h-8 w-8 ring-1 ring-yellow-primary/20">
+                        <AvatarImage
+                          src={user?.avatar?.url || "/placeholder.svg"}
+                          alt={user.fullname}
+                        />
+                        <AvatarFallback>
+                          {getInitials(user.fullname)}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56" align="end" forceMount>
+                    <DropdownMenuItem asChild>
+                      <Link
+                        href="/profile"
+                        className="hover:bg-yellow-primary/10"
+                      >
+                        <UserIcon className="mr-2 h-4 w-4 text-yellow-primary" />
+                        My Account
+                      </Link>
+                    </DropdownMenuItem>
+                    {user.role === UserRolesEnum.CUSTOMER && (
+                      <DropdownMenuItem asChild>
+                        <Link
+                          href="/my-bookings"
+                          className="hover:bg-yellow-primary/10"
+                        >
+                          My Bookings
+                        </Link>
+                      </DropdownMenuItem>
+                    )}
+                    {user.role === UserRolesEnum.ADMIN && (
+                      <>
+                        <DropdownMenuItem asChild>
+                          <Link
+                            href="/dashboard"
+                            className="hover:bg-yellow-primary/10"
+                          >
+                            Dashboard
+                          </Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link
+                            href="/all-bookings"
+                            className="hover:bg-yellow-primary/10"
+                          >
+                            All Bookings
+                          </Link>
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={handleLogout}
+                      className="hover:bg-yellow-primary/10"
+                    >
+                      Logout
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
             ) : (
-              <Link href="/login">
-                <Button variant="outline" className="bg-[#E8B006] hover:bg-[#E8B006]">Login</Button>
-              </Link>
+              <div className="flex items-center space-x-2">
+                <Button
+                  asChild
+                  className="bg-yellow-primary hover:bg-yellow-600 text-black font-semibold"
+                >
+                  <Link href="/signup">
+                    <UserPlusIcon className="mr-2 h-4 w-4" />
+                    SIGN-UP
+                  </Link>
+                </Button>
+              </div>
             )}
           </div>
 

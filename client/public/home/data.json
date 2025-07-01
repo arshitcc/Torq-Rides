@@ -25,5 +25,18 @@
       "category": "SCOOTER",
       "image": "/home/img21.jpg"
     }
+  ],
+  "featuredBikesImages": [
+    "/home/featured/bmw-seeklogo.png",
+    "/home/featured/hero-seeklogo.png",
+    "/home/featured/honda-seeklogo.png",
+    "/home/featured/kawasaki-seeklogo.png",
+    "/home/featured/ktm-seeklogo.png",
+    "/home/featured/suzuki-seeklogo.png",
+    "/home/featured/triumph-motorcycles-seeklogo.png",
+    "/home/featured/yamaha-seeklogo.png",
+    "/home/featured/aprilia-seeklogo.png",
+    "/home/featured/bajaj-motorcycle-seeklogo.png",
+    "/home/featured/tvs-seeklogo.png"
   ]
 }

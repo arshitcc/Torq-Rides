@@ -43,7 +43,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
     try {
       const response = await bookingAPI.getAllBookings(params);
       const { data, metadata } = response.data.data;
-      set({ bookings: data, metadata, loading: false });
+      set({ bookings: data, metadata: metadata[0], loading: false });
     } catch (error: AxiosError | any) {
       set({
         loading: false,

@@ -15,7 +15,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/auth-store";
 import {
@@ -34,6 +33,7 @@ import {
   Loader2Icon,
   CalendarIcon,
   CheckIcon,
+  CheckCircleIcon,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -55,14 +55,10 @@ export default function MotorcycleDetailPage() {
   const router = useRouter();
   const { id } = params;
 
-  const { motorcycles, loading, error, getMotorcycleById } =
-    useMotorcycleStore();
+  const { motorcycles, loading, getMotorcycleById } = useMotorcycleStore();
 
-  const {
-    reviews,
-    getAllReviewsOfMotorcycleById,
-    addNewReviewToMotorcycleById,
-  } = useReviewStore();
+  const { reviews, getAllReviewsOfMotorcycleById, addNewReviewToBookingId } =
+    useReviewStore();
 
   const { createBooking, error: bookingErrors } = useBookingStore();
 
@@ -72,11 +68,6 @@ export default function MotorcycleDetailPage() {
 
   const bookingForm = useForm<BookingFormData>({
     resolver: zodResolver(bookingSchema),
-  });
-
-  const reviewForm = useForm<ReviewFormData>({
-    resolver: zodResolver(reviewSchema),
-    defaultValues: { rating: 5, comment: "" },
   });
 
   useEffect(() => {
@@ -108,19 +99,6 @@ export default function MotorcycleDetailPage() {
       toast.error(
         error.response.data.message ??
           "Failed to process booking. Please try again."
-      );
-    }
-  };
-
-  const onReviewSubmit = async (data: ReviewFormData) => {
-    try {
-      await addNewReviewToMotorcycleById(motorcycles[0]?._id, data);
-      toast.success("Thank you for your feedback.");
-      reviewForm.reset();
-    } catch (error: AxiosError | any) {
-      toast.error(
-        error?.response?.data?.message ??
-          "Failed to add review. Please try again."
       );
     }
   };
@@ -253,7 +231,7 @@ export default function MotorcycleDetailPage() {
             <CardContent>
               {reviews.length > 0 ? (
                 <div className="space-y-4">
-                  <div className="p-4 bg-gray-50 rounded-lg">
+                  <div className="p-4 lg:bg-gray/45 border-2 rounded-lg">
                     <div className="flex items-center mb-2">
                       <div className="flex">
                         {[...Array(5)].map((_, i) => (
@@ -299,72 +277,6 @@ export default function MotorcycleDetailPage() {
               ) : (
                 <p className="text-gray-500">No reviews yet.</p>
               )}
-            </CardContent>
-          </Card>
-
-          {/* Add Review */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Add Your Review</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Form {...reviewForm}>
-                <form
-                  onSubmit={reviewForm.handleSubmit(onReviewSubmit)}
-                  className="space-y-4"
-                >
-                  <FormField
-                    control={reviewForm.control}
-                    name="rating"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Rating</FormLabel>
-                        <FormControl>
-                          <div className="flex space-x-1">
-                            {[1, 2, 3, 4, 5].map((star) => (
-                              <button
-                                key={star}
-                                type="button"
-                                onClick={() => field.onChange(star)}
-                                className="focus:outline-none"
-                              >
-                                <Star
-                                  className={`w-6 h-6 ${
-                                    star <= field.value
-                                      ? "text-yellow-400 fill-current"
-                                      : "text-gray-300"
-                                  }`}
-                                />
-                              </button>
-                            ))}
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={reviewForm.control}
-                    name="comment"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Comment</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Share your experience..."
-                            className="min-h-[100px]"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <Button type="submit">Submit Review</Button>
-                </form>
-              </Form>
             </CardContent>
           </Card>
         </div>
@@ -460,14 +372,14 @@ export default function MotorcycleDetailPage() {
                   />
 
                   {calculateTotalCost() > 0 && (
-                    <div className="p-4 bg-gray-50 rounded-lg">
+                    <div className="p-4 dark:bg-transparent border-2 rounded-xl">
                       <div className="flex justify-between items-center">
                         <span className="font-medium">Total Cost:</span>
                         <span className="text-2xl font-bold text-primary">
                           ₹{calculateTotalCost()}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-600 mt-1">
+                      <p className="text-sm dark:text-gray-600 mt-1">
                         {differenceInDays(
                           bookingForm.watch("endDate") || new Date(),
                           bookingForm.watch("startDate") || new Date()
@@ -482,7 +394,7 @@ export default function MotorcycleDetailPage() {
                     className="w-full bg-yellow-primary cursor-pointer"
                     size="lg"
                   >
-                    Book Now
+                    <CheckCircleIcon /> Book Now
                   </Button>
                 </form>
               </Form>
@@ -490,17 +402,24 @@ export default function MotorcycleDetailPage() {
               {/* Payment Methods unchanged */}
               <div className="mt-6 pt-6 border-t">
                 <h4 className="font-medium mb-3">Accepted Payment Methods</h4>
-                <div className="flex justify-around items-center">
-                  <CreditCard className="w-8 h-8 text-gray-400" />
-                  <Smartphone className="w-8 h-8 text-gray-400" />
-                  <Building className="w-8 h-8 text-gray-400" />
-                  <Bitcoin className="w-8 h-8 text-gray-400" />
-                </div>
                 <div className="flex justify-around text-xs text-gray-500 mt-2">
-                  <span>Cards</span>
-                  <span>UPI</span>
-                  <span>Net Banking</span>
-                  <span>Crypto</span>
+                  <div className="flex flex-col items-center gap-1.5">
+                    <CreditCard className="w-8 h-8 text-gray-400" />
+                    <span>Cards</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-1.5">
+                    {" "}
+                    <Smartphone className="w-8 h-8 text-gray-400" />{" "}
+                    <span>UPI</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-1.5">
+                    <Building className="w-8 h-8 text-gray-400" />
+                    <span>Net Banking</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-1.5">
+                    <Bitcoin className="w-8 h-8 text-gray-400" />
+                    <span>Crypto</span>
+                  </div>
                 </div>
               </div>
             </CardContent>

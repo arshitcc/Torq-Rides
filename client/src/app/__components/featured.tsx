@@ -1,0 +1,70 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Autoplay from "embla-carousel-autoplay";
+import Image from "next/image";
+import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+} from "@/components/ui/carousel";
+
+export default function FeaturedBrands() {
+  const [logos, setLogos] = useState<string[]>([]);
+  const autoplay = Autoplay({ delay: 1500, stopOnInteraction: false });
+
+  useEffect(() => {
+    fetch("/home/data.json")
+      .then((res) => {
+        if (!res.ok) throw new Error("Network response was not ok");
+        return res.json();
+      })
+      .then((data: { featuredBikesImages: string[] }) => {
+        setLogos(data.featuredBikesImages);
+      })
+      .catch((err) => {
+        console.error("Error fetching logo data:", err);
+      });
+  }, []);
+
+  return (
+    <div className="bg-muted/30">
+      {/* Heading Section */}
+
+      <div className="text-center bg-muted/30 py-6">
+        <h2 className="text-3xl font-bold text-gray-800 dark:text-gray-100">
+          Featured Brands
+        </h2>
+        <p className="text-gray-600 dark:text-gray-400">
+          Check out our top motorcycle brands
+        </p>
+      </div>
+
+      <Carousel
+        opts={{ loop: true }}
+        plugins={[autoplay]}
+        className="relative w-full cursor-pointer dark:bg-[#18181B] bg-muted/30 py-8"
+        onMouseEnter={() => autoplay.stop()}
+        onMouseLeave={() => autoplay.reset()}
+      >
+        <CarouselContent className="overflow-visible">
+          {logos?.length > 0 &&
+            logos.map((src, idx) => (
+              <CarouselItem
+                key={idx}
+                className="basis-1/5 flex items-center justify-center p-4"
+              >
+                <Image
+                  src={src}
+                  alt={`Brand logo ${idx + 1}`}
+                  width={120}
+                  height={60}
+                  className="object-contain mix-blend-color"
+                />
+              </CarouselItem>
+            ))}
+        </CarouselContent>
+      </Carousel>
+    </div>
+  );
+}

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { ArrowRightIcon } from "lucide-react";
 
 interface Motorcycle {
   _id: number;
@@ -26,10 +27,10 @@ export function AvailableMotorcycles() {
   }, []);
 
   return (
-    <section className="py-16 bg-gray-50 dark:bg-[#18181B]">
+    <section className="py-16 dark:bg-[#18181B] bg-muted/30">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold mb-4 dark:text-white ">
+          <h2 className="text-4xl font-bold mb-4 dark:text-white">
             Available Motorcycles
           </h2>
           <p className="text-xl text-gray-600">
@@ -37,20 +38,19 @@ export function AvailableMotorcycles() {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 mx-auto">
-          {motorcycles.map((motorcycle,i) => ( i<3 &&
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+          {motorcycles.map((motorcycle) => (
             <Card
               key={motorcycle._id}
-              className="overflow-hidden hover:shadow-lg transition-shadow py-0 pb-0 w-[300px] mx-auto"
+              className="overflow-hidden hover:shadow-lg transition-shadow py-0"
             >
               <CardHeader className="p-0 cursor-pointer">
-                <div className="relative overflow-hidden group">
+                <div className="relative w-full h-0 pb-[100%] overflow-hidden group rounded-xl">
                   <Image
                     src={motorcycle.image || "/placeholder.svg"}
-                    alt={`${motorcycle.category}`}
-                    height={300}
-                    width={300}
-                    className="object-cover transform transition-transform duration-300 ease-in-out group-hover:scale-110 rounded-xl m-auto"
+                    alt={motorcycle.category}
+                    layout="fill"
+                    className="object-cover transform transition-transform duration-300 ease-in-out group-hover:scale-110 h-80 w-80"
                   />
                   <Badge className="absolute top-2 right-2" variant="secondary">
                     {motorcycle.category}
@@ -61,9 +61,10 @@ export function AvailableMotorcycles() {
           ))}
         </div>
 
-        <div className="text-center mt-8">
-          <Button asChild variant="outline" size="lg">
+        <div className="text-center mt-8 cursor-pointer">
+          <Button variant="outline" size="lg" className="bg-yellow-primary">
             <Link href="/motorcycles">View All Motorcycles</Link>
+            <ArrowRightIcon/>
           </Button>
         </div>
       </div>

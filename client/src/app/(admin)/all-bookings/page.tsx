@@ -87,9 +87,7 @@ export default function AllBookingsPage() {
     }
 
     if (user.role !== UserRolesEnum.ADMIN) {
-      toast.error("Access Denied", {
-        description: "Only admins can view all bookings.",
-      });
+      toast.error("Access Denied");
       router.push("/");
       return;
     }

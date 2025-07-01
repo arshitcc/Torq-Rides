@@ -1,14 +1,11 @@
 import Link from "next/link";
 import {
-  BikeIcon,
   FacebookIcon,
   InstagramIcon,
   MailIcon,
   PhoneIcon,
   MapPinIcon,
   YoutubeIcon,
-  ZapIcon,
-  TwitterIcon,
 } from "lucide-react";
 import Image from "next/image";
 
@@ -24,22 +21,42 @@ export function Footer() {
             <p className="text-muted-foreground mb-4">
               Premium motorcycle rentals for the ultimate riding experience.
             </p>
-            <div className="flex space-x-4">
-              <div className="p-2 rounded-full bg-yellow-primary/10 hover:bg-yellow-primary/20 transition-colors cursor-pointer">
-                <FacebookIcon className="h-5 w-5 text-yellow-primary" />
-              </div>
-              <div className="p-2 rounded-full bg-yellow-primary/10 hover:bg-yellow-primary/20 transition-colors cursor-pointer">
-                <TwitterIcon className="h-5 w-5 text-yellow-primary" />
-              </div>
-              <div className="p-2 rounded-full bg-yellow-primary/10 hover:bg-yellow-primary/20 transition-colors cursor-pointer">
-                <InstagramIcon className="h-5 w-5 text-yellow-primary" />
-              </div>
+            <div className="flex space-x-4 mb-6">
+              <Link
+                href="https://www.instagram.com/torqrides/"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <div className="p-3 rounded-full bg-yellow-primary/10 hover:bg-yellow-primary/20 transition-colors cursor-pointer group">
+                  <InstagramIcon className="h-5 w-5 text-yellow-primary group-hover:scale-110 transition-transform" />
+                </div>
+              </Link>
+              <Link
+                href="https://www.facebook.com/torqrides/"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <div className="p-3 rounded-full bg-yellow-primary/10 hover:bg-yellow-primary/20 transition-colors cursor-pointer group">
+                  <FacebookIcon className="h-5 w-5 text-yellow-primary group-hover:scale-110 transition-transform" />
+                </div>
+              </Link>
+              <Link
+                href="https://www.youtube.com/@TorqRides"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <div className="p-3 rounded-full bg-yellow-primary/10 hover:bg-yellow-primary/20 transition-colors cursor-pointer group">
+                  <YoutubeIcon className="h-5 w-5 text-yellow-primary group-hover:scale-110 transition-transform" />
+                </div>
+              </Link>
             </div>
           </div>
 
           {/* Quick Links */}
           <div>
-            <h3 className="text-lg font-semibold mb-4 text-yellow-primary">Quick Links</h3>
+            <h3 className="text-lg font-semibold mb-4 text-yellow-primary">
+              Quick Links
+            </h3>
             <ul className="space-y-2">
               <li>
                 <Link href="/" className="text-gray-400 hover:underline">
@@ -60,10 +77,7 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link
-                  href="/contact"
-                  className="text-gray-400 hover:underline"
-                >
+                <Link href="/contact" className="text-gray-400 hover:underline">
                   Contact
                 </Link>
               </li>
@@ -95,29 +109,49 @@ export function Footer() {
 
           {/* Contact Info */}
           <div>
-            <h3 className="text-lg font-semibold mb-4 text-yellow-primary">
-              Contact Info
+            <h3 className="text-lg font-semibold mb-4 text-yellow-primary flex items-center">
+              <MapPinIcon className="h-5 w-5 mr-2" />
+              Contact Us
             </h3>
-            <div className="space-y-3">
+            <div className="space-y-4">
               <div className="flex items-center space-x-3">
                 <div className="p-2 rounded-full bg-yellow-primary/10">
                   <PhoneIcon className="h-4 w-4 text-yellow-primary" />
                 </div>
-                <span className="text-muted-foreground">+91 95601 98483</span>
+                <div>
+                  <p className="text-sm text-muted-foreground">Call Us</p>
+                  <Link
+                    href="tel:+919560198483"
+                    className="transition-colors hover:underline hover:text-yellow-primary"
+                  >
+                    +91 95601 98483
+                  </Link>
+                </div>
               </div>
               <div className="flex items-center space-x-3">
                 <div className="p-2 rounded-full bg-yellow-primary/10">
                   <MailIcon className="h-4 w-4 text-yellow-primary" />
                 </div>
-                <span className="text-muted-foreground">
-                  hello@torqrides.com
-                </span>
+                <div>
+                  <p className="text-sm text-muted-foreground">Email Us</p>
+                  <Link
+                    href="mailto:hello@torqrides.com"
+                    className="hover:underline hover:text-yellow-primary transition-colors"
+                  >
+                    hello@torqrides.com
+                  </Link>
+                </div>
               </div>
               <div className="flex items-center space-x-3">
                 <div className="p-2 rounded-full bg-yellow-primary/10">
                   <MapPinIcon className="h-4 w-4 text-yellow-primary" />
                 </div>
-                <span className="text-muted-foreground">Mumbai, India</span>
+                <div>
+                  <p className="text-sm text-muted-foreground">Visit Us</p>
+                  <p className="hover:text-yellow-primary">
+                    Gurgaon | Delhi NCR
+                  </p>
+                </div>
               </div>
             </div>
           </div>

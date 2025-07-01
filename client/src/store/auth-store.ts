@@ -11,13 +11,12 @@ interface AuthState {
   user: User | null;
   loading: boolean;
   error: string | null;
-  setUser: (user: User, token: string) => void;
-  logout: () => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  setUser: (user: User | null, isAuthenticated: boolean) => void;
   register: (data: SignupFormData) => Promise<AxiosResponse | void>;
   login: (data: LoginFormData) => Promise<AxiosResponse | void>;
-  logoutUser: () => Promise<void>;
+  logout: () => Promise<void>;
   getCurrentUser: () => Promise<void>;
 }
 
@@ -28,10 +27,9 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       loading: false,
       error: null,
-      setUser: (user, token) => set({ user, error: null }),
-      logout: () => set({ user: null, error: null }),
       setLoading: (loading) => set({ loading }),
       setError: (error) => set({ error }),
+      setUser: (user, isAuthenticated) => set({ user, isAuthenticated }),
 
       register: async (data) => {
         set({ loading: true, error: null });
@@ -67,11 +65,17 @@ export const useAuthStore = create<AuthState>()(
             });
             return response;
           } else {
-            set({ error: response.data.message });
+            set({
+              error: response.data.message,
+              isAuthenticated: false,
+              user: null,
+            });
           }
         } catch (error: AxiosError | any) {
           set({
             loading: false,
+            isAuthenticated: false,
+            user: null,
             error: error.response?.data?.message || "Login failed",
           });
           toast.error(error.response?.data?.message || "Login failed");
@@ -80,7 +84,7 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      logoutUser: async () => {
+      logout: async () => {
         set({ loading: true });
         try {
           await authAPI.logout();
@@ -95,7 +99,7 @@ export const useAuthStore = create<AuthState>()(
             user: null,
             isAuthenticated: false,
             loading: false,
-            error: null,
+            error: error.response?.data?.message || "Logout failed",
           });
         } finally {
           set({ loading: false });
@@ -111,6 +115,8 @@ export const useAuthStore = create<AuthState>()(
         } catch (error: AxiosError | any) {
           set({
             loading: false,
+            user: null,
+            isAuthenticated: false,
             error: error.response?.data?.message || "Failed to get user",
           });
           toast.error(error.response?.data?.message || "Failed to get user");

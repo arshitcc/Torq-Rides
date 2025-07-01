@@ -16,8 +16,8 @@ interface ReviewState {
   setError: (error: string | null) => void;
   // API functions
   getAllReviewsOfMotorcycleById: (motorcycleId: string) => Promise<void>;
-  addNewReviewToMotorcycleById: (
-    motorcycleId: string,
+  addNewReviewToBookingId: (
+    bookingId: string,
     data: any
   ) => Promise<void>;
   updateReviewById: (reviewId: string, data: any) => Promise<void>;
@@ -55,11 +55,11 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
     }
   },
 
-  addNewReviewToMotorcycleById: async (motorcycleId, data) => {
+  addNewReviewToBookingId: async (bookingId, data) => {
     set({ loading: true, error: null });
     try {
-      const response = await reviewAPI.addNewReviewToMotorcycleById(
-        motorcycleId,
+      const response = await reviewAPI.addNewReviewToBookingId(
+        bookingId,
         data
       );
       const newReview = response.data.data;
