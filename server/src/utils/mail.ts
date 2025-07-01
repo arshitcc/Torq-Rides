@@ -5,10 +5,11 @@ import {
   MAILTRAP_SMTP_USERNAME,
   MAILTRAP_SMTP_PASSWORD,
   CLIENT_URL,
-  COMPANY_NAME
+  COMPANY_NAME,
 } from "./env";
 import MailGen, { Content } from "mailgen";
 import logger from "../loggers/winston.logger";
+import { IBooking } from "../models/bookings.model";
 
 interface EmailVerificationTemplate {
   username: string;
@@ -18,6 +19,12 @@ interface EmailVerificationTemplate {
 interface ResetPasswordTemplate {
   username: string;
   resetPasswordToken: string;
+}
+
+interface BookingConfirmationTemplate {
+  username: string;
+  booking: IBooking;
+  totalAmount: number;
 }
 
 interface MailConfig {
@@ -43,8 +50,7 @@ const emailVerificationTemplate = ({
           link: `${CLIENT_URL}/verify?token=${emailVerificationToken}`,
         },
       },
-      outro:
-        `If you did not sign up for a ${COMPANY_NAME} account, you can safely ignore this email.`,
+      outro: `If you did not sign up for a ${COMPANY_NAME} account, you can safely ignore this email.`,
     },
   };
 };
@@ -68,6 +74,66 @@ const resetPasswordTemplate = ({
       },
       outro:
         "If you did not request a password reset, no further action is required. Your account is safe.",
+    },
+  };
+};
+
+const bookingConfirmationTemplate = ({
+  username,
+  booking,
+  totalAmount,
+}: BookingConfirmationTemplate) => {
+  return {
+    body: {
+      name: username,
+      email: "",
+      intro: "🎉 Your booking has been confirmed!",
+      table: {
+        data: booking.items.map((b) => ({
+          Motorcycle: b.motorcycle.make + " " + b.motorcycle.vehicleModel,
+          "Pickup Date": b.pickupDate.toLocaleDateString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          }),
+          "Return Date": b.returnDate.toLocaleDateString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          }),
+          Days:
+            1 +
+            Math.ceil(
+              ((b.returnDate.getTime() - b.pickupDate.getTime()) / 1000 ** 60) *
+                60 *
+                24,
+            ),
+          "Rate/Day": `INR ${b.motorcycle.pricePerDay}/-`,
+          Quantity: b.quantity,
+          "Item Total": `INR ${b.motorcycle.pricePerDay * b.quantity * ((b.returnDate.getTime() - b.pickupDate.getTime()) / (1000 * 60 * 60 * 24))}/-`,
+        })),
+        columns: {
+          // adjust widths as needed
+          customWidth: {
+            Motorcycle: "25%",
+            "Pickup Date": "15%",
+            "Return Date": "15%",
+            Days: "10%",
+            "Rate/Day": "15%",
+            Quantity: "10%",
+            "Item Total": "10%",
+          },
+          customAlignment: {
+            "Rate/Day": "right",
+            Quantity: "right",
+            "Item Total": "right",
+          },
+        },
+      },
+      outro: [
+        `**Total Booking Cost:** INR ${totalAmount}/-`,
+        "If you have any questions, just reply to this email—we’re here to help!",
+      ],
     },
   };
 };
@@ -116,4 +182,9 @@ const sendEmail = async (mailConfig: MailConfig) => {
   }
 };
 
-export { sendEmail, emailVerificationTemplate, resetPasswordTemplate };
+export {
+  sendEmail,
+  emailVerificationTemplate,
+  resetPasswordTemplate,
+  bookingConfirmationTemplate,
+};

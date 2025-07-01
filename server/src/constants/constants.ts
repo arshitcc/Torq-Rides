@@ -25,3 +25,8 @@ export const AvailableUserRoles = Object.values(UserRolesEnum);
 export const AvailablePaymentProviders = Object.values(PaymentProviderEnum);
 export const AvailablePromoCodeTypes = Object.values(PromoCodeTypeEnum);
 export const AvailableAuthTypes = Object.values(UserAuthType);
+
+export type AvailableUserRoles = typeof AvailableUserRoles[number];
+export type AvailablePaymentProviders = typeof AvailablePaymentProviders[number];
+export type AvailablePromoCodeTypes = typeof AvailablePromoCodeTypes[number];
+export type AvailableAuthTypes = typeof AvailableAuthTypes[number];
