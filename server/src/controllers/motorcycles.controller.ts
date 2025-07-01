@@ -13,6 +13,7 @@ const getAllMotorcycles = asyncHandler(
     const {
       make,
       vehicleModel,
+      searchTerm,
       year,
       minPrice,
       maxPrice,
@@ -24,10 +25,18 @@ const getAllMotorcycles = asyncHandler(
     if (make) matchState.make = make;
     if (vehicleModel) matchState.vehicleModel = vehicleModel;
     if (year) matchState.year = Number(year);
+    if(minPrice && maxPrice) matchState.pricePerDay = { $gte: Number(minPrice), $lte: Number(maxPrice) };
     if (minPrice || maxPrice) {
       matchState.pricePerDay = {};
       if (minPrice) matchState.pricePerDay.$gte = Number(minPrice);
       if (maxPrice) matchState.pricePerDay.$lte = Number(maxPrice);
+    }
+
+    if (searchTerm) {
+      matchState.$or = [
+        { make: { $regex: searchTerm, $options: "i" } },
+        { vehicleModel: { $regex: searchTerm, $options: "i" } },
+      ];
     }
 
     if (
@@ -41,7 +50,7 @@ const getAllMotorcycles = asyncHandler(
     const limit = Number.isNaN(Number(offset))
       ? 10
       : Math.max(Number(offset), 1);
-    const skip = (pageNum - 1) * limit;
+    const skip = (pageNum - 1) * Math.min(limit, 10);
 
     const motorcycles = await Motorcycle.aggregate([
       {

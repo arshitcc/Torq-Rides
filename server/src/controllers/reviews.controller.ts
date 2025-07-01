@@ -70,16 +70,16 @@ const getAllReviewsOfMotorcycleById = asyncHandler(
   },
 );
 
-const addNewReviewToMotorcycleById = asyncHandler(
+const addNewReviewToBookingId = asyncHandler(
   async (req: CustomRequest, res: Response) => {
-    const { motorcycleId } = req.params;
+    const { bookingId } = req.params;
 
-    if (!isValidObjectId(motorcycleId)) {
+    if (!isValidObjectId(bookingId)) {
       throw new ApiError(400, "Invalid Motorcycle ID");
     }
 
     const booking = await Booking.findOne({
-      motorcycleId,
+      _id: bookingId,
       customerId: req.user._id,
       status: BookingStatusEnum.COMPLETED,
     });
@@ -89,16 +89,16 @@ const addNewReviewToMotorcycleById = asyncHandler(
     }
 
     const existingReview = await Review.findOne({
-      motorcycleId,
+      bookingId,
       userId: req.user._id?.toString(),
     });
 
     if (existingReview) {
-      throw new ApiError(400, "You have already reviewed this Motorcycle");
+      throw new ApiError(400, "You have already reviewed this Booking");
     }
 
     const review = await Review.create({
-      motorcycleId: booking.motorcycleId,
+      bookingId,
       userId: req.user._id,
       rating: req.body.rating,
       comment: req.body.comment,
@@ -108,17 +108,15 @@ const addNewReviewToMotorcycleById = asyncHandler(
       throw new ApiError(500, "Failed to add review");
     }
 
-    return res
-      .status(201)
-      .json(
-        new ApiResponse(201, true, "Review Added Successfully", {
-          ...review,
-          customer: {
-            fullname: req.user.fullname,
-            username: req.user.username,
-          },
-        }),
-      );
+    return res.status(201).json(
+      new ApiResponse(201, true, "Review Added Successfully", {
+        ...review,
+        customer: {
+          fullname: req.user.fullname,
+          username: req.user.username,
+        },
+      }),
+    );
   },
 );
 
@@ -197,7 +195,7 @@ const deleteReviewById = asyncHandler(
 
 export {
   getAllReviewsOfMotorcycleById,
-  addNewReviewToMotorcycleById,
+  addNewReviewToBookingId,
   updateReviewById,
   deleteReviewById,
 };

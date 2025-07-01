@@ -228,9 +228,9 @@ const resendVerificationEmail = asyncHandler(
   },
 );
 
-const updateRefreshAndAccessToken = asyncHandler(
+const refreshAccessToken = asyncHandler(
   async (req: CustomRequest, res: Response) => {
-    const refreshToken = req.cookies.refreshToken;
+    const refreshToken = req.cookies.refreshToken || req.body.refreshToken;
 
     if (!refreshToken) {
       throw new ApiError(401, "Unauthorized request");
@@ -445,7 +445,7 @@ export {
   userLogout,
   verifyEmail,
   resendVerificationEmail,
-  updateRefreshAndAccessToken,
+  refreshAccessToken,
   forgotPasswordRequest,
   resetForgottenPassword,
   changeCurrentPassword,

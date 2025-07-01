@@ -10,11 +10,12 @@ import {
 import { validate } from "../middlewares/validator.middleware";
 import {
   getAllReviewsOfMotorcycleById,
-  addNewReviewToMotorcycleById,
+  addNewReviewToBookingId,
   updateReviewById,
   deleteReviewById,
 } from "../controllers/reviews.controller";
 import { UserRolesEnum } from "../constants/constants";
+import { mongoIdPathVariableValidator } from "../validators/common/mongodb/mongodb.validators";
 
 const router = Router();
 
@@ -22,24 +23,32 @@ router.use(authenticateUser);
 
 router
   .route("/:motorcycleId")
-  .get(getAllReviewsOfMotorcycleById)
+  .get(
+    mongoIdPathVariableValidator("motorcycleId"),
+    getAllReviewsOfMotorcycleById,
+  );
+router
+  .route("/:bookingId")
   .post(
     verifyPermission([UserRolesEnum.CUSTOMER]),
+    mongoIdPathVariableValidator("bookingId"),
     addNewReviewValidators(),
     validate,
-    addNewReviewToMotorcycleById,
+    addNewReviewToBookingId,
   );
 
 router
   .route("/:reviewId")
   .put(
     verifyPermission([UserRolesEnum.CUSTOMER]),
+    mongoIdPathVariableValidator("reviewId"),
     updateReviewValidators(),
     validate,
     updateReviewById,
   )
   .delete(
     verifyPermission([UserRolesEnum.CUSTOMER, UserRolesEnum.ADMIN]),
+    mongoIdPathVariableValidator("reviewId"),
     deleteReviewById,
   );
 

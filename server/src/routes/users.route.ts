@@ -5,7 +5,7 @@ import {
   userLogout,
   verifyEmail,
   resendVerificationEmail,
-  updateRefreshAndAccessToken,
+  refreshAccessToken,
   forgotPasswordRequest,
   resetForgottenPassword,
   changeCurrentPassword,
@@ -40,7 +40,7 @@ router.route("/logout").post(authenticateUser, userLogout);
 
 router
   .route("/refresh-tokens")
-  .get(authenticateUser, updateRefreshAndAccessToken);
+  .get(refreshAccessToken);
 
 router.route("/verify").get(verifyEmail);
 

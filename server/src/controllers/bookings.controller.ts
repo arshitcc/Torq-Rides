@@ -218,6 +218,13 @@ const cancelBooking = asyncHandler(
       throw new ApiError(404, "Booking not found");
     }
 
+    if (
+      req.user.role === UserRolesEnum.CUSTOMER &&
+      req.user._id?.toString() !== booking.customerId.toString()
+    ) {
+      throw new ApiError(403, "Unauthorized action");
+    }
+
     const updatedBooking = await Booking.findOneAndUpdate(
       { _id: bookingId },
       { $set: { status: BookingStatusEnum.CANCELLED } },

@@ -46,7 +46,7 @@ router
     modifyBooking,
   )
   .delete(
-    verifyPermission([UserRolesEnum.ADMIN]),
+    verifyPermission([UserRolesEnum.ADMIN, UserRolesEnum.CUSTOMER]),
     mongoIdPathVariableValidator("bookingId"),
     validate,
     cancelBooking,
