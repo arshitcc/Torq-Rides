@@ -28,7 +28,7 @@ const addMotorcycleValidators = () => {
       .notEmpty()
       .withMessage("Model cannot be empty"),
 
-    body("pricePerDay")
+    body("rentPerDay")
       .exists({ checkNull: true })
       .withMessage("Price is required")
       .isFloat({ min: 0 })
@@ -99,7 +99,7 @@ const updateMotorcycleByIdValidators = () => {
       .isString()
       .withMessage("Model must be a string"),
 
-    body("pricePerDay")
+    body("rentPerDay")
       .optional()
       .isFloat({ min: 0 })
       .withMessage("Price must be a positive number"),

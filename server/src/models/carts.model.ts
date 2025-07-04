@@ -6,7 +6,7 @@ export interface ICartItem {
   quantity: number;
   pickupDate: Date;
   returnDate: Date;
-  motorcycle : IMotorcycle
+  motorcycle?: IMotorcycle;
 }
 
 export interface ICart extends mongoose.Document {

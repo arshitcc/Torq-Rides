@@ -1,12 +1,23 @@
 import {
-  AddMotorcycleFormData,
+  AssignRoleFormData,
+  ChangeCurrentPasswordFormData,
   LoginFormData,
   SignupFormData,
-} from "@/schemas";
+} from "@/schemas/users.schema";
+import { AddMotorcycleFormData } from "@/schemas";
+import {
+  ForgotPasswordFormData,
+  ResetPasswordFormData,
+} from "@/schemas/users.schema";
 import { useAuthStore } from "@/store/auth-store";
 import { ApiError } from "@/types/api";
 import axios from "axios";
 import Router from "next/router";
+import {
+  CreateMotorcycleLogFormData,
+  UpdateMotorcycleLogFormData,
+} from "@/schemas/motorcycle-logs.schema";
+import { CouponFormData, UpdateCouponFormData } from "@/schemas/coupons.schema";
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1",
@@ -15,32 +26,82 @@ const api = axios.create({
 });
 
 export const authAPI = {
+  getCurrentUser: () => api.get("/users"),
   register: (data: SignupFormData) => api.post("/users/register", data),
   login: (data: LoginFormData) => api.post("/users/login", data),
   logout: () => api.post("/users/logout"),
-  getCurrentUser: () => api.get("/users"),
   refreshAccessToken: () => api.post("/users/refresh-tokens"),
+  verifyEmail: (token: string) => api.get(`/users/verify?token=${token}`),
+  forgotPasswordRequest: (data: ForgotPasswordFormData) =>
+    api.post("/users/forgot-password", data),
+  resetForgottenPassword: (token: string, data: ResetPasswordFormData) =>
+    api.post(`/users/reset-password?token=${token}`, data),
+  changeAvatar: (formData: FormData) =>
+    api.post("/users/profile/change-avatar", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }),
+  resendVerificationEmail: () =>
+    api.post("/users/profile/resend-verification-email"),
+  changeCurrentPassword: (data: ChangeCurrentPasswordFormData) =>
+    api.post("/users/profile/change-current-password", {
+      oldPassword: data.currentPassword,
+      ...data,
+    }),
+  uploadDocument: (formData: FormData) =>
+    api.post("/users/profile/upload-documents", formData),
+  deleteUserAccount: (userId: string) => api.delete(`/users/${userId}`),
+  assignRole: (userId: string, data: AssignRoleFormData) =>
+    api.post(`/users/profile/assign-role/${userId}`, data),
 };
 
 export const motorcycleAPI = {
   getAllMotorcycles: (params?: any) => api.get("/motorcycles", { params }),
+
   addMotorcycle: (data: AddMotorcycleFormData) =>
     api.post("/motorcycles", data),
+
   getMotorcycleById: (motorcycleId: string) =>
     api.get(`/motorcycles/${motorcycleId}`),
+
   updateMotorcycleDetails: (motorcycleId: string, data: any) =>
     api.put(`/motorcycles/${motorcycleId}`, data),
+
   updateMotorcycleMaintenanceLogs: (motorcycleId: string, data: any) =>
     api.patch(`/motorcycles/${motorcycleId}`, data),
+
   deleteMotorcycle: (motorcycleId: string) =>
     api.delete(`/motorcycles/${motorcycleId}`),
+
+  // Motorcycle-Logs API
+
+  getAllMotorcycleLogs: () => api.get("/motorcycle/logs"),
+
+  createMotorcycleLog: (
+    motorcycleId: string,
+    data: CreateMotorcycleLogFormData
+  ) => api.post(`/motorcycle/logs/${motorcycleId}`, data),
+
+  getMotorcycleLogs: (motorcycleId: string) =>
+    api.get(`/motorcycle/logs/${motorcycleId}`),
+
+  updateMotorcycleLog: (
+    motorcycleId: string,
+    logId: string,
+    data: UpdateMotorcycleLogFormData
+  ) => api.put(`/motorcycle/logs/${motorcycleId}/${logId}`, data),
+
+  deleteMotorcycleLog: (motorcycleId: string, logId: string) =>
+    api.delete(`/motorcycle/logs/${motorcycleId}/${logId}`),
 };
 
 export const bookingAPI = {
   getAllBookings: (params?: any) => api.get("/bookings", { params }),
+
   createBooking: (data: any) => api.post("/bookings", data),
+
   modifyBooking: (bookingId: string, data: any) =>
     api.put(`/bookings/${bookingId}`, data),
+
   cancelBooking: (bookingId: string) => api.delete(`/bookings/${bookingId}`),
 };
 
@@ -56,10 +117,26 @@ export const reviewAPI = {
 
 export const couponAPI = {
   getAllCoupons: () => api.get("/coupons"),
+  createCoupon: (data: CouponFormData) => api.post("/coupons", data),
   getCouponById: (couponId: string) => api.get(`/coupons/${couponId}`),
-  updateCoupon: (couponId: string, data: any) =>
+  updateCoupon: (couponId: string, data: UpdateCouponFormData) =>
+    api.put(`/coupons/${couponId}`, data),
+  updateCouponActiveStatus: (couponId: string, data: { isActive: boolean }) =>
     api.patch(`/coupons/${couponId}`, data),
   deleteCoupon: (couponId: string) => api.delete(`/coupons/${couponId}`),
+};
+
+export const cartAPI = {
+  getUserCart: () => api.get("/carts"),
+  addOrUpdateMotorcycleToCart: (motorcycleId: string, data: any) =>
+    api.post(`/carts/item/${motorcycleId}`, data),
+  removeMotorcycleFromCart: (motorcycleId: string) =>
+    api.delete(`/carts/item/${motorcycleId}`),
+  clearCart: () => api.delete("/carts/clear"),
+
+  applyCoupon: (data: { couponCode: string }) =>
+    api.post("/coupons/c/apply", data),
+  removeCouponFromCart: () => api.post("/coupons/c/remove"),
 };
 
 let refreshingTokenInProgress = false;

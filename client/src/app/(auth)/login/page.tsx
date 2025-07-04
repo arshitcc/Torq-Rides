@@ -21,14 +21,21 @@ import {
 } from "@/components/ui/form";
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/auth-store";
-import { loginSchema, type LoginFormData } from "@/schemas";
+import { loginSchema, type LoginFormData } from "@/schemas/users.schema";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2Icon } from "lucide-react";
+import { useEffect } from "react";
 
 export default function LoginPage() {
-  const { login, loading, error } = useAuthStore();
+  const { login, loading, isAuthenticated } = useAuthStore();
   const router = useRouter();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.push("/");
+    }
+  }, [isAuthenticated, router]);
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -40,11 +47,8 @@ export default function LoginPage() {
 
   const onSubmit = async (data: LoginFormData) => {
     try {
-      const response = await login(data);
-      if (response?.data.success) {
-        toast.success("Login successful!");
-        router.push("/");
-      }
+      await login(data);
+      router.push("/");
     } catch (error) {
       toast.error("Error", {
         description: "Invalid credentials. Please try again.",
@@ -53,8 +57,8 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center dark:bg-[#18181B] bg-gray-50 py-12 px-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-yellow-50 via-white to-yellow-100 dark:from-[#121212] dark:via-[#121212] dark:to-[#18181B] bg-gray-50 py-12 px-4">
+      <Card className="w-full max-w-md bg-white/80 dark:bg-[#171717]">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Welcome Back</CardTitle>
           <CardDescription>Sign in to your account</CardDescription>
@@ -97,7 +101,7 @@ export default function LoginPage() {
               />
               <Button
                 type="submit"
-                className="w-full bg-[#E8B006] hover:bg-[#E8B006] dark:text-white  font-semibold text-md"
+                className="w-full cursor-pointer bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-white dark:text-white  font-semibold text-md"
                 disabled={loading}
               >
                 {loading ? (
@@ -112,7 +116,10 @@ export default function LoginPage() {
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-600">
               Don't have an account?{" "}
-              <Link href="/signup" className="text-primary hover:underline">
+              <Link
+                href="/signup"
+                className="text-primary hover:underline hover:text-yellow-700"
+              >
                 Sign up
               </Link>
             </p>

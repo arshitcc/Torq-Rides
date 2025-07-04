@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose from "mongoose";
 import {
   MotorcycleStatusEnum,
   Motorcycle,
@@ -6,7 +6,7 @@ import {
   File,
 } from "./motorcycles.model";
 
-export interface IMotorcycleLog extends Document {
+export interface IMotorcycleLog extends mongoose.Document {
   motorcycleId: mongoose.Types.ObjectId;
   dateIn: Date;
   serviceCentreName: string;
@@ -29,10 +29,10 @@ export interface IMotorcycleLog extends Document {
   isAvailable: boolean;
 }
 
-const motorcycleLogSchema = new Schema<IMotorcycleLog>(
+const motorcycleLogSchema = new mongoose.Schema<IMotorcycleLog>(
   {
     motorcycleId: {
-      type: Schema.Types.ObjectId,
+      type: mongoose.Schema.Types.ObjectId,
       ref: Motorcycle.modelName,
       required: true,
     },

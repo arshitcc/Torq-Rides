@@ -21,22 +21,59 @@ import { useAuthStore } from "@/store/auth-store";
 import { useBookingStore } from "@/store/booking-store";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { z } from "zod";
-import { User, Calendar, CreditCard, Settings, Shield } from "lucide-react";
+import {
+  UserIcon,
+  CalendarIcon,
+  CreditCardIcon,
+  SettingsIcon,
+  ShieldIcon,
+  CameraIcon,
+  FileTextIcon,
+  EyeIcon,
+  Trash2Icon,
+  UploadIcon,
+  Loader2Icon,
+} from "lucide-react";
 import { format } from "date-fns";
 import {
-  PasswordFormData,
-  passwordSchema,
+  ChangeCurrentPasswordFormData,
+  changeCurrentPasswordSchema,
   ProfileFormData,
   profileSchema,
-} from "@/schemas";
+  UploadDocumentFormData,
+  uploadDocumentSchema,
+} from "@/schemas/users.schema";
 import { UserRolesEnum } from "@/types";
+import { AxiosError } from "axios";
+import Image from "next/image";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function ProfilePage() {
-  const { user, isAuthenticated } = useAuthStore();
+  const {
+    user,
+    isAuthenticated,
+    changeCurrentPassword,
+    uploadDocument,
+    getCurrentUser,
+    changeAvatar,
+    loading,
+    resendEmailVerification,
+  } = useAuthStore();
   const { bookings, getAllBookings } = useBookingStore();
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   const profileForm = useForm<ProfileFormData>({
     resolver: zodResolver(profileSchema),
@@ -49,12 +86,20 @@ export default function ProfilePage() {
     },
   });
 
-  const passwordForm = useForm<PasswordFormData>({
-    resolver: zodResolver(passwordSchema),
+  const passwordForm = useForm<ChangeCurrentPasswordFormData>({
+    resolver: zodResolver(changeCurrentPasswordSchema),
     defaultValues: {
       currentPassword: "",
       newPassword: "",
-      confirmPassword: "",
+      confirmNewPassword: "",
+    },
+  });
+
+  const documentForm = useForm<UploadDocumentFormData>({
+    resolver: zodResolver(uploadDocumentSchema),
+    defaultValues: {
+      type: "AADHAR-CARD",
+      name: "",
     },
   });
 
@@ -81,38 +126,124 @@ export default function ProfilePage() {
     }
   }, [user, profileForm, getAllBookings, router]);
 
-  const getInitials = (fullName: string) => {
-    const names = fullName.split(" ");
-    return names.length > 1
+  const getInitials = (fullname: string) => {
+    const names = fullname?.split(" ");
+    return names?.length > 1
       ? `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase()
-      : names[0][0].toUpperCase();
+      : names?.[0][0].toUpperCase();
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPreviewUrl(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleAvatarSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setAvatarFile(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setAvatarPreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const onProfileSubmit = async (data: ProfileFormData) => {
     try {
       // API call to update profile would go here
+      console.log("Profile update:", data);
 
-      toast.success("Profile Updated Successfully!");
+      toast("Profile Updated Successfully !!");
       setIsEditing(false);
     } catch (error) {
-      toast.error("Failed to update profile. Please try again.");
+      toast("Failed !!");
     }
   };
 
-  const onPasswordSubmit = async (data: PasswordFormData) => {
+  const onPasswordSubmit = async (data: ChangeCurrentPasswordFormData) => {
     try {
-      // API call to change password would go here
+      const { currentPassword, newPassword, confirmNewPassword } = data;
+      if (currentPassword === newPassword) {
+        toast.error("New password cannot be same as Current password");
+        return;
+      }
 
-      toast.success("Password Changed Successfully!");
+      if (newPassword !== confirmNewPassword) {
+        toast.error("New password and Confirm password do not match");
+        return;
+      }
+
+      const loadingId = toast.loading("Changing password...");
+
+      await changeCurrentPassword(data);
+
+      toast.dismiss(loadingId);
       passwordForm.reset();
-    } catch (error) {
-      toast.error("Failed to change password. Please try again.");
+    } catch (error: AxiosError | any) {
+      toast.error(error.response?.data?.message || "Change password failed");
     }
   };
 
-  if (!user) {
-    return null;
-  }
+  const onDocumentSubmit = async (data: UploadDocumentFormData) => {
+    if (!selectedFile) {
+      toast.error("Please select a file to upload !!");
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      // API call to upload document would go here
+      await uploadDocument(data, selectedFile);
+      toast.success("Your document has been uploaded successfully.");
+      documentForm.reset();
+      setSelectedFile(null);
+      setPreviewUrl(null);
+    } catch (error: AxiosError | any) {
+      toast("Failed to upload document. Please try again.");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleAvatarUpload = async () => {
+    if (!avatarFile) return;
+
+    setIsUploadingAvatar(true);
+    try {
+      await changeAvatar(avatarFile, user?.avatar?.public_id);
+
+      toast("Profile Picture Updated Successfully !!");
+
+      setAvatarFile(null);
+      setAvatarPreview(null);
+      getCurrentUser();
+    } catch (error: AxiosError | any) {
+      toast.error("Failed !!");
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  const removeDocument = async (documentType: string) => {
+    try {
+      // API call to remove document would go here
+      toast.success("Document removed successfully !!");
+      getCurrentUser();
+    } catch (error: AxiosError | any) {
+      toast.error(error.response?.data?.message || "Failed to remove document");
+    }
+  };
+
+  if (!user) return null;
 
   const userBookings = bookings.filter(
     (booking) => booking.customerId === user._id
@@ -121,9 +252,11 @@ export default function ProfilePage() {
     (booking) => booking.status === "COMPLETED"
   );
   const totalSpent = completedBookings.reduce(
-    (sum, booking) => sum + booking.totalCost,
+    (sum, booking) => sum + booking.discountedTotal,
     0
   );
+
+  const documents = user.documents || [];
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -139,15 +272,47 @@ export default function ProfilePage() {
         <div className="lg:col-span-1">
           <Card>
             <CardContent className="p-6 text-center">
-              <Avatar className="w-24 h-24 mx-auto mb-4">
-                <AvatarImage
-                  src={user?.avatar?.url || "/placeholder.svg"}
-                  alt={user.fullname}
-                />
-                <AvatarFallback className="text-2xl">
-                  {getInitials(user.fullname)}
-                </AvatarFallback>
-              </Avatar>
+              <div className="relative mb-4">
+                <Avatar className="w-24 h-24 mx-auto mb-4">
+                  <AvatarImage
+                    src={
+                      avatarPreview || user?.avatar?.url || "/placeholder.svg"
+                    }
+                    alt={user.fullname}
+                  />
+                  <AvatarFallback className="text-2xl">
+                    {getInitials(user.fullname)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="absolute -bottom-2 -right-2">
+                  <label htmlFor="avatar-upload" className="cursor-pointer">
+                    <div className="bg-yellow-primary hover:bg-yellow-600 text-black p-2 rounded-full shadow-lg transition-colors">
+                      <CameraIcon className="h-4 w-4" />
+                    </div>
+                  </label>
+                  <input
+                    id="avatar-upload"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarSelect}
+                    className="hidden"
+                  />
+                </div>
+              </div>
+
+              {avatarFile && (
+                <div className="mb-4">
+                  <Button
+                    onClick={handleAvatarUpload}
+                    disabled={isUploadingAvatar}
+                    size="sm"
+                    className="bg-yellow-primary hover:bg-yellow-600 text-black"
+                  >
+                    {isUploadingAvatar ? "Uploading..." : "Update Avatar"}
+                  </Button>
+                </div>
+              )}
+
               <h3 className="text-xl font-semibold mb-1">{user.fullname}</h3>
               <p className="text-gray-600 mb-2">@{user.username}</p>
               <Badge
@@ -184,10 +349,19 @@ export default function ProfilePage() {
         {/* Profile Content */}
         <div className="lg:col-span-3">
           <Tabs defaultValue="profile" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="profile">Profile Info</TabsTrigger>
-              <TabsTrigger value="security">Security</TabsTrigger>
-              <TabsTrigger value="activity">Activity</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="profile" className="cursor-pointer">
+                Profile Info
+              </TabsTrigger>
+              <TabsTrigger value="security" className="cursor-pointer">
+                Security
+              </TabsTrigger>
+              <TabsTrigger value="documents" className="cursor-pointer">
+                Documents
+              </TabsTrigger>
+              <TabsTrigger value="activity" className="cursor-pointer">
+                Activity
+              </TabsTrigger>
             </TabsList>
 
             {/* Profile Information */}
@@ -195,7 +369,7 @@ export default function ProfilePage() {
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="flex items-center space-x-2">
-                    <User className="h-5 w-5" />
+                    <UserIcon className="h-5 w-5" />
                     <span>Profile Information</span>
                   </CardTitle>
                   <Button
@@ -314,7 +488,7 @@ export default function ProfilePage() {
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
-                    <Shield className="h-5 w-5" />
+                    <ShieldIcon className="h-5 w-5" />
                     <span>Security Settings</span>
                   </CardTitle>
                 </CardHeader>
@@ -350,7 +524,7 @@ export default function ProfilePage() {
                             <FormLabel>New Password</FormLabel>
                             <FormControl>
                               <Input
-                                type="password"
+                                type="text"
                                 placeholder="Enter new password"
                                 {...field}
                               />
@@ -362,7 +536,7 @@ export default function ProfilePage() {
 
                       <FormField
                         control={passwordForm.control}
-                        name="confirmPassword"
+                        name="confirmNewPassword"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Confirm New Password</FormLabel>
@@ -385,12 +559,195 @@ export default function ProfilePage() {
               </Card>
             </TabsContent>
 
+            {/* Documents */}
+            <TabsContent value="documents">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <FileTextIcon className="h-5 w-5" />
+                    <span>Documents</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {documents?.length > 0 ? (
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold mb-4">
+                        Your Documents
+                      </h3>
+                      {documents.map((doc, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-4 border rounded-lg"
+                        >
+                          <div className="flex items-center space-x-4">
+                            <div className="bg-yellow-primary/10 p-2 rounded-full">
+                              <FileTextIcon className="h-5 w-5 text-yellow-primary" />
+                            </div>
+                            <div>
+                              <p className="font-medium">{doc.type}</p>
+                              {doc.name && (
+                                <p className="text-sm text-gray-600">
+                                  {doc.name}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                window.open(doc.file.url, "_blank")
+                              }
+                            >
+                              <EyeIcon className="h-4 w-4 mr-1" />
+                              View
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => removeDocument(doc.type)}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <Trash2Icon className="h-4 w-4 mr-1" />
+                              Remove
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <FileTextIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500 mb-4">
+                        No documents uploaded yet
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="mt-8 border-t pt-6">
+                    <h3 className="text-lg font-semibold mb-4">
+                      Upload New Document
+                    </h3>
+                    <Form {...documentForm}>
+                      <form
+                        onSubmit={documentForm.handleSubmit(onDocumentSubmit)}
+                        className="space-y-4"
+                      >
+                        <FormField
+                          control={documentForm.control}
+                          name="type"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Document Type</FormLabel>
+                              <Select
+                                onValueChange={field.onChange}
+                                defaultValue={field.value}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select document type" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="AADHAR-CARD">
+                                    Aadhaar Card
+                                  </SelectItem>
+                                  <SelectItem value="DRIVING-LICENSE">
+                                    Driving Licence
+                                  </SelectItem>
+                                  <SelectItem value="PAN-CARD">
+                                    PAN Card
+                                  </SelectItem>
+                                  <SelectItem value="e-KYC">e-KYC</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={documentForm.control}
+                          name="name"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Document Name (Optional)</FormLabel>
+                              <FormControl>
+                                <Input
+                                  {...field}
+                                  placeholder="Enter document name"
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium">
+                            Upload File
+                          </label>
+                          <div className="flex items-center space-x-4">
+                            <label
+                              htmlFor="document-upload"
+                              className="cursor-pointer"
+                            >
+                              <div className="flex items-center space-x-2 px-4 py-2 border border-dashed border-gray-300 rounded-lg hover:border-yellow-primary transition-colors">
+                                <UploadIcon className="h-4 w-4" />
+                                <span>Choose File</span>
+                              </div>
+                            </label>
+                            <input
+                              id="document-upload"
+                              type="file"
+                              accept="image/*,.pdf"
+                              onChange={handleFileSelect}
+                              className="hidden"
+                            />
+                            {selectedFile && (
+                              <span className="text-sm text-gray-600">
+                                {selectedFile.name}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {previewUrl && (
+                          <div className="mt-4">
+                            <p className="text-sm font-medium mb-2">Preview:</p>
+                            <div className="border rounded-lg p-4">
+                              <Image
+                                src={previewUrl || "/placeholder.svg"}
+                                alt="Document preview"
+                                width={200}
+                                height={200}
+                                className="max-w-full h-auto rounded"
+                              />
+                            </div>
+                          </div>
+                        )}
+
+                        <Button
+                          type="submit"
+                          disabled={!selectedFile || isUploading}
+                          className="bg-yellow-primary hover:bg-yellow-600 text-black"
+                        >
+                          {isUploading ? "Uploading..." : "Upload Document"}
+                        </Button>
+                      </form>
+                    </Form>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
             {/* Activity */}
             <TabsContent value="activity">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center space-x-2">
-                    <Calendar className="h-5 w-5" />
+                    <CalendarIcon className="h-5 w-5" />
                     <span>Recent Activity</span>
                   </CardTitle>
                 </CardHeader>
@@ -408,19 +765,19 @@ export default function ProfilePage() {
                             className="flex items-center space-x-4 p-4 border rounded-lg"
                           >
                             <div className="bg-primary/10 p-2 rounded-full">
-                              <CreditCard className="h-4 w-4 text-primary" />
+                              <CreditCardIcon className="h-4 w-4 text-primary" />
                             </div>
                             <div className="flex-1">
-                              <p className="font-medium">
+                              {/* <p className="font-medium">
                                 Booked {booking.motorcycle?.make}{" "}
                                 {booking.motorcycle?.vehicleModel}
-                              </p>
+                              </p> */}
                               <p className="text-sm text-gray-600">
                                 {format(
                                   new Date(booking.bookingDate),
                                   "MMM dd, yyyy"
                                 )}{" "}
-                                • ₹{booking.totalCost}
+                                • ₹{booking.discountedTotal}
                               </p>
                             </div>
                             <Badge
@@ -442,7 +799,7 @@ export default function ProfilePage() {
                     </div>
                   ) : (
                     <div className="text-center py-8">
-                      <Settings className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <SettingsIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                       <p className="text-gray-500">
                         Admin activity tracking coming soon
                       </p>

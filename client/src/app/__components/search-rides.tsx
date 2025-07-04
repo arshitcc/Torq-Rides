@@ -273,7 +273,11 @@ function SearchRides() {
                         <MapPinIcon className="inline h-4 w-4 mr-1 text-yellow-primary" />
                         Drop Off Location
                       </FormLabel>
-                      <Select {...field} onValueChange={field.onChange} disabled>
+                      <Select
+                        {...field}
+                        onValueChange={field.onChange}
+                        disabled
+                      >
                         <SelectTrigger className="w-full bg-white text-muted-foreground border-yellow-primary/30 focus:border-yellow-primary focus:ring-yellow-primary/20">
                           <SelectValue placeholder="Same as Pickup location" />
                         </SelectTrigger>

@@ -4,6 +4,7 @@ export const MotorcycleStatusEnum = {
   OK: "OK",
   DUE: "DUE-SERVICE",
   IN_SERVICE: "IN-SERVICE",
+  IN_REPAIR: "IN-REPAIR",
 } as const;
 
 export const MotorcycleCategoryEnum = {
@@ -14,13 +15,24 @@ export const MotorcycleCategoryEnum = {
   SCOOTER: "SCOOTER",
 } as const;
 
+export const AvailableInCitiesEnum = {
+  JANAKPURI: "JANAKPURI",
+  GURUGRAM_MGROAD: "GURUGRAM-MGROAD",
+  GURUGRAM_FARIDABAD: "GURUGRAM-FARIDABAD",
+  DELHI: "DELHI",
+  NOIDA: "NOIDA",
+  NEW_DELHI: "NEW DELHI",
+} as const;
+
 export const AvailableMotorcycleStatus = Object.values(MotorcycleStatusEnum);
 export const AvailableMotorcycleCategories = Object.values(
   MotorcycleCategoryEnum,
 );
+export const AvailableInCities = Object.values(AvailableInCitiesEnum);
 
 export type MotorcycleStatus = (typeof AvailableMotorcycleStatus)[number];
 export type MotorcycleCategory = (typeof AvailableMotorcycleCategories)[number];
+export type AvailableInCities = (typeof AvailableInCities)[number];
 
 export interface File {
   public_id: string;
@@ -33,7 +45,7 @@ export interface IMotorcycle extends mongoose.Document {
   make: string;
   vehicleModel: string;
   year: number;
-  pricePerDay: number;
+  rentPerDay: number;
   description: string;
   category: MotorcycleCategory;
   image: File;
@@ -49,7 +61,14 @@ export interface IMotorcycle extends mongoose.Document {
     cost: number;
   }[];
   isAvailable: boolean;
+  availableQuantity: number;
   reviewIds: mongoose.Types.ObjectId[];
+  variant: string;
+  color: string;
+  securityDeposit: number;
+  kmsLimitPerDay: number;
+  extraKmsCharges: number;
+  images: File[];
 }
 
 const motorcycleSchema = new mongoose.Schema<IMotorcycle>(
@@ -66,7 +85,7 @@ const motorcycleSchema = new mongoose.Schema<IMotorcycle>(
       type: Number,
       required: true,
     },
-    pricePerDay: {
+    rentPerDay: {
       type: Number,
       required: true,
     },
@@ -74,10 +93,10 @@ const motorcycleSchema = new mongoose.Schema<IMotorcycle>(
       type: String,
       required: true,
     },
-    category : {
-      type : String,
-      enum : AvailableMotorcycleCategories,
-      required : true
+    category: {
+      type: String,
+      enum: AvailableMotorcycleCategories,
+      required: true,
     },
     image: {
       public_id: {
@@ -140,6 +159,50 @@ const motorcycleSchema = new mongoose.Schema<IMotorcycle>(
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Review",
+      },
+    ],
+    availableQuantity: {
+      type: Number,
+      default: 0,
+    },
+    variant: {
+      type: String,
+      required: true,
+    },
+    color: {
+      type: String,
+      required: true,
+    },
+    securityDeposit: {
+      type: Number,
+      required: true,
+    },
+    kmsLimitPerDay: {
+      type: Number,
+      required: true,
+    },
+    extraKmsCharges: {
+      type: Number,
+      required: true,
+    },
+    images: [
+      {
+        public_id: {
+          type: String,
+          required: true,
+        },
+        url: {
+          type: String,
+          required: true,
+        },
+        resource_type: {
+          type: String,
+          required: true,
+        },
+        format: {
+          type: String,
+          required: true,
+        },
       },
     ],
   },

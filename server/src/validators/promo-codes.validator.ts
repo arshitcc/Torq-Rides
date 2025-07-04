@@ -107,6 +107,17 @@ const updateCouponValidator = () => {
   ];
 };
 
+const applyCouponCodeValidator = () => {
+  return [
+    body("couponCode")
+      .trim()
+      .notEmpty()
+      .withMessage("Coupon code is required")
+      .isLength({ min: 4 })
+      .withMessage("Invalid coupon code"),
+  ];
+};
+
 const couponActivityStatusValidator = () => {
   return [
     body("isActive")
@@ -120,6 +131,7 @@ const couponActivityStatusValidator = () => {
 };
 
 export {
+  applyCouponCodeValidator,
   couponActivityStatusValidator,
   createCouponValidator,
   updateCouponValidator,

@@ -6,6 +6,8 @@ import { Response } from "express";
 import { PromoCodeTypeEnum } from "../constants/constants";
 import { PromoCode } from "../models/promo-codes.model";
 import mongoose from "mongoose";
+import { getCart } from "./carts.controller";
+import { Cart } from "../models/carts.model";
 
 const createCoupon = asyncHandler(async (req: CustomRequest, res: Response) => {
   const {
@@ -87,7 +89,9 @@ const getAllCoupons = asyncHandler(
     const { page, offset } = req.query;
 
     const pageNum = Number.isNaN(Number(page)) ? 1 : Math.max(Number(page), 1);
-    const limit = Number.isNaN(Number(offset)) ? 10 : Math.max(Number(offset), 1);
+    const limit = Number.isNaN(Number(offset))
+      ? 10
+      : Math.max(Number(offset), 1);
     const skip = (pageNum - 1) * limit;
 
     const { active } = req.query;
@@ -110,7 +114,12 @@ const getAllCoupons = asyncHandler(
     return res
       .status(200)
       .json(
-        new ApiResponse(200, true, "Coupons fetched successfully", promoCodes[0]),
+        new ApiResponse(
+          200,
+          true,
+          "Coupons fetched successfully",
+          promoCodes[0],
+        ),
       );
   },
 );
@@ -209,6 +218,79 @@ const deleteCoupon = asyncHandler(async (req: CustomRequest, res: Response) => {
     .json(new ApiResponse(200, true, "Coupon deleted successfully"));
 });
 
+const applyCoupon = asyncHandler(async (req: CustomRequest, res: Response) => {
+  const { couponCode } = req.body;
+
+  // check for coupon code existence
+  let aggregatedCoupon = await PromoCode.aggregate([
+    {
+      $match: {
+        // check for coupon code availability
+        promoCode: couponCode.trim().toUpperCase(),
+        startDate: { $lt: new Date() },
+        expiryDate: { $gt: new Date() },
+        isActive: { $eq: true },
+      },
+    },
+  ]);
+
+  const coupon = aggregatedCoupon[0];
+
+  if (!coupon) {
+    throw new ApiError(404, "Invalid coupon code");
+  }
+
+  // get the user cart
+  const userCart = await getCart(req.user._id as string);
+
+  // check if the cart's total is greater than the minimum cart total requirement of the coupon
+  if (userCart.cartTotal < coupon.minimumCartValue) {
+    throw new ApiError(
+      400,
+      "Add items worth INR " +
+        (coupon.minimumCartValue - userCart.cartTotal) +
+        "/- or more to apply this coupon",
+    );
+  }
+
+  // if all the above checks are passed
+  // Find the user cart and apply coupon to it
+  await Cart.findOneAndUpdate(
+    {
+      customerId: req.user._id,
+    },
+    {
+      $set: {
+        couponId: coupon._id,
+      },
+    },
+    { new: true },
+  );
+
+  const newCart = await getCart(req.user._id as string);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, true, "Coupon applied successfully", newCart));
+});
+
+const removeCouponFromCart = asyncHandler(
+  async (req: CustomRequest, res: Response) => {
+    // Find the user cart and remove the coupon from it
+    await Cart.findOneAndUpdate(
+      { customerId: req.user._id },
+      { $set: { couponId: null } },
+      { new: true },
+    );
+
+    const newCart = await getCart(req.user._id as string);
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, true, "Coupon removed successfully", newCart));
+  },
+);
+
 export {
   createCoupon,
   updateCouponActiveStatus,
@@ -216,4 +298,6 @@ export {
   getCouponById,
   updateCoupon,
   deleteCoupon,
+  applyCoupon,
+  removeCouponFromCart,
 };

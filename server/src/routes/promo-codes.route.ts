@@ -5,6 +5,7 @@ import {
 } from "../middlewares/auth.middleware";
 import { UserRolesEnum } from "../constants/constants";
 import {
+  applyCouponCodeValidator,
   couponActivityStatusValidator,
   createCouponValidator,
   updateCouponValidator,
@@ -12,10 +13,12 @@ import {
 
 import { validate } from "../middlewares/validator.middleware";
 import {
+  applyCoupon,
   createCoupon,
   deleteCoupon,
   getAllCoupons,
   getCouponById,
+  removeCouponFromCart,
   updateCoupon,
   updateCouponActiveStatus,
 } from "../controllers/promo-codes.controller";
@@ -24,31 +27,59 @@ import { mongoIdPathVariableValidator } from "../validators/common/mongodb/mongo
 const router = Router();
 
 router.use(authenticateUser);
-router.use(verifyPermission([UserRolesEnum.ADMIN]));
 
 router
   .route("/")
-  .get(getAllCoupons)
-  .post(createCouponValidator(), validate, createCoupon);
+  .get(verifyPermission([UserRolesEnum.ADMIN]), getAllCoupons)
+  .post(
+    verifyPermission([UserRolesEnum.ADMIN]),
+    createCouponValidator(),
+    validate,
+    createCoupon,
+  );
+
+router
+  .route("/c/apply")
+  .post(
+    verifyPermission([UserRolesEnum.ADMIN, UserRolesEnum.CUSTOMER]),
+    applyCouponCodeValidator(),
+    validate,
+    applyCoupon,
+  );
+router
+  .route("/c/remove")
+  .post(
+    verifyPermission([UserRolesEnum.ADMIN, UserRolesEnum.CUSTOMER]),
+    removeCouponFromCart,
+  );
 
 router
   .route("/:couponId")
-  .get(mongoIdPathVariableValidator("couponId"), validate, getCouponById)
-  .patch(
+  .get(
+    verifyPermission([UserRolesEnum.ADMIN]),
+    mongoIdPathVariableValidator("couponId"),
+    validate,
+    getCouponById,
+  )
+  .put(
+    verifyPermission([UserRolesEnum.ADMIN]),
     mongoIdPathVariableValidator("couponId"),
     updateCouponValidator(),
     validate,
     updateCoupon,
   )
-  .delete(mongoIdPathVariableValidator("couponId"), validate, deleteCoupon);
-
-router
-  .route("/status/:couponId")
   .patch(
+    verifyPermission([UserRolesEnum.ADMIN]),
     mongoIdPathVariableValidator("couponId"),
     couponActivityStatusValidator(),
     validate,
     updateCouponActiveStatus,
+  )
+  .delete(
+    verifyPermission([UserRolesEnum.ADMIN]),
+    mongoIdPathVariableValidator("couponId"),
+    validate,
+    deleteCoupon,
   );
 
 export default router;

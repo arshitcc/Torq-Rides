@@ -9,7 +9,7 @@ import {
   createMotorcycleLog,
   deleteMotorcycleLog,
   getAllMotorcycleLogs,
-  getMotorcycleLogById,
+  getMotorcycleLogs,
   updateMotorcycleLog,
 } from "../controllers/motorcycle-logs.controller";
 import { mongoIdPathVariableValidator } from "../validators/common/mongodb/mongodb.validators";
@@ -18,40 +18,36 @@ import {
   updateMotorcycleLogValidator,
 } from "../validators/motorcycle-logs.validator";
 
-const router = Router();
+const router = Router({ mergeParams: true });
 
 router.use(authenticateUser);
+router.use(verifyPermission([UserRolesEnum.ADMIN]));
 
-router.post(
-  "/",
-  verifyPermission([UserRolesEnum.ADMIN, UserRolesEnum.SUPPORT]),
-  createMotorcycleLogValidator(),
-  validate,
-  createMotorcycleLog,
-);
-router.get(
-  "/",
-  verifyPermission([UserRolesEnum.ADMIN, UserRolesEnum.SUPPORT]),
-  getAllMotorcycleLogs,
-);
-router.get(
-  "/:motorcycleId",
-  verifyPermission([UserRolesEnum.ADMIN, UserRolesEnum.SUPPORT]),
-  mongoIdPathVariableValidator("motorcycleId"),
-  getMotorcycleLogById,
-);
-router.put(
-  "/:motorcycleId",
-  verifyPermission([UserRolesEnum.ADMIN, UserRolesEnum.SUPPORT]),
-  mongoIdPathVariableValidator("motorcycleId"),
-  updateMotorcycleLogValidator(),
-  validate,
-  updateMotorcycleLog,
-);
-router.delete(
-  "/:motorcycleId",
-  verifyPermission([UserRolesEnum.ADMIN, UserRolesEnum.SUPPORT]),
-  deleteMotorcycleLog,
-);
+router.route("/").get(getAllMotorcycleLogs);
+
+router
+  .route("/:motorcycleId")
+  .post(
+    mongoIdPathVariableValidator("motorcycleId"),
+    createMotorcycleLogValidator(),
+    validate,
+    createMotorcycleLog,
+  )
+  .get(mongoIdPathVariableValidator("motorcycleId"), getMotorcycleLogs);
+
+router
+  .route("/:motorcycleId/:logId")
+  .put(
+    mongoIdPathVariableValidator("motorcycleId"),
+    mongoIdPathVariableValidator("logId"),
+    updateMotorcycleLogValidator(),
+    validate,
+    updateMotorcycleLog,
+  )
+  .delete(
+    mongoIdPathVariableValidator("motorcycleId"),
+    mongoIdPathVariableValidator("logId"),
+    deleteMotorcycleLog,
+  );
 
 export default router;

@@ -34,13 +34,13 @@ import { useAuthStore } from "@/store/auth-store";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import {
-  Search,
-  Filter,
-  Edit,
-  X,
+  EditIcon,
+  XIcon,
   Loader2Icon,
   CalendarIcon,
   UsersIcon,
+  SearchIcon,
+  FilterIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { UserRolesEnum } from "@/types";
@@ -102,12 +102,14 @@ export default function AllBookingsPage() {
       booking.customer?.fullname
         ?.toLowerCase()
         .includes(searchTerm.toLowerCase()) ||
-      booking.motorcycle?.make
-        ?.toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      booking.motorcycle?.vehicleModel
-        ?.toLowerCase()
-        .includes(searchTerm.toLowerCase());
+      booking.items.find((item) =>
+        item.motorcycle?.make?.toLowerCase().includes(searchTerm.toLowerCase())
+      ) ||
+      booking.items.find((item) =>
+        item.motorcycle?.vehicleModel
+          ?.toLowerCase()
+          .includes(searchTerm.toLowerCase())
+      );
 
     const matchesStatus =
       statusFilter === "All" || booking.status === statusFilter;
@@ -145,14 +147,18 @@ export default function AllBookingsPage() {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8 flex items-center justify-center">
-        <Loader2Icon className="h-12 w-12 text-gray-400 animate-spin" />
+      <div className="min-h-screen bg-gray-50 dark:bg-[#121212]">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center h-64">
+            <Loader2Icon className="h-8 w-8 text-gray-400 animate-spin" />
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-amber-50 to-orange-50">
+    <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-amber-50 to-orange-50 dark:from-[#121212] dark:via-[#121212] dark:to-[#18181B]">
       <div className="container mx-auto px-4 py-8">
         {/* Header Section */}
         <div className="mb-8 text-center">
@@ -175,11 +181,11 @@ export default function AllBookingsPage() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <Card className="bg-white/70 backdrop-blur-sm border-yellow-200 shadow-lg">
+          <Card className="bg-white/70 dark:bg-[#1f1f1f] backdrop-blur-sm border-yellow-200 shadow-lg">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">
+                  <p className="text-sm font-medium text-yellow-700">
                     Total Bookings
                   </p>
                   <p className="text-2xl font-bold text-yellow-700">
@@ -193,11 +199,13 @@ export default function AllBookingsPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-white/70 backdrop-blur-sm border-emerald-200 shadow-lg">
+          <Card className="bg-white/70 dark:bg-[#1f1f1f] backdrop-blur-sm border-emerald-200 shadow-lg">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Confirmed</p>
+                  <p className="text-sm font-medium text-emerald-700">
+                    Confirmed
+                  </p>
                   <p className="text-2xl font-bold text-emerald-700">
                     {bookings.filter((b) => b.status === "CONFIRMED").length}
                   </p>
@@ -209,27 +217,27 @@ export default function AllBookingsPage() {
             </CardContent>
           </Card>
 
-          <Card className="bg-white/70 backdrop-blur-sm border-yellow-200 shadow-lg">
+          <Card className="bg-white/70 dark:bg-[#1f1f1f] backdrop-blur-sm border-yellow-200 shadow-lg">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Pending</p>
+                  <p className="text-sm font-medium text-yellow-700">Pending</p>
                   <p className="text-2xl font-bold text-yellow-700">
                     {bookings.filter((b) => b.status === "PENDING").length}
                   </p>
                 </div>
                 <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
-                  <Filter className="h-5 w-5 text-yellow-600" />
+                  <FilterIcon className="h-5 w-5 text-yellow-600" />
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="bg-white/70 backdrop-blur-sm border-blue-200 shadow-lg">
+          <Card className="bg-white/70 dark:bg-[#1f1f1f] backdrop-blur-sm border-blue-200 shadow-lg">
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Completed</p>
+                  <p className="text-sm font-medium text-blue-700">Completed</p>
                   <p className="text-2xl font-bold text-blue-700">
                     {bookings.filter((b) => b.status === "COMPLETED").length}
                   </p>
@@ -243,11 +251,11 @@ export default function AllBookingsPage() {
         </div>
 
         {/* Filters */}
-        <Card className="mb-6 bg-white/70 backdrop-blur-sm border-yellow-200 shadow-lg">
+        <Card className="mb-6 bg-white/70 dark:bg-[#1f1f1f] backdrop-blur-sm border-yellow-200 shadow-lg">
           <CardContent className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-4 w-4 text-yellow-500" />
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="relative col-span-2 border-yellow-700 border-2 rounded-md">
+                <SearchIcon className="absolute left-3 top-3 h-4 w-4 text-yellow-600" />
                 <Input
                   placeholder="Search bookings..."
                   value={searchTerm}
@@ -256,7 +264,7 @@ export default function AllBookingsPage() {
                 />
               </div>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="border-yellow-200 focus:border-yellow-400 focus:ring-yellow-400">
+                <SelectTrigger className="border-yellow-700 border-2 bg-yellow-50">
                   <SelectValue placeholder="Filter by status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -267,8 +275,8 @@ export default function AllBookingsPage() {
                   <SelectItem value="CANCELLED">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
-              <div className="flex items-center space-x-2 bg-yellow-50 rounded-lg px-3 py-2">
-                <Filter className="h-4 w-4 text-yellow-600" />
+              <div className="flex w-fit items-center space-x-2 bg-yellow-50 rounded-lg px-3 py-2 border-yellow-700 border-2 shadow-2xl">
+                <FilterIcon className="h-4 w-4 text-yellow-600" />
                 <span className="text-sm text-yellow-700 font-medium">
                   Showing {filteredBookings.length} of {bookings.length}{" "}
                   bookings
@@ -286,10 +294,10 @@ export default function AllBookingsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-b-2xl">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-yellow-50 hover:bg-yellow-50">
+                  <TableRow className="bg-yellow-50 dark:bg-[#121212] hover:bg-yellow-50">
                     <TableHead className="font-semibold text-yellow-800">
                       Booking ID
                     </TableHead>
@@ -317,16 +325,14 @@ export default function AllBookingsPage() {
                   {filteredBookings.map((booking, index) => (
                     <TableRow
                       key={booking._id}
-                      className={`hover:bg-yellow-50/50 transition-colors ${
-                        index % 2 === 0 ? "bg-white/50" : "bg-yellow-25/30"
-                      }`}
+                      className={`transition-colors bg-gray-50 dark:bg-[#1f1f1f]`}
                     >
                       <TableCell className="font-mono text-sm font-medium text-yellow-700">
                         #{booking._id?.slice(-8).toUpperCase()}
                       </TableCell>
                       <TableCell>
                         <div>
-                          <div className="font-medium text-gray-900">
+                          <div className="font-medium text-yellow-700 dark:text-gray-100">
                             {booking.customer?.fullname || "N/A"}
                           </div>
                           <div className="text-sm text-gray-500">
@@ -336,17 +342,17 @@ export default function AllBookingsPage() {
                       </TableCell>
                       <TableCell>
                         <div>
-                          <div className="font-medium text-gray-900">
+                          {/* <div className="font-medium text-gray-900">
                             {booking.motorcycle?.make}{" "}
                             {booking.motorcycle?.vehicleModel}
-                          </div>
+                          </div> */}
                           <div className="text-sm text-gray-500">
-                            Qty: {booking.quantity}
+                            Qty: {booking.items.length}
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <div className="text-sm">
+                        {/* <div className="text-sm">
                           <div className="font-medium text-gray-900">
                             {format(
                               new Date(booking.startDate),
@@ -357,10 +363,11 @@ export default function AllBookingsPage() {
                             to{" "}
                             {format(new Date(booking.endDate), "MMM dd, yyyy")}
                           </div>
-                        </div>
+                        </div> */}
+                        {format(new Date(booking.bookingDate), "MMM dd, yyyy")}
                       </TableCell>
                       <TableCell className="font-semibold text-yellow-700 text-lg">
-                        ₹{booking.totalCost}
+                        ₹{booking.discountedTotal}
                       </TableCell>
                       <TableCell>
                         <Badge
@@ -386,7 +393,7 @@ export default function AllBookingsPage() {
                                       setNewStatus(booking.status);
                                     }}
                                   >
-                                    <Edit className="h-4 w-4" />
+                                    <EditIcon className="h-4 w-4" />
                                   </Button>
                                 </DialogTrigger>
                                 <DialogContent className="border-yellow-200">
@@ -449,7 +456,7 @@ export default function AllBookingsPage() {
                                 onClick={() => handleCancelBooking(booking._id)}
                                 className="border-red-300 text-red-600 hover:bg-red-50"
                               >
-                                <X className="h-4 w-4" />
+                                <XIcon className="h-4 w-4" />
                               </Button>
                             )}
                         </div>

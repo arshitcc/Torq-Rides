@@ -47,12 +47,7 @@ import { useMotorcycleStore } from "@/store/motorcycle-store";
 import { useCouponStore } from "@/store/coupon-store";
 import { useBookingStore } from "@/store/booking-store";
 import { toast } from "sonner";
-import {
-  addMotorcycleSchema,
-  couponSchema,
-  type AddMotorcycleFormData,
-  type CouponFormData,
-} from "@/schemas";
+import { addMotorcycleSchema, type AddMotorcycleFormData } from "@/schemas";
 import { useRouter } from "next/navigation";
 import {
   BarChart,
@@ -81,6 +76,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { UserRolesEnum } from "@/types";
+import { CouponFormData, couponSchema } from "@/schemas/coupons.schema";
 
 // Sample data for charts
 const salesData = [
@@ -150,7 +146,7 @@ export default function DashboardPage() {
       vehicleModel: "",
       year: new Date().getFullYear(),
       isAvailable: true,
-      pricePerDay: 0,
+      rentPerDay: 0,
       description: "",
       category: "TOURING",
       specs: {},
@@ -162,7 +158,7 @@ export default function DashboardPage() {
     defaultValues: {
       name: "",
       promoCode: "",
-      type: "flat",
+      type: "FLAT",
       startDate: new Date(),
       expiryDate: new Date(),
       discountValue: 0,
@@ -260,7 +256,7 @@ export default function DashboardPage() {
 
   // Calculate stats
   const totalRevenue = bookings.reduce(
-    (sum, booking) => sum + booking.totalCost,
+    (sum, booking) => sum + booking.discountedTotal,
     0
   );
   const totalBookings = bookings.length;
@@ -276,11 +272,21 @@ export default function DashboardPage() {
 
       <Tabs defaultValue="overview" className="space-y-6">
         <TabsList className="grid w-full grid-cols-5">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="motorcycles">Motorcycles</TabsTrigger>
-          <TabsTrigger value="coupons">Coupons</TabsTrigger>
-          <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          <TabsTrigger value="overview" className="cursor-pointer">
+            Overview
+          </TabsTrigger>
+          <TabsTrigger value="motorcycles" className="cursor-pointer">
+            Motorcycles
+          </TabsTrigger>
+          <TabsTrigger value="coupons" className="cursor-pointer">
+            Coupons
+          </TabsTrigger>
+          <TabsTrigger value="maintenance" className="cursor-pointer">
+            Maintenance
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="cursor-pointer">
+            Analytics
+          </TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
@@ -495,7 +501,7 @@ export default function DashboardPage() {
                       />
                       <FormField
                         control={motorcycleForm.control}
-                        name="pricePerDay"
+                        name="rentPerDay"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Price per Day (₹)</FormLabel>
@@ -628,7 +634,7 @@ export default function DashboardPage() {
                       <TableCell>
                         <Badge variant="secondary">{motorcycle.category}</Badge>
                       </TableCell>
-                      <TableCell>₹{motorcycle.pricePerDay}</TableCell>
+                      <TableCell>₹{motorcycle.rentPerDay}</TableCell>
                       <TableCell>
                         <Badge
                           className={
@@ -750,10 +756,10 @@ export default function DashboardPage() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value="flat">
+                                <SelectItem value="FLAT">
                                   Flat Amount
                                 </SelectItem>
-                                <SelectItem value="percentage">
+                                <SelectItem value="PERCENTAGE">
                                   Percentage
                                 </SelectItem>
                               </SelectContent>
@@ -896,7 +902,7 @@ export default function DashboardPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {coupon.type === "flat"
+                        {coupon.type === "FLAT"
                           ? `₹${coupon.discountValue}`
                           : `${coupon.discountValue}%`}
                       </TableCell>

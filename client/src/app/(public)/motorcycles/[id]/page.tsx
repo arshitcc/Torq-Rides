@@ -18,22 +18,18 @@ import {
 import { toast } from "sonner";
 import { useAuthStore } from "@/store/auth-store";
 import {
-  bookingSchema,
-  reviewSchema,
-  type BookingFormData,
-  type ReviewFormData,
-} from "@/schemas";
-import {
-  ArrowLeft,
-  Star,
-  CreditCard,
-  Smartphone,
-  Building,
-  Bitcoin,
+  ArrowLeftIcon,
+  StarIcon,
+  CreditCardIcon,
+  SmartphoneIcon,
+  BuildingIcon,
+  BitcoinIcon,
   Loader2Icon,
   CalendarIcon,
   CheckIcon,
-  CheckCircleIcon,
+  MinusIcon,
+  PlusIcon,
+  ShoppingCartIcon,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -47,27 +43,34 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { useBookingStore } from "@/store/booking-store";
-import { AxiosError } from "axios";
+import MotorcycleNotFound from "./__components/not-found";
+import { AddToCartFormData, addToCartSchema } from "@/schemas/cart.schema";
+import { useCartStore } from "@/store/cart-store";
+import { Input } from "@/components/ui/input";
 
 export default function MotorcycleDetailPage() {
   const params = useParams();
   const router = useRouter();
   const { id } = params;
 
-  const { motorcycles, loading, getMotorcycleById } = useMotorcycleStore();
+  const { motorcycle, loading, getMotorcycleById, error } =
+    useMotorcycleStore();
+  const { reviews, getAllReviewsOfMotorcycleById } = useReviewStore();
 
-  const { reviews, getAllReviewsOfMotorcycleById, addNewReviewToBookingId } =
-    useReviewStore();
-
-  const { createBooking, error: bookingErrors } = useBookingStore();
+  const {
+    cart,
+    addOrUpdateMotorcycleToCart,
+    loading: cartLoading,
+  } = useCartStore();
 
   const { user, isAuthenticated } = useAuthStore();
   const [currentReviewIndex, setCurrentReviewIndex] = useState(0);
-  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
 
-  const bookingForm = useForm<BookingFormData>({
-    resolver: zodResolver(bookingSchema),
+  const cartForm = useForm<AddToCartFormData>({
+    resolver: zodResolver(addToCartSchema),
+    defaultValues: {
+      quantity: 1,
+    },
   });
 
   useEffect(() => {
@@ -82,87 +85,58 @@ export default function MotorcycleDetailPage() {
     }
   }, [id, user]);
 
-  const onBookingSubmit = async (data: BookingFormData) => {
-    try {
-      const response = await createBooking({
-        ...data,
-        motorcycleId: motorcycles[0]?._id,
-        quantity: 1,
-      });
-
-      if (response) {
-        toast.success("Booking successful!");
-      } else {
-        toast.error(bookingErrors);
-      }
-    } catch (error: AxiosError | any) {
-      toast.error(
-        error.response.data.message ??
-          "Failed to process booking. Please try again."
-      );
-    }
-  };
-
   const calculateTotalCost = () => {
-    const startDate = bookingForm.watch("startDate");
-    const endDate = bookingForm.watch("endDate");
+    if (!motorcycle) {
+      return 0;
+    }
+    const pickupDate = cartForm.watch("pickupDate");
+    const returnDate = cartForm.watch("returnDate");
+    const quantity = cartForm.watch("quantity");
 
-    if (startDate && endDate) {
-      const days = differenceInDays(endDate, startDate);
-      return days >= 0 ? (days + 1) * motorcycles[0]?.pricePerDay : 0;
+    if (pickupDate && returnDate && quantity) {
+      const days = differenceInDays(returnDate, pickupDate);
+      return days >= 0 ? (days + 1) * motorcycle?.rentPerDay * quantity : 0;
     }
     return 0;
+  };
+
+  const onCartSubmit = async (data: AddToCartFormData) => {
+    try {
+      if (motorcycle?._id) {
+        await addOrUpdateMotorcycleToCart(motorcycle._id, data);
+        toast.success("Added to Cart!");
+        cartForm.reset();
+      }
+    } catch (error) {
+      toast.error("Failed to add to cart. Please try again.");
+    }
   };
 
   if (!user || user.role !== UserRolesEnum.CUSTOMER) {
     return null;
   }
 
-  if (showPaymentSuccess) {
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Card className="w-full max-w-md text-center p-8">
-          <CardContent>
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg
-                className="w-8 h-8 text-green-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-            </div>
-            <h2 className="text-2xl font-bold mb-2">Payment Successful!</h2>
-            <p className="text-gray-600 mb-4">
-              Your booking has been confirmed. You will receive a confirmation
-              email shortly.
-            </p>
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-          </CardContent>
-        </Card>
+      <div className="min-h-screen bg-gray-50 dark:bg-[#121212]">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center h-64">
+            <Loader2Icon className="h-8 w-8 text-gray-400 animate-spin" />
+          </div>
+        </div>
       </div>
     );
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <Loader2Icon className="w-8 h-8 animate-spin" />
-      </div>
-    );
+  if (error) {
+    return <MotorcycleNotFound />;
   }
 
   return (
     <div className="container mx-auto px-4 py-8">
       <Button asChild variant="ghost" className="mb-6">
         <Link href="/motorcycles">
-          <ArrowLeft className="w-4 h-4 mr-2" />
+          <ArrowLeftIcon className="w-4 h-4 mr-2" />
           Back to Motorcycles
         </Link>
       </Button>
@@ -173,24 +147,22 @@ export default function MotorcycleDetailPage() {
             <CardContent className="p-0">
               <div className="relative h-80 md:h-120 overflow-hidden">
                 <Image
-                  src={motorcycles[0]?.image?.url || "/placeholder.svg"}
-                  alt={`${motorcycles[0]?.make} ${motorcycles[0]?.vehicleModel}`}
+                  src={motorcycle?.image?.url || "/placeholder.svg"}
+                  alt={`${motorcycle?.make} ${motorcycle?.vehicleModel}`}
                   fill
                   className="object-cover transform transition-transform duration-500 group-hover:scale-110"
                 />
                 <Badge className="absolute top-4 right-4" variant="secondary">
-                  {motorcycles[0]?.category}
+                  {motorcycle?.category}
                 </Badge>
               </div>
               <div className="p-6">
                 <h1 className="text-3xl font-bold mb-2">
-                  {motorcycles[0]?.make} {motorcycles[0]?.vehicleModel}
+                  {motorcycle?.make} {motorcycle?.vehicleModel}
                 </h1>
-                <p className="text-gray-600 mb-4">
-                  {motorcycles[0]?.description}
-                </p>
+                <p className="text-gray-600 mb-4">{motorcycle?.description}</p>
                 <div className="text-3xl font-bold text-primary">
-                  ₹{motorcycles[0]?.pricePerDay}/day
+                  ₹{motorcycle?.rentPerDay}/day
                 </div>
               </div>
             </CardContent>
@@ -202,9 +174,9 @@ export default function MotorcycleDetailPage() {
               <CardTitle>Specifications</CardTitle>
             </CardHeader>
             <CardContent>
-              {motorcycles[0]?.specs && (
+              {motorcycle?.specs && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {Object.entries(motorcycles[0].specs).map(([key, value]) => (
+                  {Object.entries(motorcycle.specs).map(([key, value]) => (
                     <div
                       key={key}
                       className="flex items-center justify-between py-2 border-b border-primary-200 dark:border-primary-700"
@@ -235,7 +207,7 @@ export default function MotorcycleDetailPage() {
                     <div className="flex items-center mb-2">
                       <div className="flex">
                         {[...Array(5)].map((_, i) => (
-                          <Star
+                          <StarIcon
                             key={i}
                             className={`w-4 h-4 ${
                               i < reviews[currentReviewIndex].rating
@@ -288,14 +260,14 @@ export default function MotorcycleDetailPage() {
               <CardTitle>Book This Motorcycle</CardTitle>
             </CardHeader>
             <CardContent>
-              <Form {...bookingForm}>
+              <Form {...cartForm}>
                 <form
-                  onSubmit={bookingForm.handleSubmit(onBookingSubmit)}
+                  onSubmit={cartForm.handleSubmit(onCartSubmit)}
                   className="space-y-4"
                 >
                   <FormField
-                    control={bookingForm.control}
-                    name="startDate"
+                    control={cartForm.control}
+                    name="pickupDate"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Pickup Date</FormLabel>
@@ -331,8 +303,8 @@ export default function MotorcycleDetailPage() {
                   />
 
                   <FormField
-                    control={bookingForm.control}
-                    name="endDate"
+                    control={cartForm.control}
+                    name="returnDate"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Return Date</FormLabel>
@@ -359,12 +331,71 @@ export default function MotorcycleDetailPage() {
                                 selected={field.value}
                                 onSelect={field.onChange}
                                 disabled={(date) => {
-                                  const start = bookingForm.watch("startDate");
+                                  const start = cartForm.watch("pickupDate");
                                   return date < (start || new Date());
                                 }}
                               />
                             </PopoverContent>
                           </Popover>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={cartForm.control}
+                    name="quantity"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Quantity</FormLabel>
+                        <FormControl>
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="cursor-pointer"
+                              size="icon"
+                              onClick={() =>
+                                field.onChange(Math.max(1, field.value - 1))
+                              }
+                              disabled={field.value <= 1}
+                            >
+                              <MinusIcon className="h-4 w-4" />
+                            </Button>
+                            <Input
+                              type="number"
+                              min="1"
+                              max={motorcycle?.availableQuantity}
+                              className="text-center"
+                              {...field}
+                              onChange={(e) =>
+                                field.onChange(
+                                  Number.parseInt(e.target.value) || 1
+                                )
+                              }
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="cursor-pointer"
+                              size="icon"
+                              onClick={() =>
+                                field.onChange(
+                                  Math.min(
+                                    motorcycle?.availableQuantity ?? 0,
+                                    field.value + 1
+                                  )
+                                )
+                              }
+                              disabled={
+                                field.value >=
+                                (motorcycle?.availableQuantity ?? 0)
+                              }
+                            >
+                              <PlusIcon className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -381,20 +412,30 @@ export default function MotorcycleDetailPage() {
                       </div>
                       <p className="text-sm dark:text-gray-600 mt-1">
                         {differenceInDays(
-                          bookingForm.watch("endDate") || new Date(),
-                          bookingForm.watch("startDate") || new Date()
+                          cartForm.watch("returnDate") || new Date(),
+                          cartForm.watch("pickupDate") || new Date()
                         ) + 1}{" "}
-                        days × ₹{motorcycles[0]?.pricePerDay}/day
+                        days × {cartForm.watch("quantity")} bikes × ₹
+                        {motorcycle?.rentPerDay}
+                        /day
                       </p>
                     </div>
                   )}
 
                   <Button
                     type="submit"
-                    className="w-full bg-yellow-primary cursor-pointer"
+                    className="w-full cursor-pointer"
                     size="lg"
+                    disabled={cartLoading}
                   >
-                    <CheckCircleIcon /> Book Now
+                    {cartLoading ? (
+                      "Adding..."
+                    ) : (
+                      <>
+                        <ShoppingCartIcon className="mr-2 h-4 w-4" />
+                        Add to Cart
+                      </>
+                    )}
                   </Button>
                 </form>
               </Form>
@@ -404,20 +445,20 @@ export default function MotorcycleDetailPage() {
                 <h4 className="font-medium mb-3">Accepted Payment Methods</h4>
                 <div className="flex justify-around text-xs text-gray-500 mt-2">
                   <div className="flex flex-col items-center gap-1.5">
-                    <CreditCard className="w-8 h-8 text-gray-400" />
+                    <CreditCardIcon className="w-8 h-8 text-gray-400" />
                     <span>Cards</span>
                   </div>
                   <div className="flex flex-col items-center gap-1.5">
                     {" "}
-                    <Smartphone className="w-8 h-8 text-gray-400" />{" "}
+                    <SmartphoneIcon className="w-8 h-8 text-gray-400" />{" "}
                     <span>UPI</span>
                   </div>
                   <div className="flex flex-col items-center gap-1.5">
-                    <Building className="w-8 h-8 text-gray-400" />
+                    <BuildingIcon className="w-8 h-8 text-gray-400" />
                     <span>Net Banking</span>
                   </div>
                   <div className="flex flex-col items-center gap-1.5">
-                    <Bitcoin className="w-8 h-8 text-gray-400" />
+                    <BitcoinIcon className="w-8 h-8 text-gray-400" />
                     <span>Crypto</span>
                   </div>
                 </div>

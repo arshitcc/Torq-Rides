@@ -1,4 +1,4 @@
-import mongoose, { Document } from "mongoose";
+import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import { Request } from "express";
 import crypto from "crypto";
@@ -16,14 +16,32 @@ import {
   UserAuthType,
   UserRolesEnum,
 } from "../constants/constants";
+import { File } from "./motorcycles.model";
 
-export interface IUser extends Document {
+export const DocumentTypesEnum = {
+  E_KYC: "E-KYC",
+  PAN_CARD: "PAN-CARD",
+  AADHAR_CARD: "AADHAR-CARD",
+  DRIVING_LICENSE: "DRIVING-LICENSE",
+} as const;
+
+export const AvailableDocumentTypes = Object.values(DocumentTypesEnum);
+
+export type DocumentTypes = typeof AvailableDocumentTypes[number];
+
+export interface IDocument {
+  type: DocumentTypes;
+  name: string;
+  file : File
+}
+
+export interface IUser extends mongoose.Document {
   fullname: string;
   email: string;
   username: string;
   password: string;
   loginType: string;
-  avatar: object;
+  avatar: File;
   role: string;
   isEmailVerified: boolean;
   emailVerificationToken: string | undefined;
@@ -31,6 +49,8 @@ export interface IUser extends Document {
   forgotPasswordToken: string | undefined;
   forgotPasswordExpiry: Date | undefined;
   refreshToken: string;
+  documents : IDocument[];
+
   isPasswordCorrect(password: string): boolean;
   generateAccessToken(): string;
   generateRefreshToken(): string;

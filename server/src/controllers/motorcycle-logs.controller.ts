@@ -7,7 +7,11 @@ import { MotorcycleLog } from "../models/motorcycle-logs.model";
 
 const createMotorcycleLog = asyncHandler(
   async (req: CustomRequest, res: Response) => {
-    const log = await MotorcycleLog.create(req.body);
+    const { motorcycleId } = req.params;
+    const log = await MotorcycleLog.create({
+      ...req.body,
+      motorcycleId,
+    });
     return res
       .status(201)
       .json(new ApiResponse(201, true, "Log created successfully", log));
@@ -23,7 +27,7 @@ const getAllMotorcycleLogs = asyncHandler(
   },
 );
 
-const getMotorcycleLogById = asyncHandler(
+const getMotorcycleLogs = asyncHandler(
   async (req: CustomRequest, res: Response) => {
     const { motorcycleId } = req.params;
     const log =
@@ -41,9 +45,9 @@ const getMotorcycleLogById = asyncHandler(
 
 const updateMotorcycleLog = asyncHandler(
   async (req: CustomRequest, res: Response) => {
-    const { motorcycleId } = req.params;
-    const updated = await MotorcycleLog.findByIdAndUpdate(
-      motorcycleId,
+    const { motorcycleId, logId } = req.params;
+    const updated = await MotorcycleLog.findOneAndUpdate(
+      { motorcycleId, _id: logId },
       req.body,
       {
         new: true,
@@ -61,10 +65,13 @@ const updateMotorcycleLog = asyncHandler(
 
 const deleteMotorcycleLog = asyncHandler(
   async (req: CustomRequest, res: Response) => {
-    const { motorcycleId } = req.params;
-    const deleted = await MotorcycleLog.findByIdAndDelete(motorcycleId);
+    const { motorcycleId, logId } = req.params;
+    const deleted = await MotorcycleLog.findOneAndUpdate(
+      { motorcycleId, _id: logId },
+      { isDeleted: true },
+    );
     if (!deleted)
-      return res.status(404).json({ success: false, message: "Log not found" });
+      return res.status(404).json(new ApiResponse(404, false, "Log not found"));
     return res.json(new ApiResponse(200, true, "Log deleted successfully"));
   },
 );
@@ -72,7 +79,7 @@ const deleteMotorcycleLog = asyncHandler(
 export {
   createMotorcycleLog,
   getAllMotorcycleLogs,
-  getMotorcycleLogById,
+  getMotorcycleLogs,
   updateMotorcycleLog,
   deleteMotorcycleLog,
 };

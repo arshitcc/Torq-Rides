@@ -22,6 +22,7 @@ import {
   deleteMotorcycle,
   updateMotorcycleMaintainanceLogs,
 } from "../controllers/motorcycles.controller";
+import logsRouter from "./motorcycle-logs.route";
 
 const router = Router();
 
@@ -37,6 +38,8 @@ router
     validate,
     addMotorcycle,
   );
+
+router.use("/logs", logsRouter);
 
 router
   .route("/:motorcycleId")

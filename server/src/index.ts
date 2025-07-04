@@ -33,12 +33,32 @@ app.route("/").get((req: Request, res: Response) => {
   res.status(200).send("Server is running");
 });
 
+app.route("/").post(async (req: Request, res: Response) => {
+  const data = await Booking.create({
+    ...req.body,
+    // items: req.body.items.map((item: ICartItem) => {
+    //   return {
+    //     motorcycleId: item.motorcycleId,
+    //     quantity: item.quantity,
+    //     pickupDate: new Date(item.pickupDate),
+    //     returnDate: new Date(item.returnDate),
+    //   };
+    // }),
+  });
+
+  res.status(200).json({ data });
+});
+
 import healthCheckRouter from "./routes/healthcheck.route";
 import authRouter from "./routes/users.route";
 import motorcycleRouter from "./routes/motorcycles.route";
 import bookingRouter from "./routes/bookings.route";
 import reviewRouter from "./routes/reviews.route";
 import couponRouter from "./routes/promo-codes.route";
+import cartRouter from "./routes/carts.route";
+import { Motorcycle } from "./models/motorcycles.model";
+import { Booking } from "./models/bookings.model";
+import { ICartItem } from "./models/carts.model";
 
 app.use("/api/v1/healthcheck", healthCheckRouter);
 app.use("/api/v1/users", authRouter);
@@ -46,6 +66,7 @@ app.use("/api/v1/motorcycles", motorcycleRouter);
 app.use("/api/v1/bookings", bookingRouter);
 app.use("/api/v1/reviews", reviewRouter);
 app.use("/api/v1/coupons", couponRouter);
+app.use("/api/v1/carts", cartRouter);
 
 connectDB()
   .then(() => {

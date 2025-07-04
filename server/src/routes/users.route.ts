@@ -12,9 +12,12 @@ import {
   assignRole,
   getCurrentUser,
   changeAvatar,
+  deleteUserAccount,
+  uploadUserDocument,
 } from "../controllers/users.controller";
 import { validate } from "../middlewares/validator.middleware";
 import {
+  uploadUserDocumentValidator,
   userAssignRoleValidator,
   userChangeCurrentPasswordValidator,
   userForgotPasswordRequestValidator,
@@ -33,14 +36,15 @@ import { upload } from "../middlewares/multer.middleware";
 const router = Router();
 
 router.route("/").get(authenticateUser, getCurrentUser);
-router.route("/register").post(userRegisterValidation(), validate, userRegister);
+router
+  .route("/register")
+  .post(userRegisterValidation(), validate, userRegister);
+
 router.route("/login").post(userLoginValidation(), validate, userLogin);
 
 router.route("/logout").post(authenticateUser, userLogout);
 
-router
-  .route("/refresh-tokens")
-  .get(refreshAccessToken);
+router.route("/refresh-tokens").post(refreshAccessToken);
 
 router.route("/verify").get(verifyEmail);
 
@@ -56,7 +60,9 @@ router
     resetForgottenPassword,
   );
 
-router.route("/profile/change-avatar").post(authenticateUser, upload.single("avatar"), changeAvatar);
+router
+  .route("/profile/change-avatar")
+  .post(authenticateUser, upload.single("avatar"), changeAvatar);
 
 router
   .route("/profile/resend-verification-email")
@@ -69,6 +75,25 @@ router
     userChangeCurrentPasswordValidator(),
     validate,
     changeCurrentPassword,
+  );
+
+router
+  .route("/profile/upload-documents")
+  .post(
+    authenticateUser,
+    uploadUserDocumentValidator(),
+    validate,
+    upload.single("document"),
+    uploadUserDocument,
+  );
+
+router
+  .route("/:userId")
+  .delete(
+    authenticateUser,
+    verifyPermission([UserRolesEnum.ADMIN]),
+    mongoIdPathVariableValidator("userId"),
+    deleteUserAccount,
   );
 
 router

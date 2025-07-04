@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { couponAPI } from "@/lib/api";
 import { PromoCode } from "@/types";
+import { CouponFormData, UpdateCouponFormData } from "@/schemas/coupons.schema";
 
 interface PromoCodeState {
   coupons: PromoCode[];
@@ -16,8 +17,13 @@ interface PromoCodeState {
   setError: (error: string | null) => void;
   // API functions
   getAllCoupons: () => Promise<void>;
+  createCoupon: (data: CouponFormData) => Promise<void>;
   getCouponById: (couponId: string) => Promise<PromoCode>;
-  updateCoupon: (couponId: string, data: any) => Promise<void>;
+  updateCoupon: (couponId: string, data: UpdateCouponFormData) => Promise<void>;
+  updateCouponActiveStatus: (
+    couponId: string,
+    isActive: boolean
+  ) => Promise<void>;
   deleteCoupon: (couponId: string) => Promise<void>;
 }
 
@@ -50,6 +56,24 @@ export const useCouponStore = create<PromoCodeState>((set, get) => ({
     }
   },
 
+  createCoupon: async (data) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await couponAPI.createCoupon(data);
+      const createdCoupon = response.data.data;
+      set((state) => ({
+        coupons: [...state.coupons, createdCoupon],
+        loading: false,
+      }));
+    } catch (error: any) {
+      set({
+        loading: false,
+        error: error.response?.data?.message || "Failed to create coupon",
+      });
+      throw error;
+    }
+  },
+
   getCouponById: async (couponId) => {
     set({ loading: true, error: null });
     try {
@@ -69,7 +93,7 @@ export const useCouponStore = create<PromoCodeState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const response = await couponAPI.updateCoupon(couponId, data);
-      const updatedCoupon = response.data;
+      const updatedCoupon = response.data.data;
       set((state) => ({
         coupons: state.coupons.map((c) =>
           c._id === couponId ? updatedCoupon : c
@@ -80,6 +104,26 @@ export const useCouponStore = create<PromoCodeState>((set, get) => ({
       set({
         loading: false,
         error: error.response?.data?.message || "Failed to update coupon",
+      });
+      throw error;
+    }
+  },
+
+  updateCouponActiveStatus: async (couponId, isActive) => {
+    set({ loading: true, error: null });
+    try {
+      await couponAPI.updateCouponActiveStatus(couponId, { isActive });
+      set((state) => ({
+        coupons: state.coupons.map((c) =>
+          c._id === couponId ? { ...c, isActive } : c
+        ),
+        loading: false,
+      }));
+    } catch (error: any) {
+      set({
+        loading: false,
+        error:
+          error.response?.data?.message || "Failed to update coupon status",
       });
       throw error;
     }

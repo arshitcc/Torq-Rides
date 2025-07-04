@@ -1,5 +1,6 @@
 import { body, ValidationChain } from "express-validator";
 import { AvailableUserRoles } from "../constants/constants";
+import { AvailableDocumentTypes } from "../models/users.model";
 
 const userRegisterValidation = () => {
   return [
@@ -106,6 +107,19 @@ const userAssignRoleValidator = () => {
   ];
 };
 
+const uploadUserDocumentValidator = () => {
+  return [
+    body("type")
+      .trim()
+      .notEmpty()
+      .withMessage("Document type is required")
+      .isIn(AvailableDocumentTypes)
+      .withMessage("Invalid document type"),
+
+    body("name").trim().notEmpty().withMessage("Document name is required"),
+  ];
+};
+
 export {
   userRegisterValidation,
   userLoginValidation,
@@ -113,4 +127,5 @@ export {
   userForgotPasswordRequestValidator,
   userResetForgottenPasswordValidator,
   userAssignRoleValidator,
+  uploadUserDocumentValidator
 };

@@ -1,9 +1,15 @@
 import { create } from "zustand";
 import { motorcycleAPI } from "@/lib/api";
-import { CustomerMotorcycle, AdminMotorcycle } from "@/types";
+import { CustomerMotorcycle, AdminMotorcycle, MotorcycleLog } from "@/types";
+import {
+  CreateMotorcycleLogFormData,
+  UpdateMotorcycleLogFormData,
+} from "@/schemas/motorcycle-logs.schema";
 
 interface MotorcycleState {
   motorcycles: CustomerMotorcycle[] | AdminMotorcycle[];
+  motorcycle: CustomerMotorcycle | AdminMotorcycle | null;
+  logs: MotorcycleLog[];
   loading: boolean;
   error: string | null;
   metadata: {
@@ -17,6 +23,7 @@ interface MotorcycleState {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   setMetadata: (metadata: any) => void;
+
   // API functions
   getAllMotorcycles: (params?: any) => Promise<void>;
   addMotorcycle: (data: any) => Promise<void>;
@@ -27,10 +34,26 @@ interface MotorcycleState {
     data: any
   ) => Promise<void>;
   deleteMotorcycle: (motorcycleId: string) => Promise<void>;
+
+  // MotorcycleLogs API Functions
+  getAllMotorcycleLogs: () => Promise<void>;
+  createMotorcycleLog: (
+    motorcycleId: string,
+    data: CreateMotorcycleLogFormData
+  ) => Promise<void>;
+  getMotorcycleLogs: (motorcycleId: string) => Promise<void>;
+  updateMotorcycleLog: (
+    motorcycleId: string,
+    logId: string,
+    data: UpdateMotorcycleLogFormData
+  ) => Promise<void>;
+  deleteMotorcycleLog: (motorcycleId: string, logId: string) => Promise<void>;
 }
 
 export const useMotorcycleStore = create<MotorcycleState>((set, get) => ({
   motorcycles: [],
+  motorcycle: null,
+  logs: [],
   loading: false,
   error: null,
   metadata: {
@@ -43,7 +66,7 @@ export const useMotorcycleStore = create<MotorcycleState>((set, get) => ({
   setError: (error) => set({ error }),
   setMetadata: (metadata) => set({ metadata }),
 
-  // API functions
+  // Mortorcycle API functions
   getAllMotorcycles: async (params) => {
     set({ loading: true, error: null });
     try {
@@ -81,8 +104,8 @@ export const useMotorcycleStore = create<MotorcycleState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const response = await motorcycleAPI.getMotorcycleById(motorcycleId);
-      const { data } = response.data;
-      set({ loading: false, motorcycles: [data] });
+      const motorcycle = response.data.data;
+      set({ loading: false, motorcycle });
       return response.data;
     } catch (error: any) {
       set({
@@ -143,6 +166,106 @@ export const useMotorcycleStore = create<MotorcycleState>((set, get) => ({
       set({
         loading: false,
         error: error.response?.data?.message || "Failed to delete motorcycle",
+      });
+      throw error;
+    }
+  },
+
+  // Motorcycle Log API functions
+
+  getAllMotorcycleLogs: async () => {
+    set({ loading: true, error: null });
+    try {
+      const response = await motorcycleAPI.getAllMotorcycleLogs();
+      const { data } = response.data.data;
+      set({ motorcycles: data, loading: false });
+    } catch (error: any) {
+      set({
+        loading: false,
+        error:
+          error.response?.data?.message || "Failed to fetch motorcycle logs",
+      });
+      throw error;
+    }
+  },
+
+  createMotorcycleLog: async (motorcycleId, data) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await motorcycleAPI.createMotorcycleLog(
+        motorcycleId,
+        data
+      );
+      const newMotorcycleLog = response.data;
+      set((state) => ({
+        motorcycles: [...state.motorcycles, newMotorcycleLog],
+        loading: false,
+      }));
+    } catch (error: any) {
+      set({
+        loading: false,
+        error:
+          error.response?.data?.message || "Failed to create motorcycle log",
+      });
+      throw error;
+    }
+  },
+
+  getMotorcycleLogs: async (motorcycleId) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await motorcycleAPI.getMotorcycleLogs(motorcycleId);
+      const { data } = response.data.data;
+      set({ motorcycles: data, loading: false });
+    } catch (error: any) {
+      set({
+        loading: false,
+        error:
+          error.response?.data?.message || "Failed to fetch motorcycle logs",
+      });
+      throw error;
+    }
+  },
+
+  updateMotorcycleLog: async (motorcycleId, logId, data) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await motorcycleAPI.updateMotorcycleLog(
+        motorcycleId,
+        logId,
+        data
+      );
+      const updatedMotorcycleLog: MotorcycleLog = response.data.data;
+      set((state) => ({
+        logs: state.logs.map((log) =>
+          log._id === updatedMotorcycleLog._id ? updatedMotorcycleLog : log
+        ),
+        loading: false,
+        error: null,
+      }));
+    } catch (error: any) {
+      set({
+        loading: false,
+        error:
+          error.response?.data?.message || "Failed to update motorcycle log",
+      });
+      throw error;
+    }
+  },
+
+  deleteMotorcycleLog: async (motorcycleId, logId) => {
+    set({ loading: true, error: null });
+    try {
+      await motorcycleAPI.deleteMotorcycleLog(motorcycleId, logId);
+      set((state) => ({
+        logs: state.logs.filter((log) => log._id !== logId),
+        loading: false,
+      }));
+    } catch (error: any) {
+      set({
+        loading: false,
+        error:
+          error.response?.data?.message || "Failed to delete motorcycle log",
       });
       throw error;
     }

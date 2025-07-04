@@ -9,55 +9,66 @@ import mongoose from "mongoose";
 
 export const getCart = async (customerId: string) => {
   const cartAggregation = await Cart.aggregate([
+    // 1) Only this customer's cart
     {
       $match: {
         customerId: new mongoose.Types.ObjectId(customerId),
       },
     },
-    {
-      $unwind: "$items",
-    },
+
+    // 2) Unwind items array so we can look up each motorcycle
+    { $unwind: "$items" },
+
+    // 3) Lookup the motorcycle document for each item
     {
       $lookup: {
         from: "motorcycles",
-        localField: "items.motorcycleId",
-        foreignField: "_id",
+        let: { mid: "$items.motorcycleId" },
+        pipeline: [
+          { $match: { $expr: { $eq: ["$_id", "$$mid"] } } },
+          // strip out maintenanceLogs
+          { $project: { maintenanceLogs: 0 } },
+        ],
         as: "motorcycle",
       },
     },
+    // Simplify motorcycle array → single object
     {
-      $project: {
-        motorcycle: { $first: "$motorcycle" },
-        quantity: "$items.quantity",
-        couponId: 1,
-        pickupDate: "$items.pickupDate",
-        returnDate: "$items.returnDate",
-        totalDays: {
-          $dateDiff: {
-            pickupDate: "$items.pickupDate",
-            returnDate: "$items.returnDate",
-            unit: "day",
-          },
+      $addFields: {
+        "items.motorcycle": { $arrayElemAt: ["$motorcycle", 0] },
+      },
+    },
+    // 4) Compute totalDays for each item
+    {
+      $addFields: {
+        "items.totalDays": {
+          $sum: [
+            {
+              $dateDiff: {
+                startDate: "$items.pickupDate",
+                endDate: "$items.returnDate",
+                unit: "day",
+              },
+            },
+            1,
+          ],
         },
       },
     },
+
+    // 5) Group back to a single cart document, re‑assembling items[]
     {
       $group: {
         _id: "$_id",
-        items: {
-          $push: "$$ROOT",
-        },
-        couponId: { $first: "$couponId" }, // get first value of coupon after grouping
-        cartTotal: {
-          $sum: {
-            $multiply: ["$motorcycle.pricePerDay", "$quantity", "$totalDays"],
-          },
-        },
+        customerId: { $first: "$customerId" },
+        couponId: { $first: "$couponId" },
+        items: { $push: "$items" },
       },
     },
+
+    // 6) Optionally, lookup and attach full coupon data
     {
       $lookup: {
-        // lookup for the coupon
         from: "promocodes",
         localField: "couponId",
         foreignField: "_id",
@@ -66,23 +77,75 @@ export const getCart = async (customerId: string) => {
     },
     {
       $addFields: {
-        // As lookup returns an array we access the first item in the lookup array
-        coupon: { $first: "$coupon" },
+        coupon: { $arrayElemAt: ["$coupon", 0] },
       },
     },
+
+    // 7) Calculate cartTotal = sum(items.*)
+
+    {
+      $addFields: {
+        rentTotal: {
+          $sum: {
+            $map: {
+              input: "$items",
+              as: "it",
+              in: {
+                $multiply: [
+                  "$$it.motorcycle.rentPerDay",
+                  "$$it.quantity",
+                  "$$it.totalDays",
+                ],
+              },
+            },
+          },
+        },
+        securityDepositTotal: {
+          $sum: {
+            $map: {
+              input: "$items",
+              as: "it",
+              in: {
+                $multiply: ["$$it.motorcycle.securityDeposit", "$$it.quantity"],
+              },
+            },
+          },
+        },
+      },
+    },
+
+    {
+      $addFields: {
+        cartTotal: {
+          $sum: ["$rentTotal", "$securityDepositTotal"],
+        },
+      },
+    },
+
+    // 8) Apply coupon discount if present
     {
       $addFields: {
         discountedTotal: {
-          // Final total is the total we get once user applies any coupon
-          // final total is total cart value - coupon's discount value
           $ifNull: [
-            {
-              $subtract: ["$cartTotal", "$coupon.discountValue"],
-            },
-            "$cartTotal", // if there is no coupon applied we will set cart total as out final total
-            ,
+            { $subtract: ["$cartTotal", "$coupon.discountValue"] },
+            "$cartTotal",
           ],
         },
+      },
+    },
+
+    // 9) Final projection
+    {
+      $project: {
+        _id: 1,
+        customerId: 1,
+        couponId: 1,
+        coupon: 1,
+        items: 1,
+        rentTotal: 1,
+        securityDepositTotal: 1,
+        cartTotal: 1,
+        discountedTotal: 1,
       },
     },
   ]);
@@ -102,13 +165,14 @@ const getUserCart = asyncHandler(async (req: CustomRequest, res: Response) => {
 
   return res
     .status(200)
-    .json(new ApiResponse(200, cart, "Cart fetched successfully"));
+    .json(new ApiResponse(200, true, "Cart fetched successfully", cart));
 });
 
 const addOrUpdateMotorcycleToCart = asyncHandler(
   async (req: CustomRequest, res: Response) => {
-    const { motorcycleId, quantity, pickupDate, returnDate }: ICartItem =
-      req.body;
+    const { quantity, pickupDate, returnDate }: ICartItem = req.body;
+
+    const { motorcycleId } = req.params;
 
     const cart = await Cart.findOne({ customerId: req.user._id });
 
@@ -144,7 +208,7 @@ const addOrUpdateMotorcycleToCart = asyncHandler(
 
       return res
         .status(200)
-        .json(new ApiResponse(200, cart, "Cart created successfully"));
+        .json(new ApiResponse(200, true, "Cart created successfully", cart));
     }
 
     const exisitngMotorcycle = cart.items?.find(
@@ -156,6 +220,13 @@ const addOrUpdateMotorcycleToCart = asyncHandler(
       if (pickupDate) exisitngMotorcycle.pickupDate = pickupDate;
       if (returnDate) exisitngMotorcycle.returnDate = returnDate;
       if (cart.couponId) cart.couponId = null;
+    } else {
+      cart.items.push({
+        motorcycleId: new mongoose.Types.ObjectId(motorcycleId),
+        quantity,
+        pickupDate,
+        returnDate,
+      });
     }
 
     await cart.save({ validateBeforeSave: true });
@@ -164,7 +235,7 @@ const addOrUpdateMotorcycleToCart = asyncHandler(
 
     return res
       .status(200)
-      .json(new ApiResponse(200, finalCart, "Cart updated successfully"));
+      .json(new ApiResponse(200, true, "Cart updated successfully", finalCart));
   },
 );
 
@@ -190,7 +261,10 @@ const removeMotorcycleFromCart = asyncHandler(
 
     let finalCart = await getCart(req.user._id as string);
 
-    if (finalCart && finalCart.cartTotal < finalCart.coupon.minimumCartValue) {
+    if (
+      finalCart &&
+      finalCart?.cartTotal < finalCart?.coupon?.minimumCartValue
+    ) {
       updatedCart.couponId = null;
       await updatedCart.save({ validateBeforeSave: false });
       // fetch the latest updated cart
@@ -199,7 +273,7 @@ const removeMotorcycleFromCart = asyncHandler(
 
     return res
       .status(200)
-      .json(new ApiResponse(200, finalCart, "Cart updated successfully"));
+      .json(new ApiResponse(200, true, "Cart updated successfully", finalCart));
   },
 );
 
@@ -218,7 +292,7 @@ const clearCart = asyncHandler(async (req: CustomRequest, res: Response) => {
 
   return res
     .status(200)
-    .json(new ApiResponse(200, cart, "Cart has been cleared"));
+    .json(new ApiResponse(200, true, "Cart has been cleared", cart));
 });
 
 export {

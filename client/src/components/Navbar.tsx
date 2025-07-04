@@ -21,7 +21,6 @@ import {
 } from "@/components/ui/sheet";
 import {
   MenuIcon,
-  BikeIcon,
   SunIcon,
   MoonIcon,
   ComputerIcon,
@@ -29,6 +28,7 @@ import {
   UserIcon,
   MapPinIcon,
   ArrowUpRightIcon,
+  ShoppingCartIcon,
 } from "lucide-react";
 import {
   NavigationMenu,
@@ -43,6 +43,15 @@ import { UserRolesEnum } from "@/types";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 import { ThemeToggle } from "@/app/__components/theme-toggle";
+import { useCartStore } from "@/store/cart-store";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 
 const bikeCategories = [
   { name: "Royal Enfield Rentals", href: "/bikes/royal-enfield" },
@@ -75,15 +84,14 @@ const offRoadCategories = [
 
 const locations = [
   { name: "Gurgaon", href: "/locations/gurgaon" },
-  { name: "MG Road", href: "/locations/mg-road" },
   { name: "Delhi", href: "/locations/delhi" },
-  { name: "Janakpuri", href: "/locations/janakpuri" },
 ];
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
   const { user, logout } = useAuthStore();
+  const { cart } = useCartStore();
   const { setTheme } = useTheme();
 
   const handleLogout = async () => {
@@ -92,10 +100,10 @@ export function Navbar() {
   };
 
   const getInitials = (fullname: string) => {
-    const names = fullname.split(" ");
-    return names.length > 1
+    const names = fullname?.split(" ");
+    return names?.length > 1
       ? `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase()
-      : names[0][0].toUpperCase();
+      : names?.[0][0]?.toUpperCase();
   };
 
   const navItems = [
@@ -115,6 +123,8 @@ export function Navbar() {
     { href: "/contact", label: "Contact Us" },
   ];
 
+  const cartItemsCount = cart?.items?.length || 0;
+
   return (
     <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
       <div className="container mx-auto px-4">
@@ -132,7 +142,7 @@ export function Navbar() {
                     Bikes
                   </NavigationMenuTrigger>
                   <NavigationMenuContent>
-                    <div className="grid w-[400px] gap-3 p-4">
+                    <div className="grid grid-cols-2 w-[500px] gap-3 p-4">
                       {bikeCategories.map((category) => (
                         <NavigationMenuLink key={category.href} asChild>
                           <Link
@@ -156,7 +166,7 @@ export function Navbar() {
                     Cars
                   </NavigationMenuTrigger>
                   <NavigationMenuContent>
-                    <div className="grid w-[400px] gap-3 p-4">
+                    <div className="grid grid-cols-2 w-[300px] gap-3 p-4">
                       {carCategories.map((category) => (
                         <NavigationMenuLink key={category.href} asChild>
                           <Link
@@ -228,7 +238,7 @@ export function Navbar() {
                     Locations
                   </NavigationMenuTrigger>
                   <NavigationMenuContent>
-                    <div className="grid w-[300px] gap-3 p-4">
+                    <div className="grid w-[400px] gap-3 p-4">
                       {locations.map((location) => (
                         <NavigationMenuLink key={location.href} asChild>
                           <Link
@@ -253,11 +263,42 @@ export function Navbar() {
           <div className="hidden lg:flex items-center space-x-4">
             {/* Location */}
             <div className="flex items-center space-x-1 text-sm text-muted-foreground">
-              <MapPinIcon className="h-4 w-4 text-yellow-primary" />
-              <span>GURGAON</span>
+              <Select>
+                <SelectTrigger className="w-[180px] text-black dark:text-white">
+                  <MapPinIcon className="h-4 w-4 text-yellow-primary" />
+                  <SelectValue placeholder="Select a location" />
+                </SelectTrigger>
+                <SelectContent>
+                  {locations.map((location) => (
+                    <SelectItem key={location.href} value={location.href}>
+                      {location.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <ThemeToggle />
+
+            {/* Cart */}
+            {user && (
+              <Button
+                variant="outline"
+                asChild
+                className="relative hover:bg-yellow-primary/10"
+              >
+                <Link href="/cart">
+                  <ShoppingCartIcon className="h-5 w-5 text-yellow-primary" />
+                  {cartItemsCount > 0 && (
+                    <Badge className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 bg-yellow-primary text-black text-xs font-bold">
+                      {cartItemsCount}
+                    </Badge>
+                  )}
+                </Link>
+              </Button>
+            )}
+
+            {/* Auth Section */}
 
             {/* Auth Section */}
             {user ? (
@@ -265,7 +306,7 @@ export function Navbar() {
                 <Button
                   variant="outline"
                   asChild
-                  className="hover:bg-yellow-primary/10 hover:text-yellow-primary"
+                  className="hover:bg-yellow-primary/10"
                 >
                   <Link href="/profile">
                     <UserIcon className="mr-2 h-4 w-4 text-yellow-primary" />
@@ -284,7 +325,7 @@ export function Navbar() {
                           alt={user.fullname}
                         />
                         <AvatarFallback>
-                          {getInitials(user.fullname)}
+                          {getInitials(user?.fullname)}
                         </AvatarFallback>
                       </Avatar>
                     </Button>
@@ -413,6 +454,16 @@ export function Navbar() {
                       >
                         Profile
                       </Link>
+                      {user.role === UserRolesEnum.CUSTOMER && (
+                        <Link
+                          href="/cart"
+                          className="flex w-full items-center justify-center py-3 px-4 mb-2 rounded-md text-base font-medium transition-colors hover:text-yellow-600 hover:bg-yellow-600/10"
+                          onClick={() => setIsOpen(false)}
+                        >
+                          <ShoppingCartIcon className="mr-2 h-4 w-4" />
+                          Cart ({cartItemsCount})
+                        </Link>
+                      )}
                       <Button
                         variant="outline"
                         onClick={handleLogout}

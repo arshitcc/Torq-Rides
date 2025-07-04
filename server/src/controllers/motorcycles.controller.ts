@@ -25,11 +25,15 @@ const getAllMotorcycles = asyncHandler(
     if (make) matchState.make = make;
     if (vehicleModel) matchState.vehicleModel = vehicleModel;
     if (year) matchState.year = Number(year);
-    if(minPrice && maxPrice) matchState.pricePerDay = { $gte: Number(minPrice), $lte: Number(maxPrice) };
+    if (minPrice && maxPrice)
+      matchState.rentPerDay = {
+        $gte: Number(minPrice),
+        $lte: Number(maxPrice),
+      };
     if (minPrice || maxPrice) {
-      matchState.pricePerDay = {};
-      if (minPrice) matchState.pricePerDay.$gte = Number(minPrice);
-      if (maxPrice) matchState.pricePerDay.$lte = Number(maxPrice);
+      matchState.rentPerDay = {};
+      if (minPrice) matchState.rentPerDay.$gte = Number(minPrice);
+      if (maxPrice) matchState.rentPerDay.$lte = Number(maxPrice);
     }
 
     if (searchTerm) {
@@ -83,7 +87,7 @@ const addMotorcycle = asyncHandler(
       make,
       vehicleModel,
       year,
-      pricePerDay,
+      rentPerDay,
       description,
       category,
       specs,
@@ -101,7 +105,7 @@ const addMotorcycle = asyncHandler(
       make,
       vehicleModel,
       year,
-      pricePerDay,
+      rentPerDay,
       description,
       category,
       image: {
@@ -220,7 +224,7 @@ const updateMotorcycleDetails = asyncHandler(
       vehicleModel,
       year,
       isAvailable,
-      pricePerDay,
+      rentPerDay,
       description,
       category,
       specs,
@@ -247,7 +251,7 @@ const updateMotorcycleDetails = asyncHandler(
     if (vehicleModel) motorcycle.vehicleModel = vehicleModel;
     if (isAvailable) motorcycle.isAvailable = isAvailable;
     if (year) motorcycle.year = year;
-    if (pricePerDay) motorcycle.pricePerDay = pricePerDay;
+    if (rentPerDay) motorcycle.rentPerDay = rentPerDay;
     if (description) motorcycle.description = description;
     if (category) motorcycle.category = category;
     if (specs) motorcycle.specs = specs;

@@ -1,5 +1,16 @@
 import mongoose from "mongoose";
 import { IUser } from "./users.model";
+import { ICartItem } from "./carts.model";
+import {
+  AvailableInCities,
+  AvailableInCitiesEnum,
+  IMotorcycle,
+} from "./motorcycles.model";
+import {
+  AvailablePaymentProviders,
+  PaymentProviderEnum,
+} from "../constants/constants";
+import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2";
 
 export const BookingStatusEnum = {
   PENDING: "PENDING",
@@ -8,20 +19,36 @@ export const BookingStatusEnum = {
   COMPLETED: "COMPLETED",
 } as const;
 
+export const PaymentStatusEnum = {
+  PARTIAL: "PARTIAL-PAID",
+  PARTIAL_REFUNDED: "PARTIAL-REFUNDED",
+  FULLY_REFUNDED: "FULLY-REFUNDED",
+  FULLY_PAID: "FULLY-PAID",
+  UNPAID: "UNPAID",
+  IN_REFUND: "IN-REFUND",
+} as const;
+
 export const AvailableBookingStatus = Object.values(BookingStatusEnum);
+export const AvailablePaymentStatus = Object.values(PaymentStatusEnum);
 
 export type BookingStatus = (typeof AvailableBookingStatus)[number];
+export type PaymentStatus = (typeof AvailablePaymentStatus)[number];
 
 export interface IBooking extends mongoose.Document {
   customerId: mongoose.Types.ObjectId;
-  motorcycleId: mongoose.Types.ObjectId;
-  quantity: number;
   status: BookingStatus;
-  startDate: Date;
-  endDate: Date;
-  totalCost: number;
+  rentTotal: number;
+  securityDepositTotal: number;
+  cartTotal: number;
   bookingDate: Date;
   customer: IUser;
+  discountedTotal: number;
+  couponId: mongoose.Types.ObjectId | null;
+  items: ICartItem[];
+  location: AvailableInCities;
+  paymentProvider: AvailablePaymentProviders;
+  paymentId: string;
+  paymentStatus: PaymentStatus;
 }
 
 const bookingSchema = new mongoose.Schema<IBooking>(
@@ -31,39 +58,72 @@ const bookingSchema = new mongoose.Schema<IBooking>(
       ref: "User",
       required: true,
     },
-    motorcycleId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Motorcycle",
-      required: true,
-    },
-    quantity: {
-      // >=1
-      type: Number,
-      required: true,
-    },
     status: {
       type: String,
       enum: AvailableBookingStatus,
       default: BookingStatusEnum.PENDING,
     },
-    startDate: {
-      type: Date,
-      required: true,
-    },
-    endDate: {
-      type: Date,
-      required: true,
-    },
     bookingDate: {
       type: Date,
       required: true,
+      default: Date.now,
     },
-    totalCost: {
+    discountedTotal: {
       type: Number,
       required: true,
+    },
+    couponId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "PromoCode",
+    },
+    items: {
+      type: [
+        {
+          motorcycleId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Motorcycle",
+            required: true,
+          },
+          quantity: {
+            type: Number,
+            required: true,
+          },
+          pickupDate: {
+            type: Date,
+            required: true,
+          },
+          returnDate: {
+            type: Date,
+            required: true,
+          },
+        },
+      ],
+    },
+    location: {
+      type: String,
+      enum: AvailableInCities,
+      default: AvailableInCitiesEnum.GURUGRAM_MGROAD,
+      required: true,
+    },
+    paymentProvider: {
+      type: String,
+      enum: AvailablePaymentProviders,
+      default: PaymentProviderEnum.UNKNOWN,
+      required: true,
+    },
+    paymentId: {
+      type: String,
+      required: true,
+    },
+    paymentStatus: {
+      type: String,
+      enum: AvailablePaymentStatus,
+      default: PaymentStatusEnum.UNPAID,
     },
   },
   { timestamps: true },
 );
+
+bookingSchema.plugin(mongooseAggregatePaginate);
 
 export const Booking = mongoose.model<IBooking>("Booking", bookingSchema);

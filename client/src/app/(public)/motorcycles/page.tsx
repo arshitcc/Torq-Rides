@@ -97,7 +97,7 @@ export default function MotorcyclesPage() {
     getMotorcycles();
   };
 
-  const totalPages = Math.ceil((metadata?.total)/itemsPerPage) || 1;
+  const totalPages = Math.ceil(metadata?.total / itemsPerPage) || 1;
 
   useEffect(() => {
     getMotorcycles();
@@ -223,10 +223,7 @@ export default function MotorcyclesPage() {
                   )
                 }
               >
-                <SelectTrigger
-                  id="category-select"
-                  className="dark:text-white"
-                >
+                <SelectTrigger id="category-select" className="dark:text-white">
                   <SelectValue placeholder="Select Category" />
                 </SelectTrigger>
                 <SelectContent className="rounded-lg shadow-lg">
@@ -297,7 +294,7 @@ export default function MotorcyclesPage() {
                         Available Now
                       </Badge>
                       <Badge className="absolute bottom-3 right-3 px-3 py-1 text-sm font-semibold bg-yellow-50 text-yellow-primary">
-                        ₹{motorcycle.pricePerDay}/day
+                        ₹{motorcycle.rentPerDay}/day
                       </Badge>
                     </div>
                   </CardHeader>

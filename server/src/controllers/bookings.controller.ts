@@ -7,7 +7,271 @@ import { Booking, BookingStatusEnum } from "../models/bookings.model";
 import { Motorcycle } from "../models/motorcycles.model";
 import { PromoCode } from "../models/promo-codes.model";
 import mongoose from "mongoose";
-import { PromoCodeTypeEnum, UserRolesEnum } from "../constants/constants";
+import {
+  PaymentProviderEnum,
+  PromoCodeTypeEnum,
+  UserRolesEnum,
+} from "../constants/constants";
+import { paypalAPI } from "../utils/paypal";
+import { Cart, ICartItem } from "../models/carts.model";
+import { getCart } from "./carts.controller";
+import razorpayInstance from "../utils/razorpay";
+import { nanoid } from "nanoid";
+import crypto from "crypto";
+import { RAZORPAY_KEY_SECRET } from "../utils/env";
+import { bookingConfirmationTemplate, sendEmail } from "../utils/mail";
+
+const handleBooking = async (bookingPaymentId: string, req: CustomRequest) => {
+  const order = await Booking.findOneAndUpdate(
+    { paymentId: bookingPaymentId },
+    {
+      $set: {
+        isPaymentDone: true,
+      },
+    },
+    { new: true },
+  );
+
+  if (!order) {
+    throw new ApiError(404, "Order does not exist");
+  }
+
+  const cart = await Cart.findOne({ customerId: req.user._id });
+
+  if (!cart) {
+    throw new ApiError(404, "Cart does not exist");
+  }
+
+  const userCart = await getCart(req.user._id as string);
+
+  let bulkStockUpdates = userCart.items.map((item: ICartItem) => {
+    return {
+      updateOne: {
+        filter: { _id: item.motorcycleId },
+        update: { $inc: { availableQuantity: -item.quantity } },
+      },
+    };
+  });
+
+  /* 
+    (bulkWrite()) is faster than sending multiple independent operations (e.g. if you use create()) 
+    because with bulkWrite() there is only one network round trip to the MongoDB server.
+  */
+
+  await Motorcycle.bulkWrite(bulkStockUpdates, {
+    skipValidation: true,
+  });
+
+  await sendEmail({
+    email: req.user?.email,
+    subject: "Order confirmed",
+    template: bookingConfirmationTemplate({
+      username: req.user?.username,
+      booking: order,
+      totalAmount: order.discountedTotal ?? 0,
+    }),
+  });
+
+  cart.items = []; // empty the cart
+  cart.couponId = null;
+
+  await cart.save({ validateBeforeSave: false });
+  return order;
+};
+
+export const getbooking = async (
+  id: string,
+  pageNum: number,
+  limit: number,
+  skip: number,
+  role: string,
+) => {
+  let pipeline = [];
+
+  if (role === UserRolesEnum.CUSTOMER)
+    pipeline.push({
+      $match: {
+        customerId: new mongoose.Types.ObjectId(id),
+      },
+    });
+  else
+    pipeline.push({
+      $lookup: {
+        from: "users",
+        localField: "customerId",
+        foreignField: "_id",
+        as: "customer",
+      },
+    });
+
+  const bookingAggregation = await Booking.aggregate([
+    // 1) JOIN user
+    ...pipeline,
+    { $addFields: { customer: { $arrayElemAt: ["$customer", 0] } } },
+
+    // 2) UNWIND the items array
+    { $unwind: "$items" },
+
+    // 3) JOIN each motorcycle, dropping its maintenanceLogs
+    {
+      $lookup: {
+        from: "motorcycles",
+        let: { mid: "$items.motorcycleId" },
+        pipeline: [
+          { $match: { $expr: { $eq: ["$_id", "$$mid"] } } },
+          { $project: { maintenanceLogs: 0 } },
+        ],
+        as: "items.motorcycle",
+      },
+    },
+    // flatten the lookup array
+    {
+      $addFields: {
+        "items.motorcycle": { $arrayElemAt: ["$items.motorcycle", 0] },
+      },
+    },
+
+    // 4) RE‑GROUP back to one document per booking
+    {
+      $group: {
+        _id: "$_id",
+        customerId: { $first: "$customerId" },
+        status: { $first: "$status" },
+        location: { $first: "$location" },
+        paymentProvider: { $first: "$paymentProvider" },
+        paymentId: { $first: "$paymentId" },
+        bookingDate: { $first: "$bookingDate" },
+        isAvailable: { $first: "$isAvailable" },
+        paymentStatus: { $first: "$paymentStatus" },
+        createdAt: { $first: "$createdAt" },
+        updatedAt: { $first: "$updatedAt" },
+        customer: { $first: "$customer" },
+        items: { $push: "$items" },
+        couponId: { $first: "$couponId" },
+      },
+    },
+
+    // 5) LOOKUP coupon to get discountValue
+    {
+      $lookup: {
+        from: "promocodes",
+        localField: "couponId",
+        foreignField: "_id",
+        as: "coupon",
+      },
+    },
+    { $addFields: { coupon: { $arrayElemAt: ["$coupon", 0] } } },
+
+    // 6) COMPUTE rentTotal & securityDepositTotal
+    {
+      $addFields: {
+        rentTotal: {
+          $sum: {
+            $map: {
+              input: "$items",
+              as: "it",
+              in: {
+                $multiply: [
+                  "$$it.motorcycle.rentPerDay",
+                  "$$it.quantity",
+                  {
+                    // days = returnDate − pickupDate + 1
+                    $add: [
+                      {
+                        $dateDiff: {
+                          startDate: "$$it.pickupDate",
+                          endDate: "$$it.returnDate",
+                          unit: "day",
+                        },
+                      },
+                      1,
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+        },
+        securityDepositTotal: {
+          $sum: {
+            $map: {
+              input: "$items",
+              as: "it",
+              in: {
+                $multiply: ["$$it.motorcycle.securityDeposit", "$$it.quantity"],
+              },
+            },
+          },
+        },
+      },
+    },
+
+    // 7) COMPUTE cartTotal & discountedTotal
+    {
+      $addFields: {
+        cartTotal: { $add: ["$rentTotal", "$securityDepositTotal"] },
+      },
+    },
+
+    {
+      $addFields: {
+        discountedTotal: {
+          $ifNull: [
+            { $subtract: ["$cartTotal", "$coupon.discountValue"] },
+            "$cartTotal",
+          ],
+        },
+      },
+    },
+
+    // 8) FINAL PROJECTION
+    // {
+    //   $project: {
+    //     _id: 1,
+    //     customerId: 1,
+    //     status: 1,
+    //     rentTotal: 1,
+    //     securityDepositTotal: 1,
+    //     discountedTotal: 1,
+    //     location: 1,
+    //     paymentProvider: 1,
+    //     paymentId: 1,
+    //     bookingDate: 1,
+    //     motorcycle: "$items.motorcycle",
+    //     customer: 1,
+    //     isAvailable: 1,
+    //     items: {
+    //       motorcycleId: 1,
+    //       quantity: 1,
+    //       pickupDate: 1,
+    //       returnDate: 1,
+    //     },
+    //     paymentStatus: 1,
+    //     createdAt: 1,
+    //     updatedAt: 1,
+    //   },
+    // },
+
+    { $sort: { bookingDate: -1 } },
+    {
+      $facet: {
+        metadata: [{ $count: "total" }, { $addFields: { page: pageNum } }],
+        data: [{ $skip: skip }, { $limit: limit }],
+      },
+    },
+  ]);
+
+  return (
+    bookingAggregation[0] ?? {
+      _id: null,
+      items: [],
+      cartTotal: 0,
+      discountedTotal: 0,
+      rentTotal: 0,
+      securityDepositTotal: 0,
+    }
+  );
+};
 
 const getAllBookings = asyncHandler(
   async (req: CustomRequest, res: Response) => {
@@ -83,6 +347,14 @@ const getAllBookings = asyncHandler(
       },
     ]);
 
+    const mybookings = await getbooking(
+      req.user._id?.toString() as string,
+      pageNum,
+      limit,
+      skip,
+      req.user.role,
+    );
+
     return res
       .status(200)
       .json(
@@ -90,7 +362,7 @@ const getAllBookings = asyncHandler(
           200,
           true,
           "Bookings fetched successfully",
-          bookings[0],
+          mybookings || bookings[0],
         ),
       );
   },
@@ -120,7 +392,7 @@ const createBooking = asyncHandler(
             (new Date(endDate).getTime() - new Date(startDate).getTime()) /
               (1000 * 60 * 60 * 24),
           ) + 1;
-    totalCost = motorcycle.pricePerDay * totalDays * quantity;
+    totalCost = motorcycle.rentPerDay * totalDays * quantity;
 
     const { promoCode } = req.body;
 
@@ -251,4 +523,240 @@ const cancelBooking = asyncHandler(
   },
 );
 
-export { getAllBookings, createBooking, modifyBooking, cancelBooking };
+const generateRazorpayOrder = asyncHandler(
+  async (req: CustomRequest, res: Response) => {
+    if (!razorpayInstance) {
+      console.error("RAZORPAY ERROR: `key_id` is mandatory");
+      throw new ApiError(
+        500,
+        "Internal server error : RAZORPAY ERROR: `key_id` is mandatory",
+      );
+    }
+
+    const cart = await Cart.findOne({
+      customerId: req.user._id,
+    });
+
+    if (!cart || !cart.items?.length) {
+      throw new ApiError(400, "User cart is empty");
+    }
+    const orderItems = cart.items;
+    const userCart = await getCart(req.user._id as string);
+
+    const totalPrice = userCart.cartTotal;
+    const totalDiscountedPrice = userCart.discountedTotal;
+
+    const orderOptions = {
+      amount: parseInt(totalDiscountedPrice) * 100,
+      currency: "INR",
+      receipt: nanoid(10),
+    };
+
+    try {
+      const razorpayOrder = await razorpayInstance.orders.create(orderOptions);
+
+      /* 
+        Create an order while we generate razorpay session 
+        In case payment is done and there is some network issue in the payment verification API
+        We will at least have a record of the order
+      */
+
+      const unpaidOrder = await Booking.create({
+        cartId: cart._id,
+        customerId: req.user._id,
+        items: orderItems,
+        totalCost: totalPrice ?? 0,
+        discountedTotal: totalDiscountedPrice ?? 0,
+        paymentProvider: PaymentProviderEnum.RAZORPAY,
+        paymentId: razorpayOrder.id,
+        couponId: userCart.coupon?._id,
+      });
+
+      // payment successful
+      if (unpaidOrder) {
+        return res
+          .status(200)
+          .json(
+            new ApiResponse(
+              200,
+              true,
+              "Razorpay order generated",
+              razorpayOrder,
+            ),
+          );
+      } else {
+        return res
+          .status(500)
+          .json(
+            new ApiResponse(
+              500,
+              false,
+              "Something went wrong while initialising the razorpay order.",
+              null,
+            ),
+          );
+      }
+    } catch (err: any) {
+      const status = err.statusCode ?? 500;
+      const message = err.error?.reason ?? err.message ?? "Unknown error";
+      return res
+        .status(status)
+        .json(new ApiResponse(status, false, message, null));
+    }
+  },
+);
+
+const verifyRazorpayPayment = asyncHandler(
+  async (req: CustomRequest, res: Response) => {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
+      req.body;
+
+    let body = razorpay_order_id + "|" + razorpay_payment_id;
+
+    let expectedSignature = crypto
+      .createHmac("sha256", RAZORPAY_KEY_SECRET!)
+      .update(body.toString())
+      .digest("hex");
+
+    if (expectedSignature === razorpay_signature) {
+      const order = await handleBooking(razorpay_order_id, req);
+      return res
+        .status(201)
+        .json(new ApiResponse(201, true, "Order placed successfully", order));
+    } else {
+      throw new ApiError(400, "Invalid razorpay signature");
+    }
+  },
+);
+
+const generatePaypalOrder = asyncHandler(
+  async (req: CustomRequest, res: Response) => {
+    const cart = await Cart.findOne({ customerId: req.user._id });
+
+    if (!cart || !cart.items?.length) {
+      throw new ApiError(400, "Your cart is empty");
+    }
+
+    const orderItems = cart.items;
+    const userCart = await getCart(req.user._id as string);
+
+    const totalPrice = userCart.cartTotal;
+    const totalDiscountedPrice = userCart.discountedTotal;
+
+    const response = await paypalAPI("/", {
+      intent: "CAPTURE",
+      purchase_units: [
+        {
+          amount: {
+            currency_code: "USD",
+            value: (totalDiscountedPrice * 0.011692).toFixed(0),
+          },
+        },
+      ],
+    });
+
+    const paypalOrder = await response.json();
+
+    if (paypalOrder?.id) {
+      /* 
+        Create an order while we generate paypal session 
+        In case payment is done and there is some network issue in the payment verification API
+        We will at least have a record of the order
+      */
+
+      const unpaidOrder = await Booking.create({
+        cartId: cart._id,
+        customerId: req.user._id,
+        totalCost: totalPrice ?? 0,
+        discountedTotal: totalDiscountedPrice ?? 0,
+        couponId: userCart.coupon?._id,
+        items: orderItems,
+        paymentProvider: PaymentProviderEnum.PAYPAL,
+        paymentId: paypalOrder.id,
+      });
+
+      if (unpaidOrder) {
+        return res
+          .status(201)
+          .json(
+            new ApiResponse(
+              201,
+              paypalOrder,
+              "Paypal order generated successfully",
+            ),
+          );
+      }
+    }
+    //  No paypal-order or No unpaidOrder created throw an error
+    console.error(
+      "Make sure you have provided your PAYPAL credentials in the .env file",
+    );
+    throw new ApiError(
+      500,
+      "Something went wrong while initialising the paypal order.",
+    );
+  },
+);
+
+const verifyPaypalPayment = asyncHandler(
+  async (req: CustomRequest, res: Response) => {
+    const { orderId } = req.body;
+
+    const response = await paypalAPI(`/${orderId}/capture`, {});
+    const capturedData = await response.json();
+
+    if (capturedData?.status === "COMPLETED") {
+      const order = await handleBooking(capturedData.id, req);
+
+      return res
+        .status(200)
+        .json(new ApiResponse(200, true, "Order placed successfully", order));
+    } else {
+      throw new ApiError(500, "Something went wrong with the paypal payment");
+    }
+  },
+);
+
+const updateBookingStatus = asyncHandler(
+  async (req: CustomRequest, res: Response) => {
+    const { bookingId } = req.params;
+    const { status } = req.body;
+
+    let booking = await Booking.findById(bookingId);
+
+    if (!booking) {
+      throw new ApiError(404, "Order does not exist");
+    }
+
+    if (booking.status === BookingStatusEnum.COMPLETED) {
+      throw new ApiError(400, "Order is already delivered");
+    }
+
+    booking = await Booking.findByIdAndUpdate(
+      booking,
+      {
+        $set: {
+          status,
+        },
+      },
+      { new: true },
+    );
+    return res.status(200).json(
+      new ApiResponse(200, true, "Order status changed successfully", {
+        status,
+      }),
+    );
+  },
+);
+
+export {
+  getAllBookings,
+  createBooking,
+  modifyBooking,
+  cancelBooking,
+  generateRazorpayOrder,
+  verifyRazorpayPayment,
+  generatePaypalOrder,
+  verifyPaypalPayment,
+  updateBookingStatus,
+};

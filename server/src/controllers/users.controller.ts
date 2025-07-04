@@ -106,9 +106,8 @@ const userLogin = asyncHandler(async (req: Request, res: Response) => {
     );
   }
 
-  const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
-    existedUser,
-  );
+  const { accessToken, refreshToken } =
+    await generateAccessAndRefreshTokens(existedUser);
 
   const currUser = await User.findOne({ _id: existedUser._id }).select(
     "-password -refreshToken -emailVerificationToken -emailVerificationExpiry -forgotPasswordToken -forgotPasswordExpiry",
@@ -271,25 +270,27 @@ const refreshAccessToken = asyncHandler(
 
 const forgotPasswordRequest = asyncHandler(
   async (req: Request, res: Response) => {
-    const { email } = req.body;
+    const { user } = req.body;
 
-    const user = await User.findOne({ email });
+    const existingUser = await User.findOne({
+      $or: [{ email: user, username: user }],
+    });
 
-    if (!user) {
+    if (!existingUser) {
       throw new ApiError(404, "Account doesn't exists");
     }
 
     const { unHashedToken, hashedToken, tokenExpiry } =
-      user.generateTemporaryToken();
-    user.forgotPasswordToken = hashedToken;
-    user.forgotPasswordExpiry = tokenExpiry;
-    await user.save({ validateBeforeSave: false });
+      existingUser.generateTemporaryToken();
+    existingUser.forgotPasswordToken = hashedToken;
+    existingUser.forgotPasswordExpiry = tokenExpiry;
+    await existingUser.save({ validateBeforeSave: false });
 
     await sendEmail({
-      email,
+      email: existingUser.email,
       subject: "Password Reset",
       template: resetPasswordTemplate({
-        username: user.username,
+        username: existingUser.username,
         resetPasswordToken: unHashedToken,
       }),
     });
@@ -300,7 +301,7 @@ const forgotPasswordRequest = asyncHandler(
         new ApiResponse(
           200,
           true,
-          "Password reset mail has been sent on your mail id",
+          "Reset Password Link has been sent to your registred Email-ID",
         ),
       );
   },
@@ -311,7 +312,7 @@ const resetForgottenPassword = asyncHandler(
     const token = typeof req.query.token === "string" ? req.query.token : "";
     const { newPassword } = req.body;
 
-    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+    const hashedToken = crypto.createHash("sha512").update(token).digest("hex");
     const user = await User.findOne({
       forgotPasswordToken: hashedToken,
       forgotPasswordExpiry: { $gt: Date.now() },
@@ -338,7 +339,7 @@ const resetForgottenPassword = asyncHandler(
 
 const changeCurrentPassword = asyncHandler(
   async (req: CustomRequest, res: Response) => {
-    const { oldPassword, newPassword } = req.body;
+    const { oldPassword, newPassword, confirmNewPassword } = req.body;
 
     if (oldPassword === newPassword) {
       throw new ApiError(
@@ -347,13 +348,16 @@ const changeCurrentPassword = asyncHandler(
       );
     }
 
+    if (newPassword !== confirmNewPassword) {
+      throw new ApiError(400, "Passwords do not match");
+    }
+
     const exisitingUser = await User.findById(req.user._id);
     if (!exisitingUser) {
       throw new ApiError(401, "Invalid Account");
     }
-    const isPasswordCorrect = await exisitingUser.isPasswordCorrect(
-      oldPassword,
-    );
+    const isPasswordCorrect =
+      await exisitingUser.isPasswordCorrect(oldPassword);
     if (!isPasswordCorrect) {
       throw new ApiError(401, "Wrong Password");
     }
@@ -439,6 +443,73 @@ const changeAvatar = asyncHandler(async (req: CustomRequest, res: Response) => {
     );
 });
 
+const deleteUserAccount = asyncHandler(
+  async (req: CustomRequest, res: Response) => {
+    const { userId } = req.params;
+
+    const user = await User.findById(userId);
+
+    if (!user) {
+      throw new ApiError(404, "User does not exist");
+    }
+
+    await User.findByIdAndDelete(userId);
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, true, "Account deleted successfully"));
+  },
+);
+
+const uploadUserDocument = asyncHandler(
+  async (req: CustomRequest, res: Response) => {
+
+    if (!req.file || !req.file.path) {
+      throw new ApiError(400, "Document is required !!");
+    }
+
+    const documentPath = req.file?.path || "";
+    if (!documentPath) {
+      throw new ApiError(400, "Document is required !!");
+    }
+    const document = await uploadFile(documentPath);
+
+    const { type, name } = req.body;
+
+    const updatedUser = await User.findByIdAndUpdate(
+      req.user._id,
+      {
+        $push: {
+          documents: {
+            type,
+            name,
+            file: {
+              public_id: document.public_id,
+              url: document.url,
+              format: document.format,
+              resource_type: document.resource_type,
+            },
+          },
+        },
+      },
+      { new: true },
+    ).select(
+      "-password -refreshToken -emailVerificationToken -emailVerificationExpiry -forgotPasswordToken -forgotPasswordExpiry",
+    );
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          true,
+          "Document uploaded successfully",
+          updatedUser,
+        ),
+      );
+  },
+);
+
 export {
   userRegister,
   userLogin,
@@ -452,4 +523,6 @@ export {
   assignRole,
   getCurrentUser,
   changeAvatar,
+  deleteUserAccount,
+  uploadUserDocument,
 };

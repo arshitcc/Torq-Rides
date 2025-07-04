@@ -90,7 +90,7 @@ const bookingConfirmationTemplate = ({
       intro: "🎉 Your booking has been confirmed!",
       table: {
         data: booking.items.map((b) => ({
-          Motorcycle: b.motorcycle.make + " " + b.motorcycle.vehicleModel,
+          Motorcycle: b.motorcycle?.make + " " + b.motorcycle?.vehicleModel,
           "Pickup Date": b.pickupDate.toLocaleDateString("en-IN", {
             day: "2-digit",
             month: "short",
@@ -108,9 +108,9 @@ const bookingConfirmationTemplate = ({
                 60 *
                 24,
             ),
-          "Rate/Day": `INR ${b.motorcycle.pricePerDay}/-`,
+          "Rate/Day": `INR ${b.motorcycle?.rentPerDay}/-`,
           Quantity: b.quantity,
-          "Item Total": `INR ${b.motorcycle.pricePerDay * b.quantity * ((b.returnDate.getTime() - b.pickupDate.getTime()) / (1000 * 60 * 60 * 24))}/-`,
+          "Item Total": `INR ${b.motorcycle?.rentPerDay! * b.quantity * ((b.returnDate.getTime() - b.pickupDate.getTime()) / (1000 * 60 * 60 * 24))}/-`,
         })),
         columns: {
           // adjust widths as needed

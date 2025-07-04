@@ -48,6 +48,7 @@ export function ReviewModal({ booking, trigger }: ReviewModalProps) {
       form.reset();
       setOpen(false);
     } catch (err: AxiosError | any) {
+      toast.dismiss(toastId);
       toast.error(err?.response?.data?.message || "Failed to submit review.");
     }
   };
@@ -60,10 +61,12 @@ export function ReviewModal({ booking, trigger }: ReviewModalProps) {
           <DialogTitle>Rate Your Experience</DialogTitle>
           <DialogDescription>
             Please share your feedback for{" "}
-            <strong>
-              {booking.motorcycle.make} {booking.motorcycle.vehicleModel}
-            </strong>
-            .
+            {booking.items.length > 0 &&
+              booking.items.map((item, idx) => (
+                <strong>
+                  {item.motorcycle.make} {item.motorcycle.vehicleModel}
+                </strong>
+              ))}
           </DialogDescription>
         </DialogHeader>
 
@@ -71,34 +74,43 @@ export function ReviewModal({ booking, trigger }: ReviewModalProps) {
         <div className="border p-4 rounded-md mb-4 bg-gray-50">
           <div className="flex items-center gap-4 mb-2">
             <div className="relative w-16 h-16 rounded-md overflow-hidden">
-              <Image
-                src={
-                  booking.motorcycle.image?.url ||
-                  "/placeholder.svg?height=64&width=64"
-                }
-                alt={`${booking.motorcycle.make} ${booking.motorcycle.vehicleModel}`}
-                fill
-                className="object-cover"
-              />
+              {booking.items.length > 0 &&
+                booking.items.map((item, idx) => (
+                  <Image
+                    src={
+                      item.motorcycle.image?.url ||
+                      "/placeholder.svg?height=64&width=64"
+                    }
+                    alt={`${item.motorcycle.make} ${item.motorcycle.vehicleModel}`}
+                    fill
+                    className="object-cover"
+                  />
+                ))}
             </div>
             <div>
-              <p className="font-semibold">
-                {booking.motorcycle.make} {booking.motorcycle.vehicleModel}
-              </p>
-              <p className="text-sm text-gray-600">
-                {format(new Date(booking.startDate), "MMM dd, yyyy")} -{" "}
-                {format(new Date(booking.endDate), "MMM dd, yyyy")}
-              </p>
+              {booking.items.length > 0 &&
+                booking.items.map((item, idx) => (
+                  <p className="font-semibold">
+                    {item.motorcycle.make} {item.motorcycle.vehicleModel}
+                  </p>
+                ))}
+              {booking.items.length > 0 &&
+                booking.items.map((item, idx) => (
+                  <p className="text-sm text-gray-600">
+                    {format(new Date(item.pickupDate), "MMM dd, yyyy")} -{" "}
+                    {format(new Date(item.returnDate), "MMM dd, yyyy")}
+                  </p>
+                ))}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-4 text-sm">
             <div className="flex items-center gap-2">
               <CreditCardIcon className="h-4 w-4 text-gray-500" />
-              <span>₹{booking.totalCost}</span>
+              <span>₹{booking.discountedTotal}</span>
             </div>
             <div className="flex items-center gap-2">
               <MapPinIcon className="h-4 w-4 text-gray-500" />
-              <span>{booking.quantity} items</span>
+              <span>{booking.items.length} items</span>
             </div>
           </div>
         </div>
