@@ -52,6 +52,9 @@ export const addMotorcycleSchema = z.object({
   description: z.string().min(10, "Description must be at least 10 characters"),
   category: z.enum(["TOURING", "SPORTS", "CRUISER", "ADVENTURE", "SCOOTER"]),
   specs: z.record(z.string(), z.string()),
+  images: z.array(z.string()).min(1, "At least one image is required"),
+  documents: z.array(z.string()).min(1, "At least one document is required"),
+  availableQuantity: z.number().min(1, "Quantity must be at least 1"),
 });
 
 export type ContactFormData = z.infer<typeof contactSchema>;

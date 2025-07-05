@@ -96,6 +96,7 @@ export function Navbar() {
 
   const handleLogout = async () => {
     await logout();
+    window.localStorage.clear();
     router.push("/");
   };
 
@@ -281,7 +282,7 @@ export function Navbar() {
             <ThemeToggle />
 
             {/* Cart */}
-            {user && (
+            {user && user.role === UserRolesEnum.CUSTOMER && (
               <Button
                 variant="outline"
                 asChild

@@ -125,7 +125,7 @@ export default function CartPage() {
     }
 
     // Simulate payment processing
-    toast("Payment Processing", {
+    toast.success("Payment Processing", {
       description: "Redirecting to payment gateway...",
     });
 
@@ -207,7 +207,9 @@ export default function CartPage() {
               Continue Shopping
             </Link>
           </Button>
-          <h1 className="text-3xl font-bold">Cart ({cart?.items?.length})</h1>
+          <h1 className="text-3xl font-bold ml-4">
+            Cart ({cart?.items?.length})
+          </h1>
         </div>
         <Button
           variant="outline"
@@ -531,7 +533,9 @@ export default function CartPage() {
               {/* Amount to Pay */}
               <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
                 <div className="flex justify-between items-center">
-                  <span className="font-medium dark:text-black">Amount to Pay</span>
+                  <span className="font-medium dark:text-black">
+                    Amount to Pay
+                  </span>
                   <span className="text-2xl font-bold text-yellow-600">
                     ₹
                     {paymentMethod === "partial"

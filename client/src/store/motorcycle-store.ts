@@ -5,6 +5,7 @@ import {
   CreateMotorcycleLogFormData,
   UpdateMotorcycleLogFormData,
 } from "@/schemas/motorcycle-logs.schema";
+import { AxiosError } from "axios";
 
 interface MotorcycleState {
   motorcycles: CustomerMotorcycle[] | AdminMotorcycle[];
@@ -26,12 +27,16 @@ interface MotorcycleState {
 
   // API functions
   getAllMotorcycles: (params?: any) => Promise<void>;
-  addMotorcycle: (data: any) => Promise<void>;
+  addMotorcycle: (data: FormData) => Promise<void>;
   getMotorcycleById: (motorcycleId: string) => Promise<CustomerMotorcycle>;
   updateMotorcycleDetails: (motorcycleId: string, data: any) => Promise<void>;
   updateMotorcycleMaintenanceLogs: (
     motorcycleId: string,
     data: any
+  ) => Promise<void>;
+  updateMotorcycleAvailability: (
+    motorcycleId: string,
+    data: { isAvailable: boolean }
   ) => Promise<void>;
   deleteMotorcycle: (motorcycleId: string) => Promise<void>;
 
@@ -110,7 +115,7 @@ export const useMotorcycleStore = create<MotorcycleState>((set, get) => ({
     } catch (error: any) {
       set({
         loading: false,
-        error: error.response?.data?.message || "Failed to fetch motorcycle",
+        error: error.response?.data?.message ?? "Failed to fetch motorcycle",
       });
       throw error;
     }
@@ -123,17 +128,39 @@ export const useMotorcycleStore = create<MotorcycleState>((set, get) => ({
         motorcycleId,
         data
       );
-      const updatedMotorcycle = response.data;
+      const updatedMotorcycle = response.data.data;
       set((state) => ({
         motorcycles: state.motorcycles.map((m) =>
           m._id === motorcycleId ? updatedMotorcycle : m
         ),
         loading: false,
       }));
-    } catch (error: any) {
+    } catch (error: AxiosError | any) {
       set({
         loading: false,
         error: error.response?.data?.message || "Failed to update motorcycle",
+      });
+      throw error;
+    }
+  },
+
+  updateMotorcycleAvailability: async (motorcycleId, data) => {
+    set({ loading: true, error: null });
+    try {
+      const res = await motorcycleAPI.updateMotorcycleAvailability(
+        motorcycleId,
+        data
+      );
+      set((state) => ({
+        motorcycles: state.motorcycles.map((m) =>
+          m._id === motorcycleId ? res.data.data : m
+        ),
+        loading: false,
+      }));
+    } catch (error: AxiosError | any) {
+      set({
+        loading: false,
+        error: error.response?.data?.message ?? "Failed to update motorcycle",
       });
       throw error;
     }
@@ -144,7 +171,7 @@ export const useMotorcycleStore = create<MotorcycleState>((set, get) => ({
     try {
       await motorcycleAPI.updateMotorcycleMaintenanceLogs(motorcycleId, data);
       set({ loading: false });
-    } catch (error: any) {
+    } catch (error: AxiosError | any) {
       set({
         loading: false,
         error:

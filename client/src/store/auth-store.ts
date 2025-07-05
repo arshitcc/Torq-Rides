@@ -82,6 +82,7 @@ export const useAuthStore = create<AuthState>()(
             error: error.response?.data?.message || "Registration failed",
           });
           toast.error(error.response?.data?.message || "Registration failed");
+          throw error;
         } finally {
           set({ loading: false });
         }
@@ -98,6 +99,7 @@ export const useAuthStore = create<AuthState>()(
         } catch (error: AxiosError | any) {
           set({ error: error.response?.data?.message || "Login failed" });
           toast.error(error.response?.data?.message || "Login failed");
+          throw error;
         } finally {
           set({ loading: false });
         }

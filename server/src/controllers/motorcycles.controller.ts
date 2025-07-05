@@ -87,26 +87,49 @@ const addMotorcycle = asyncHandler(
       make,
       vehicleModel,
       year,
+      color,
+      variant,
       rentPerDay,
       description,
       category,
       specs,
+      isAvailable,
+      availableQuantity,
+      securityDeposit,
+      kmsLimitPerDay,
+      extraKmsCharges,
     } = req.body;
 
-    const file = req.file?.path;
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+
+    const file = files["image"][0].path;
 
     if (!file) {
       throw new ApiError(400, "Image is required");
     }
+
+    const images = await Promise.all(
+      files["images"].map(async (image) => {
+        const img = await uploadFile(image.path);
+        return {
+          public_id: img.public_id,
+          url: img.secure_url,
+          resource_type: img.resource_type,
+          format: img.format,
+        };
+      }),
+    );
 
     const image = await uploadFile(file);
 
     const motorcycle = await Motorcycle.create({
       make,
       vehicleModel,
-      year,
-      rentPerDay,
+      year: Number(year),
+      rentPerDay: Number(rentPerDay),
       description,
+      color,
+      variant,
       category,
       image: {
         public_id: image.public_id,
@@ -114,7 +137,13 @@ const addMotorcycle = asyncHandler(
         resource_type: image.resource_type,
         format: image.format,
       },
+      images,
       specs,
+      isAvailable: Boolean(isAvailable),
+      availableQuantity: Number(availableQuantity),
+      extraKmsCharges: Number(extraKmsCharges),
+      kmsLimitPerDay: Number(kmsLimitPerDay),
+      securityDeposit: Number(securityDeposit),
     });
 
     if (!motorcycle) {
@@ -324,6 +353,35 @@ const deleteMotorcycle = asyncHandler(
   },
 );
 
+const updateMotorcycleAvailability = asyncHandler(
+  async (req: CustomRequest, res: Response) => {
+    const { motorcycleId } = req.params;
+
+    const motorcycle = await Motorcycle.findById(motorcycleId);
+
+    if (!motorcycle) {
+      throw new ApiError(404, "Motorcycle not found");
+    }
+
+    const { isAvailable } = req.body; // Assuming isAvailable is present in the request body
+
+    motorcycle.isAvailable = isAvailable;
+
+    await motorcycle.save({ validateBeforeSave: false });
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          true,
+          "Motorcycle Updated Successfully",
+          motorcycle,
+        ),
+      );
+  },
+);
+
 export {
   getAllMotorcycles,
   getMotorcycleById,
@@ -331,4 +389,5 @@ export {
   updateMotorcycleDetails,
   updateMotorcycleMaintainanceLogs,
   deleteMotorcycle,
+  updateMotorcycleAvailability,
 };

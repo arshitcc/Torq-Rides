@@ -4,15 +4,12 @@ import {
   LoginFormData,
   SignupFormData,
 } from "@/schemas/users.schema";
-import { AddMotorcycleFormData } from "@/schemas";
 import {
   ForgotPasswordFormData,
   ResetPasswordFormData,
 } from "@/schemas/users.schema";
-import { useAuthStore } from "@/store/auth-store";
 import { ApiError } from "@/types/api";
 import axios from "axios";
-import Router from "next/router";
 import {
   CreateMotorcycleLogFormData,
   UpdateMotorcycleLogFormData,
@@ -57,7 +54,7 @@ export const authAPI = {
 export const motorcycleAPI = {
   getAllMotorcycles: (params?: any) => api.get("/motorcycles", { params }),
 
-  addMotorcycle: (data: AddMotorcycleFormData) =>
+  addMotorcycle: (data: FormData) =>
     api.post("/motorcycles", data),
 
   getMotorcycleById: (motorcycleId: string) =>
@@ -65,6 +62,9 @@ export const motorcycleAPI = {
 
   updateMotorcycleDetails: (motorcycleId: string, data: any) =>
     api.put(`/motorcycles/${motorcycleId}`, data),
+
+  updateMotorcycleAvailability: (motorcycleId: string, data: any) =>
+    api.post(`/motorcycles/${motorcycleId}`, data),
 
   updateMotorcycleMaintenanceLogs: (motorcycleId: string, data: any) =>
     api.patch(`/motorcycles/${motorcycleId}`, data),
@@ -74,24 +74,25 @@ export const motorcycleAPI = {
 
   // Motorcycle-Logs API
 
-  getAllMotorcycleLogs: () => api.get("/motorcycle/logs"),
+  getAllMotorcycleLogs: (params?: any) =>
+    api.get("/motorcycles/logs", { params }),
 
   createMotorcycleLog: (
     motorcycleId: string,
     data: CreateMotorcycleLogFormData
-  ) => api.post(`/motorcycle/logs/${motorcycleId}`, data),
+  ) => api.post(`/motorcycles/logs/${motorcycleId}`, data),
 
-  getMotorcycleLogs: (motorcycleId: string) =>
-    api.get(`/motorcycle/logs/${motorcycleId}`),
+  getMotorcycleLogs: (motorcycleId: string, params?: any) =>
+    api.get(`/motorcycles/logs/${motorcycleId}`, { params }),
 
   updateMotorcycleLog: (
     motorcycleId: string,
     logId: string,
     data: UpdateMotorcycleLogFormData
-  ) => api.put(`/motorcycle/logs/${motorcycleId}/${logId}`, data),
+  ) => api.put(`/motorcycles/logs/${motorcycleId}/${logId}`, data),
 
   deleteMotorcycleLog: (motorcycleId: string, logId: string) =>
-    api.delete(`/motorcycle/logs/${motorcycleId}/${logId}`),
+    api.delete(`/motorcycles/logs/${motorcycleId}/${logId}`),
 };
 
 export const bookingAPI = {
@@ -145,8 +146,7 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error?.config?.url?.includes("refresh-token")) {
-      useAuthStore.getState().setUser(null, false);
-      Router.push("/login");
+      localStorage.clear();
       return Promise.reject(error);
     }
 

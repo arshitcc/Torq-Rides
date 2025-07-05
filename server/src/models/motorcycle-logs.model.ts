@@ -39,7 +39,6 @@ const motorcycleLogSchema = new mongoose.Schema<IMotorcycleLog>(
 
     dateIn: {
       type: Date,
-      required: true,
     },
 
     serviceCentreName: {
@@ -64,7 +63,7 @@ const motorcycleLogSchema = new mongoose.Schema<IMotorcycleLog>(
     status: {
       type: String,
       enum: Object.values(MotorcycleStatusEnum),
-      default: MotorcycleStatusEnum.IN_SERVICE,
+      default: MotorcycleStatusEnum.OK,
     },
 
     dateOut: {

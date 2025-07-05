@@ -7,9 +7,7 @@ import { UserRolesEnum } from "../constants/constants";
 import { upload } from "../middlewares/multer.middleware";
 import {
   addMotorcycleValidators,
-  deleteMotorcycleByIdValidators,
   getAllMotorcyclesValidtors,
-  getMotorcycleByIdValidators,
   updateMotorcycleByIdValidators,
   updateMotorcycleMaintainanceValidators,
 } from "../validators/motorcycles.validator";
@@ -21,8 +19,10 @@ import {
   updateMotorcycleDetails,
   deleteMotorcycle,
   updateMotorcycleMaintainanceLogs,
+  updateMotorcycleAvailability,
 } from "../controllers/motorcycles.controller";
 import logsRouter from "./motorcycle-logs.route";
+import { mongoIdPathVariableValidator } from "../validators/common/mongodb/mongodb.validators";
 
 const router = Router();
 
@@ -33,7 +33,10 @@ router
   .get(getAllMotorcyclesValidtors(), validate, getAllMotorcycles)
   .post(
     verifyPermission([UserRolesEnum.ADMIN]),
-    upload.single("image"),
+    upload.fields([
+      { name: "image", maxCount: 1 },
+      { name: "images", maxCount: 5 },
+    ]),
     addMotorcycleValidators(),
     validate,
     addMotorcycle,
@@ -43,9 +46,20 @@ router.use("/logs", logsRouter);
 
 router
   .route("/:motorcycleId")
-  .get(getMotorcycleByIdValidators(), validate, getMotorcycleById)
+  .get(
+    mongoIdPathVariableValidator("motorcycleId"),
+    validate,
+    getMotorcycleById,
+  )
+  .post(
+    verifyPermission([UserRolesEnum.ADMIN]),
+    mongoIdPathVariableValidator("motorcycleId"),
+    validate,
+    updateMotorcycleAvailability,
+  )
   .put(
     verifyPermission([UserRolesEnum.ADMIN]),
+    mongoIdPathVariableValidator("motorcycleId"),
     upload.single("image"),
     updateMotorcycleByIdValidators(),
     validate,
@@ -53,13 +67,14 @@ router
   )
   .patch(
     verifyPermission([UserRolesEnum.ADMIN]),
+    mongoIdPathVariableValidator("motorcycleId"),
     updateMotorcycleMaintainanceValidators(),
     validate,
     updateMotorcycleMaintainanceLogs,
   )
   .delete(
     verifyPermission([UserRolesEnum.ADMIN]),
-    deleteMotorcycleByIdValidators(),
+    mongoIdPathVariableValidator("motorcycleId"),
     validate,
     deleteMotorcycle,
   );

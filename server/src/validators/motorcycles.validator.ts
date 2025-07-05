@@ -1,4 +1,4 @@
-import { query, body, param } from "express-validator";
+import { query, body } from "express-validator";
 import {
   AvailableMotorcycleCategories,
   AvailableMotorcycleStatus,
@@ -48,20 +48,22 @@ const addMotorcycleValidators = () => {
       .withMessage(
         `Category must be one of: ${AvailableMotorcycleCategories.join(", ")}`,
       ),
+
     body("specs")
       .exists({ checkNull: true })
       .withMessage("Specifications is required")
+      .custom((val) => !Array.isArray(val))
+      .withMessage("Specifications cannot be an array")
       .customSanitizer((val) => {
         try {
+          if(!val) return {};
           return JSON.parse(val);
         } catch (err) {
+          console.log(err)
           throw new Error("Specifications must be valid JSON");
         }
-      })
-      .isObject()
-      .withMessage("Specifications must be an object")
-      .custom((val) => !Array.isArray(val))
-      .withMessage("Specifications cannot be an array"),
+      }),
+
     body("specs.engine")
       .optional({ checkFalsy: true })
       .isString()
@@ -74,21 +76,29 @@ const addMotorcycleValidators = () => {
       .optional({ checkFalsy: true })
       .isString()
       .withMessage("weight must be a string"),
-  ];
-};
 
-const getMotorcycleByIdValidators = () => {
-  return [param("motorcycleId").isMongoId()];
+    body("availableQuantity")
+      .isInt({ min: 1 })
+      .withMessage("Vehicle quantity must be an integer"),
+
+    body("isAvailable")
+      .isBoolean()
+      .withMessage("isAvailable must be a boolean"),
+
+    body("color").isString().withMessage("Color must be a string"),
+
+    body("extraKmsCharges")
+      .isInt({ min: 1 })
+      .withMessage("Extra kms charges must be a number"),
+
+    body("securityDeposit")
+      .isInt({ min: 1 })
+      .withMessage("Security Deposit must be a number"),
+  ];
 };
 
 const updateMotorcycleByIdValidators = () => {
   return [
-    param("motorcycleId")
-      .exists()
-      .withMessage("Motorcycle ID param is required")
-      .isMongoId()
-      .withMessage("Motorcycle ID must be a valid Mongo ID"),
-
     body("make")
       .optional({ checkFalsy: true })
       .isString()
@@ -151,12 +161,6 @@ const updateMotorcycleByIdValidators = () => {
 
 const updateMotorcycleMaintainanceValidators = () => {
   return [
-    param("motorcycleId")
-      .exists()
-      .withMessage("Motorcycle ID param is required")
-      .isMongoId()
-      .withMessage("Motorcycle ID must be a valid Mongo ID"),
-
     body("date")
       .exists({ checkFalsy: true })
       .withMessage("Service date is required")
@@ -188,15 +192,9 @@ const updateMotorcycleMaintainanceValidators = () => {
   ];
 };
 
-const deleteMotorcycleByIdValidators = () => {
-  return [param("motorcycleId").isMongoId()];
-};
-
 export {
   getAllMotorcyclesValidtors,
   addMotorcycleValidators,
-  getMotorcycleByIdValidators,
   updateMotorcycleByIdValidators,
   updateMotorcycleMaintainanceValidators,
-  deleteMotorcycleByIdValidators,
 };

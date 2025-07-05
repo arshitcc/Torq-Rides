@@ -26,9 +26,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2Icon } from "lucide-react";
 import { useEffect } from "react";
+import { useCartStore } from "@/store/cart-store";
+import { AxiosError } from "axios";
 
 export default function LoginPage() {
-  const { login, loading, isAuthenticated } = useAuthStore();
+  const { login, loading, isAuthenticated, error, setError } = useAuthStore();
+  const { getUserCart } = useCartStore();
   const router = useRouter();
 
   useEffect(() => {
@@ -47,12 +50,12 @@ export default function LoginPage() {
 
   const onSubmit = async (data: LoginFormData) => {
     try {
+      setError(null);
       await login(data);
+      getUserCart();
       router.push("/");
-    } catch (error) {
-      toast.error("Error", {
-        description: "Invalid credentials. Please try again.",
-      });
+    } catch (error: AxiosError | any) {
+      toast.error(error.response?.data?.message || "Login failed");
     }
   };
 
@@ -66,6 +69,11 @@ export default function LoginPage() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              {error && (
+                <p className="text-red-500 bg-red-100 rounded-lg p-4 text-md">
+                  {error}
+                </p>
+              )}
               <FormField
                 control={form.control}
                 name="user"

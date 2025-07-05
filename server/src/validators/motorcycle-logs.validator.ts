@@ -3,10 +3,8 @@ import { MotorcycleStatusEnum } from "../models/motorcycles.model";
 
 export const createMotorcycleLogValidator = () => {
   return [
-    body("motorcycleId")
-      .isMongoId()
-      .withMessage("motorcycleId must be a valid ObjectId"),
     body("dateIn")
+      .optional()
       .isISO8601()
       .toDate()
       .withMessage("dateIn must be a valid date"),
@@ -28,7 +26,11 @@ export const createMotorcycleLogValidator = () => {
     body("thingsToDo.other").optional().isBoolean(),
     body("thingsToDo.otherDetails").optional().isString().trim(),
     body("status").optional().isIn(Object.values(MotorcycleStatusEnum)),
-    body("dateOut").optional().isISO8601().toDate(),
+    body("dateOut")
+      .optional()
+      .isISO8601()
+      .toDate()
+      .withMessage("dateIn must be a valid date"),
     body("billAmount").optional().isNumeric(),
     body("isAvailable").optional().isBoolean(),
   ];

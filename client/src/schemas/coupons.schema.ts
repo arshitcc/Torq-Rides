@@ -8,10 +8,7 @@ export const couponSchema = z.object({
   startDate: z.date(),
   expiryDate: z.date(),
   isActive: z.boolean(),
-  minOrderValue: z
-    .number()
-    .min(0, "Minimum order value must be positive")
-    .optional(),
+  minimumCartValue: z.number().min(0, "Minimum order value must be positive"),
 });
 
 export const updateCouponSchema = z.object({
@@ -28,8 +25,7 @@ export const updateCouponSchema = z.object({
   startDate: z.date().optional(),
   expiryDate: z.date().optional(),
   isActive: z.boolean().default(true).optional(),
-  maxUses: z.number().min(1, "Max uses must be at least 1").optional(),
-  minOrderValue: z
+  minimumCartValue: z
     .number()
     .min(0, "Minimum order value must be positive")
     .optional(),

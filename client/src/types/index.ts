@@ -115,7 +115,7 @@ export type AdminMotorcycle = {
   year: number;
   rentPerDay: number;
   description: string;
-  category: string;
+  category: MotorcycleCategory;
   image: File;
   specs: {
     engine: string;

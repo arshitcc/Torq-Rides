@@ -162,10 +162,10 @@ export default function ProfilePage() {
       // API call to update profile would go here
       console.log("Profile update:", data);
 
-      toast("Profile Updated Successfully !!");
+      toast.success("Profile Updated Successfully !!");
       setIsEditing(false);
     } catch (error) {
-      toast("Failed !!");
+      toast.error("Failed !!");
     }
   };
 
@@ -208,7 +208,10 @@ export default function ProfilePage() {
       setSelectedFile(null);
       setPreviewUrl(null);
     } catch (error: AxiosError | any) {
-      toast("Failed to upload document. Please try again.");
+      toast.error(
+        error.response?.data?.message ||
+          "Failed to upload document. Please try again."
+      );
     } finally {
       setIsUploading(false);
     }
@@ -221,13 +224,13 @@ export default function ProfilePage() {
     try {
       await changeAvatar(avatarFile, user?.avatar?.public_id);
 
-      toast("Profile Picture Updated Successfully !!");
+      toast.success("Profile Picture Updated Successfully !!");
 
       setAvatarFile(null);
       setAvatarPreview(null);
       getCurrentUser();
     } catch (error: AxiosError | any) {
-      toast.error("Failed !!");
+      toast.error(error.response?.data?.message || "Failed !!");
     } finally {
       setIsUploadingAvatar(false);
     }

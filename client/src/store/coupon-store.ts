@@ -62,7 +62,7 @@ export const useCouponStore = create<PromoCodeState>((set, get) => ({
       const response = await couponAPI.createCoupon(data);
       const createdCoupon = response.data.data;
       set((state) => ({
-        coupons: [...state.coupons, createdCoupon],
+        coupons: [createdCoupon, ...state.coupons],
         loading: false,
       }));
     } catch (error: any) {
