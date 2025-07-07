@@ -81,13 +81,9 @@ export default function AllBookingsPage() {
 
   useEffect(() => {
     if (!isAuthenticated) return;
-    if (!user) {
-      router.push("/login");
-      return;
-    }
 
-    if (user.role !== UserRolesEnum.ADMIN) {
-      toast.error("Access Denied");
+    if (!user || user.role !== UserRolesEnum.ADMIN) {
+      toast.warning("Access Denied");
       router.push("/");
       return;
     }

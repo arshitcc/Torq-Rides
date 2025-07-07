@@ -44,27 +44,36 @@ export function AvailableMotorcycles() {
               key={motorcycle._id}
               className="overflow-hidden hover:shadow-lg transition-shadow py-0"
             >
-              <CardHeader className="p-0 cursor-pointer">
-                <div className="relative w-full h-0 pb-[100%] overflow-hidden group rounded-xl">
-                  <Image
-                    src={motorcycle.image || "/placeholder.svg"}
-                    alt={motorcycle.category}
-                    layout="fill"
-                    className="object-cover transform transition-transform duration-300 ease-in-out group-hover:scale-110 h-80 w-80"
-                  />
-                  <Badge className="absolute top-2 right-2" variant="secondary">
-                    {motorcycle.category}
-                  </Badge>
-                </div>
-              </CardHeader>
+              <Link href={`/motorcycles?category=${motorcycle.category}`}>
+                <CardHeader className="p-0 cursor-pointer">
+                  <div className="relative w-full h-0 pb-[100%] overflow-hidden group rounded-xl">
+                    <Image
+                      src={motorcycle.image || "/placeholder.svg"}
+                      alt={motorcycle.category}
+                      layout="fill"
+                      className="object-cover transform transition-transform duration-300 ease-in-out group-hover:scale-110 h-80 w-80"
+                    />
+                    <Badge
+                      className="absolute top-2 right-2"
+                      variant="secondary"
+                    >
+                      {motorcycle.category}
+                    </Badge>
+                  </div>
+                </CardHeader>
+              </Link>
             </Card>
           ))}
         </div>
 
         <div className="text-center mt-8 cursor-pointer">
-          <Button variant="outline" size="lg" className="bg-yellow-primary">
+          <Button
+            variant="outline"
+            size="lg"
+            className="bg-yellow-primary text-white text-lg"
+          >
             <Link href="/motorcycles">View All Motorcycles</Link>
-            <ArrowRightIcon/>
+            <ArrowRightIcon />
           </Button>
         </div>
       </div>

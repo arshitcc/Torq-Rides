@@ -188,9 +188,9 @@ export default function BlogsPage() {
   const regularPosts = filteredPosts.filter((post) => !post.featured);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen dark:bg-[#18181B] bg-gray-50">
       {/* Hero Section */}
-      <section className="bg-gradient-to-r from-primary to-primary/80 text-white py-16">
+      <section className="bg-gradient-to-r dark:from-[#18181B] dark:to-[#18181B]/80 dark:text-white py-16">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center">
             <h1 className="text-5xl font-bold mb-4">TORQ Rides Blog</h1>
@@ -233,6 +233,7 @@ export default function BlogsPage() {
                   }
                   size="sm"
                   onClick={() => setSelectedCategory(category)}
+                  className=""
                 >
                   {category}
                 </Button>
@@ -604,7 +605,7 @@ export default function BlogsPage() {
       </div>
 
       {/* Newsletter Subscription */}
-      <section className="bg-primary text-white py-12">
+      <section className="bg-gray-50 dark:bg-[#18181B] dark:text-white py-12">
         <div className="container mx-auto px-4 text-center">
           <h2 className="text-3xl font-bold mb-4">Stay Updated</h2>
           <p className="text-lg mb-6 opacity-90">

@@ -58,6 +58,8 @@ export default function CartPage() {
   const [showBreakup, setShowBreakup] = useState<string | null>(null);
   const [applyingCoupon, setApplyingCoupon] = useState(false);
 
+  console.log(cart);
+
   useEffect(() => {
     if (!isAuthenticated) return;
     if (!user) {
@@ -101,7 +103,7 @@ export default function CartPage() {
 
   const calculateItemBreakup = (item: CartItem) => {
     const days =
-      differenceInDays(new Date(item.returnDate), new Date(item.pickupDate)) +
+      differenceInDays(new Date(item.dropoffDate), new Date(item.pickupDate)) +
       1;
     const dailyRate = item.motorcycle.rentPerDay;
     const quantity = item.quantity;
@@ -235,7 +237,9 @@ export default function CartPage() {
                     {/* Motorcycle Image */}
                     <div className="relative w-full md:w-64 h-48">
                       <Image
-                        src={item.motorcycle.image?.url || "/placeholder.svg"}
+                        src={
+                          item.motorcycle.images[0]?.url || "/placeholder.svg"
+                        }
                         alt={`${item.motorcycle.make} ${item.motorcycle.vehicleModel}`}
                         fill
                         className="object-cover"
@@ -271,14 +275,18 @@ export default function CartPage() {
                           <p className="font-medium">
                             {format(new Date(item.pickupDate), "MMM dd, yyyy")}
                           </p>
-                          <p className="text-xs text-gray-500">03:00 PM</p>
+                          <p className="text-xs text-gray-500">
+                            {item.pickupTime}
+                          </p>
                         </div>
                         <div>
-                          <p className="text-sm text-gray-500">Return Date</p>
+                          <p className="text-sm text-gray-500">Drop Off Date</p>
                           <p className="font-medium">
-                            {format(new Date(item.returnDate), "MMM dd, yyyy")}
+                            {format(new Date(item.dropoffDate), "MMM dd, yyyy")}
                           </p>
-                          <p className="text-xs text-gray-500">03:00 PM</p>
+                          <p className="text-xs text-gray-500">
+                            {item.dropoffTime}
+                          </p>
                         </div>
                       </div>
 

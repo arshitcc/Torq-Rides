@@ -78,7 +78,7 @@ export function ReviewModal({ booking, trigger }: ReviewModalProps) {
                 booking.items.map((item, idx) => (
                   <Image
                     src={
-                      item.motorcycle.image?.url ||
+                      item.motorcycle.images[0]?.url ||
                       "/placeholder.svg?height=64&width=64"
                     }
                     alt={`${item.motorcycle.make} ${item.motorcycle.vehicleModel}`}
@@ -98,7 +98,7 @@ export function ReviewModal({ booking, trigger }: ReviewModalProps) {
                 booking.items.map((item, idx) => (
                   <p className="text-sm text-gray-600">
                     {format(new Date(item.pickupDate), "MMM dd, yyyy")} -{" "}
-                    {format(new Date(item.returnDate), "MMM dd, yyyy")}
+                    {format(new Date(item.dropoffDate), "MMM dd, yyyy")}
                   </p>
                 ))}
             </div>

@@ -15,6 +15,8 @@ import {
   UpdateMotorcycleLogFormData,
 } from "@/schemas/motorcycle-logs.schema";
 import { CouponFormData, UpdateCouponFormData } from "@/schemas/coupons.schema";
+import { initialAuthState } from "@/store/auth-store";
+import { initialCartState } from "@/store/cart-store";
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1",
@@ -54,8 +56,7 @@ export const authAPI = {
 export const motorcycleAPI = {
   getAllMotorcycles: (params?: any) => api.get("/motorcycles", { params }),
 
-  addMotorcycle: (data: FormData) =>
-    api.post("/motorcycles", data),
+  addMotorcycle: (data: FormData) => api.post("/motorcycles", data),
 
   getMotorcycleById: (motorcycleId: string) =>
     api.get(`/motorcycles/${motorcycleId}`),
@@ -146,7 +147,9 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error?.config?.url?.includes("refresh-token")) {
-      localStorage.clear();
+      localStorage.setItem("auth-storage", JSON.stringify(initialAuthState));
+      localStorage.setItem("cart-storage", JSON.stringify(initialCartState));
+      window.location.href = "/login";
       return Promise.reject(error);
     }
 

@@ -43,22 +43,22 @@ export default function FeaturedBrands() {
       <Carousel
         opts={{ loop: true }}
         plugins={[autoplay]}
-        className="relative w-full cursor-pointer dark:bg-[#18181B] bg-muted/30 py-8"
+        className="relative w-full cursor-pointer dark:bg-[#18181B] bg-muted/30"
         onMouseEnter={() => autoplay.stop()}
         onMouseLeave={() => autoplay.reset()}
       >
-        <CarouselContent className="overflow-visible">
+        <CarouselContent className="overflow-visible space-x-4">
           {logos?.length > 0 &&
             logos.map((src, idx) => (
               <CarouselItem
                 key={idx}
-                className="basis-1/5 flex items-center justify-center p-4"
+                className="basis-1/3 sm:basis-1/5 flex items-center justify-center p-4"
               >
                 <Image
                   src={src}
                   alt={`Brand logo ${idx + 1}`}
-                  width={120}
-                  height={60}
+                  width={160}
+                  height={240}
                   className="object-contain mix-blend-color"
                 />
               </CarouselItem>

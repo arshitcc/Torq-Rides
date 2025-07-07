@@ -6,8 +6,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -16,14 +14,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
   Table,
   TableBody,
   TableCell,
@@ -31,17 +21,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { useAuthStore } from "@/store/auth-store";
 import { useMotorcycleStore } from "@/store/motorcycle-store";
 import { useCouponStore } from "@/store/coupon-store";
@@ -63,20 +52,28 @@ import {
   Cell,
 } from "recharts";
 import {
-  DollarSign,
-  Users,
-  Bike,
-  Calendar,
-  Plus,
-  Eye,
+  DollarSignIcon,
+  UsersIcon,
+  BikeIcon,
+  CalendarIcon,
+  PlusIcon,
+  EyeIcon,
   FileTextIcon,
   PowerOffIcon,
   PowerIcon,
   EditIcon,
   Trash2Icon,
+  SearchIcon,
 } from "lucide-react";
 import { format } from "date-fns";
-import { AdminMotorcycle, CustomerMotorcycle, UserRolesEnum } from "@/types";
+import {
+  AvailableMotorcycleCategories,
+  AvailableMotorcycleMakes,
+  Motorcycle,
+  MotorcycleCategory,
+  MotorcycleMake,
+  UserRolesEnum,
+} from "@/types";
 import {
   CouponFormData,
   couponSchema,
@@ -108,6 +105,12 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useMotorcycleLogStore } from "@/store/motorcycle-log-store";
+import { useDebounceValue } from "usehooks-ts";
+import MaintenanceDialog from "./__components/maintenance-dialog";
+import UpdateMotorcycleDialog from "./__components/update-motorcycle-dialog";
+import AddCouponDialog from "./__components/add-coupon-dialog";
+import CouponsTable from "./__components/coupons-table";
+import { getStatusColor } from "./filters";
 
 // Sample data for charts
 const salesData = [
@@ -131,6 +134,7 @@ export default function DashboardPage() {
   const { user, isAuthenticated } = useAuthStore();
   const {
     motorcycles,
+    metadata,
     getAllMotorcycles,
     updateMotorcycleDetails,
     updateMotorcycleAvailability,
@@ -157,6 +161,18 @@ export default function DashboardPage() {
     useState(false);
   const [showUpdateCouponDialog, setShowUpdateCouponDialog] = useState(false);
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 9;
+  const [selectedMake, setSelectedMake] = useState<
+    MotorcycleMake | "All Makes"
+  >("All Makes");
+  const [selectedCategory, setSelectedCategory] = useState<
+    MotorcycleCategory | "All Categories"
+  >("All Categories");
+  const [isAvailable, setIsAvailable] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm] = useDebounceValue(searchTerm, 500);
+
   const couponForm = useForm<CouponFormData>({
     resolver: zodResolver(couponSchema),
     defaultValues: {
@@ -182,23 +198,53 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    if (!user) {
-      router.push("/login");
-      return;
-    }
-
-    if (user.role !== UserRolesEnum.ADMIN) {
+    if (!user || user.role !== UserRolesEnum.ADMIN) {
       toast.warning("Access Denied !!");
       router.push("/");
       return;
     }
 
+    const filters: Record<string, any> = {
+      page: currentPage,
+      offset: itemsPerPage,
+    };
+
+    if (debouncedSearchTerm?.trim())
+      filters.searchTerm = debouncedSearchTerm.trim();
+
+    if (
+      selectedMake !== "All Makes" &&
+      AvailableMotorcycleMakes.includes(selectedMake)
+    )
+      filters.make = selectedMake;
+    else filters.make = undefined;
+
+    if (
+      selectedCategory !== "All Categories" &&
+      AvailableMotorcycleCategories.includes(selectedCategory)
+    ) {
+      filters.category = selectedCategory;
+    }
+
+    if (isAvailable) filters.isAvailable = isAvailable;
+
     // Fetch data
-    getAllMotorcycles();
+    getAllMotorcycles(filters);
     getAllCoupons();
     getAllBookings();
     getAllMotorcycleLogs({ page: 1, offset: 10 });
-  }, [user, getAllMotorcycles, getAllCoupons, getAllBookings, router, toast]);
+  }, [
+    user,
+    getAllMotorcycles,
+    getAllCoupons,
+    getAllBookings,
+    router,
+    toast,
+    selectedCategory,
+    selectedMake,
+    debouncedSearchTerm,
+    currentPage,
+  ]);
 
   const handleToggleCoupon = async (couponId: string, isActive: boolean) => {
     try {
@@ -282,9 +328,7 @@ export default function DashboardPage() {
     }
   };
 
-  const handleUpdateMotorcycle = (
-    motorcycle: CustomerMotorcycle | AdminMotorcycle
-  ) => {
+  const handleUpdateMotorcycle = (motorcycle: Motorcycle) => {
     setSelectedMotorcycle(motorcycle);
     updateMotorcycleForm.reset({
       make: motorcycle.make,
@@ -346,19 +390,6 @@ export default function DashboardPage() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "OK":
-        return "bg-green-100 text-green-800";
-      case "DUE-SERVICE":
-        return "bg-yellow-100 text-yellow-800";
-      case "IN-SERVICE":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
   if (!user || user.role !== UserRolesEnum.ADMIN) {
     return null;
   }
@@ -371,6 +402,10 @@ export default function DashboardPage() {
   const totalBookings = bookings.length;
   const totalCustomers = new Set(bookings.map((b) => b.customerId)).size;
   const totalMotorcycles = motorcycles.length;
+
+  const totalPages = Math.ceil(metadata?.total / itemsPerPage) || 1;
+  const makes = AvailableMotorcycleMakes;
+  const categories = AvailableMotorcycleCategories;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -407,7 +442,7 @@ export default function DashboardPage() {
                 <CardTitle className="text-sm font-medium">
                   Total Revenue
                 </CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <DollarSignIcon className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
@@ -424,7 +459,7 @@ export default function DashboardPage() {
                 <CardTitle className="text-sm font-medium">
                   Total Bookings
                 </CardTitle>
-                <Calendar className="h-4 w-4 text-muted-foreground" />
+                <CalendarIcon className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{totalBookings}</div>
@@ -439,7 +474,7 @@ export default function DashboardPage() {
                 <CardTitle className="text-sm font-medium">
                   Total Customers
                 </CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
+                <UsersIcon className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{totalCustomers}</div>
@@ -454,7 +489,7 @@ export default function DashboardPage() {
                 <CardTitle className="text-sm font-medium">
                   Total Motorcycles
                 </CardTitle>
-                <Bike className="h-4 w-4 text-muted-foreground" />
+                <BikeIcon className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{totalMotorcycles}</div>
@@ -533,13 +568,100 @@ export default function DashboardPage() {
             <h2 className="text-2xl font-bold">Motorcycle Fleet Management</h2>
             <Link href="/motorcycles/new">
               <Button className="cursor-pointer bg-yellow-primary hover:bg-yellow-600 text-black">
-                <Plus className="h-4 w-4 mr-2" />
+                <PlusIcon className="h-4 w-4 mr-2" />
                 New Motorcycle
               </Button>
             </Link>
           </div>
 
-          <Card className="border-yellow-primary/20">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-6 mb-6">
+            {/* Search Input */}
+            <div className="lg:col-span-2">
+              <label
+                htmlFor="search"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Search
+              </label>
+              <div className="relative">
+                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  id="search"
+                  className="dark:text-white pl-10 dark:bg-transparent"
+                  placeholder="Search by make or model..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-6">
+              {/* Make Select */}
+              <div>
+                <label
+                  htmlFor="make-select"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Make
+                </label>
+                <Select
+                  value={selectedMake}
+                  onValueChange={(value) =>
+                    setSelectedMake(value as MotorcycleMake)
+                  }
+                >
+                  <SelectTrigger id="make-select" className="dark:text-white">
+                    <SelectValue placeholder="Select Make" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-lg shadow-lg">
+                    <SelectItem value="All Makes">All Makes</SelectItem>
+                    {makes.map((m) => (
+                      <SelectItem key={m} value={m}>
+                        {m}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Category Select */}
+              <div>
+                <label
+                  htmlFor="category-select"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  Category
+                </label>
+                <Select
+                  value={selectedCategory}
+                  onValueChange={(value) =>
+                    setSelectedCategory(
+                      value as MotorcycleCategory | "All Categories"
+                    )
+                  }
+                >
+                  <SelectTrigger
+                    id="category-select"
+                    className="dark:text-white"
+                  >
+                    <SelectValue placeholder="Select Category" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-lg shadow-lg">
+                    <SelectItem value={"All Categories"}>
+                      All Categories
+                    </SelectItem>
+                    {categories.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          <Card className="border-yellow-primary/20 mb-4">
             <CardContent>
               <Table>
                 <TableHeader className="text-md py-2 font-semibold hover:bg-white dark:hover:bg-[#18181B]">
@@ -560,7 +682,7 @@ export default function DashboardPage() {
                           <div className="relative w-12 h-12 rounded-lg overflow-hidden">
                             <Image
                               src={
-                                motorcycle.image?.url ||
+                                motorcycle.images[0]?.url ||
                                 "/placeholder.svg?height=48&width=48"
                               }
                               alt={`${motorcycle.make} ${motorcycle.vehicleModel}`}
@@ -754,723 +876,73 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          {/* Update Motorcycle Dialog */}
-          <Dialog
-            open={showUpdateMotorcycleDialog}
-            onOpenChange={setShowUpdateMotorcycleDialog}
-          >
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Update Motorcycle</DialogTitle>
-                <DialogDescription>
-                  Update the motorcycle details below.
-                </DialogDescription>
-              </DialogHeader>
-              <Form {...updateMotorcycleForm}>
-                <form
-                  onSubmit={updateMotorcycleForm.handleSubmit(
-                    onUpdateMotorcycle
-                  )}
-                  className="space-y-4"
-                >
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={updateMotorcycleForm.control}
-                      name="make"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Make</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="e.g., Harley Davidson"
-                              {...field}
-                              className="border-yellow-primary/30 focus:border-yellow-primary"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={updateMotorcycleForm.control}
-                      name="vehicleModel"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Model</FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="e.g., Street 750"
-                              {...field}
-                              className="border-yellow-primary/30 focus:border-yellow-primary"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-3 gap-4">
-                    <FormField
-                      control={updateMotorcycleForm.control}
-                      name="year"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Year</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              {...field}
-                              onChange={(e) =>
-                                field.onChange(Number(e.target.value))
-                              }
-                              className="border-yellow-primary/30 focus:border-yellow-primary"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={updateMotorcycleForm.control}
-                      name="rentPerDay"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Rent per Day (₹)</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              {...field}
-                              onChange={(e) =>
-                                field.onChange(Number(e.target.value))
-                              }
-                              className="border-yellow-primary/30 focus:border-yellow-primary"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={updateMotorcycleForm.control}
-                      name="category"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Category</FormLabel>
-                          <Select
-                            onValueChange={field.onChange}
-                            defaultValue={field.value}
-                          >
-                            <FormControl>
-                              <SelectTrigger className="border-yellow-primary/30 focus:border-yellow-primary">
-                                <SelectValue placeholder="Select category" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="TOURING">Touring</SelectItem>
-                              <SelectItem value="SPORTS">Sports</SelectItem>
-                              <SelectItem value="CRUISER">Cruiser</SelectItem>
-                              <SelectItem value="ADVENTURE">
-                                Adventure
-                              </SelectItem>
-                              <SelectItem value="SCOOTER">Scooter</SelectItem>
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-
-                  <FormField
-                    control={updateMotorcycleForm.control}
-                    name="description"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Description</FormLabel>
-                        <FormControl>
-                          <Textarea
-                            placeholder="Describe the motorcycle..."
-                            {...field}
-                            className="border-yellow-primary/30 focus:border-yellow-primary"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+          {totalPages > 1 && (
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                    className={
+                      currentPage === 1 ? "pointer-events-none opacity-50" : ""
+                    }
                   />
+                </PaginationItem>
+                {Array.from({ length: totalPages }, (_, i) => (
+                  <PaginationItem key={i + 1}>
+                    <PaginationLink
+                      onClick={() => setCurrentPage(i + 1)}
+                      isActive={currentPage === i + 1}
+                    >
+                      {i + 1}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={() =>
+                      setCurrentPage((p) => Math.min(p + 1, totalPages))
+                    }
+                    className={
+                      currentPage === totalPages
+                        ? "pointer-events-none opacity-50"
+                        : ""
+                    }
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
 
-                  <DialogFooter>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="cursor-pointer"
-                      onClick={() => setShowUpdateMotorcycleDialog(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      type="submit"
-                      className="bg-yellow-primary hover:bg-yellow-600 text-black"
-                    >
-                      Save Changes
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </Form>
-            </DialogContent>
-          </Dialog>
+          {/* Update Motorcycle Dialog */}
+          <UpdateMotorcycleDialog
+            open={showUpdateMotorcycleDialog}
+            setOpen={setShowUpdateMotorcycleDialog}
+            updateMotorcycleForm={updateMotorcycleForm}
+            onUpdateMotorcycle={onUpdateMotorcycle}
+          />
         </TabsContent>
 
         {/* Coupons Tab */}
         <TabsContent value="coupons">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold">Coupon Management</h2>
-            <Dialog
+            <AddCouponDialog
               open={showAddCouponDialog}
-              onOpenChange={setShowAddCouponDialog}
-            >
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Coupon
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Create New Coupon</DialogTitle>
-                  <DialogDescription>
-                    Create a new discount coupon for customers.
-                  </DialogDescription>
-                </DialogHeader>
-                <Form {...couponForm}>
-                  <form
-                    onSubmit={couponForm.handleSubmit(onAddCoupon)}
-                    className="space-y-4"
-                  >
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={couponForm.control}
-                        name="name"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Coupon Name</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="e.g., Summer Sale"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={couponForm.control}
-                        name="promoCode"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Promo Code</FormLabel>
-                            <FormControl>
-                              <Input placeholder="e.g., SUMMER20" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-4">
-                      <FormField
-                        control={couponForm.control}
-                        name="type"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Discount Type</FormLabel>
-                            <Select
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
-                            >
-                              <FormControl>
-                                <SelectTrigger className="w-full">
-                                  <SelectValue />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="FLAT">
-                                  Flat Amount
-                                </SelectItem>
-                                <SelectItem value="PERCENTAGE">
-                                  Percentage
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={couponForm.control}
-                        name="discountValue"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Discount Value</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                placeholder="e.g., 500 or 20"
-                                {...field}
-                                onChange={(e) =>
-                                  field.onChange(Number(e.target.value))
-                                }
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={couponForm.control}
-                        name="minimumCartValue"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Minimum Cart Value</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="number"
-                                placeholder="e.g., 500 or 20"
-                                {...field}
-                                onChange={(e) =>
-                                  field.onChange(Number(e.target.value))
-                                }
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <FormField
-                        control={couponForm.control}
-                        name="startDate"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Start Date</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="date"
-                                {...field}
-                                value={
-                                  field.value
-                                    ? format(field.value, "yyyy-MM-dd")
-                                    : ""
-                                }
-                                onChange={(e) =>
-                                  field.onChange(new Date(e.target.value))
-                                }
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                      <FormField
-                        control={couponForm.control}
-                        name="expiryDate"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Expiry Date</FormLabel>
-                            <FormControl>
-                              <Input
-                                type="date"
-                                {...field}
-                                value={
-                                  field.value
-                                    ? format(field.value, "yyyy-MM-dd")
-                                    : ""
-                                }
-                                onChange={(e) =>
-                                  field.onChange(new Date(e.target.value))
-                                }
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <FormField
-                      control={couponForm.control}
-                      name="isActive"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                          <div className="space-y-0.5">
-                            <FormLabel className="text-base">Active</FormLabel>
-                            <div className="text-sm text-muted-foreground">
-                              Make this coupon active immediately
-                            </div>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-
-                    <DialogFooter>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setShowAddCouponDialog(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button type="submit">Create Coupon</Button>
-                    </DialogFooter>
-                  </form>
-                </Form>
-              </DialogContent>
-            </Dialog>
+              setOpen={setShowAddCouponDialog}
+              couponForm={couponForm}
+              onAddCoupon={onAddCoupon}
+            />
           </div>
-          <Card className="border-yellow-primary/20">
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Coupon Name</TableHead>
-                    <TableHead>Promo Code</TableHead>
-                    <TableHead>Discount</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {coupons.map((coupon) => (
-                    <TableRow key={coupon._id}>
-                      <TableCell className="font-medium">
-                        {coupon.name}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="font-mono">
-                          {coupon.promoCode}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        {coupon.type === "percentage"
-                          ? `${coupon.discountValue}%`
-                          : `₹${coupon.discountValue}`}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          className={
-                            coupon.isActive
-                              ? "bg-green-100 text-green-800"
-                              : "bg-red-100 text-red-800"
-                          }
-                        >
-                          {coupon.isActive ? "Active" : "Inactive"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex gap-4 items-center">
-                          <Switch
-                            checked={coupon.isActive}
-                            onCheckedChange={(checked) =>
-                              handleToggleCoupon(coupon._id, checked)
-                            }
-                          />
-
-                          <Dialog
-                            open={showUpdateCouponDialog}
-                            onOpenChange={setShowUpdateCouponDialog}
-                          >
-                            <DialogTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                  handleUpdateCoupon({
-                                    ...coupon,
-                                    type: coupon.type as "FLAT" | "PERCENTAGE",
-                                  })
-                                }
-                              >
-                                <EditIcon className="h-4 w-4" />
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Update Coupon</DialogTitle>
-                                <DialogDescription>
-                                  Update the details of this coupon
-                                </DialogDescription>
-                              </DialogHeader>
-                              <Form {...updateCouponForm}>
-                                <form
-                                  onSubmit={updateCouponForm.handleSubmit(
-                                    onUpdateCoupon
-                                  )}
-                                  className="space-y-4"
-                                >
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <FormField
-                                      control={updateCouponForm.control}
-                                      name="name"
-                                      render={({ field }) => (
-                                        <FormItem>
-                                          <FormLabel>Coupon Name</FormLabel>
-                                          <FormControl>
-                                            <Input
-                                              placeholder="e.g., Summer Sale"
-                                              {...field}
-                                            />
-                                          </FormControl>
-                                          <FormMessage />
-                                        </FormItem>
-                                      )}
-                                    />
-                                    <FormField
-                                      control={updateCouponForm.control}
-                                      name="promoCode"
-                                      render={({ field }) => (
-                                        <FormItem>
-                                          <FormLabel>Promo Code</FormLabel>
-                                          <FormControl>
-                                            <Input
-                                              placeholder="e.g., SUMMER20"
-                                              {...field}
-                                            />
-                                          </FormControl>
-                                          <FormMessage />
-                                        </FormItem>
-                                      )}
-                                    />
-                                  </div>
-
-                                  <div className="grid grid-cols-1 gap-4">
-                                    <FormField
-                                      control={updateCouponForm.control}
-                                      name="type"
-                                      render={({ field }) => (
-                                        <FormItem>
-                                          <FormLabel>Discount Type</FormLabel>
-                                          <Select
-                                            onValueChange={field.onChange}
-                                            defaultValue={field.value}
-                                          >
-                                            <FormControl>
-                                              <SelectTrigger className="w-full">
-                                                <SelectValue />
-                                              </SelectTrigger>
-                                            </FormControl>
-                                            <SelectContent>
-                                              <SelectItem value="FLAT">
-                                                Flat Amount
-                                              </SelectItem>
-                                              <SelectItem value="PERCENTAGE">
-                                                Percentage
-                                              </SelectItem>
-                                            </SelectContent>
-                                          </Select>
-                                          <FormMessage />
-                                        </FormItem>
-                                      )}
-                                    />
-                                    <FormField
-                                      control={updateCouponForm.control}
-                                      name="discountValue"
-                                      render={({ field }) => (
-                                        <FormItem>
-                                          <FormLabel>Discount Value</FormLabel>
-                                          <FormControl>
-                                            <Input
-                                              type="number"
-                                              placeholder="e.g., 500 or 20"
-                                              {...field}
-                                              onChange={(e) =>
-                                                field.onChange(
-                                                  Number(e.target.value)
-                                                )
-                                              }
-                                            />
-                                          </FormControl>
-                                          <FormMessage />
-                                        </FormItem>
-                                      )}
-                                    />
-
-                                    <FormField
-                                      control={updateCouponForm.control}
-                                      name="minimumCartValue"
-                                      render={({ field }) => (
-                                        <FormItem>
-                                          <FormLabel>
-                                            Minimum Cart Value
-                                          </FormLabel>
-                                          <FormControl>
-                                            <Input
-                                              type="number"
-                                              placeholder="e.g., 500 or 20"
-                                              {...field}
-                                              onChange={(e) =>
-                                                field.onChange(
-                                                  Number(e.target.value)
-                                                )
-                                              }
-                                            />
-                                          </FormControl>
-                                          <FormMessage />
-                                        </FormItem>
-                                      )}
-                                    />
-                                  </div>
-
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <FormField
-                                      control={updateCouponForm.control}
-                                      name="startDate"
-                                      render={({ field }) => (
-                                        <FormItem>
-                                          <FormLabel>Start Date</FormLabel>
-                                          <FormControl>
-                                            <Input
-                                              type="date"
-                                              {...field}
-                                              value={
-                                                field.value
-                                                  ? format(
-                                                      field.value,
-                                                      "yyyy-MM-dd"
-                                                    )
-                                                  : ""
-                                              }
-                                              onChange={(e) =>
-                                                field.onChange(
-                                                  new Date(e.target.value)
-                                                )
-                                              }
-                                            />
-                                          </FormControl>
-                                          <FormMessage />
-                                        </FormItem>
-                                      )}
-                                    />
-                                    <FormField
-                                      control={updateCouponForm.control}
-                                      name="expiryDate"
-                                      render={({ field }) => (
-                                        <FormItem>
-                                          <FormLabel>Expiry Date</FormLabel>
-                                          <FormControl>
-                                            <Input
-                                              type="date"
-                                              {...field}
-                                              value={
-                                                field.value
-                                                  ? format(
-                                                      field.value,
-                                                      "yyyy-MM-dd"
-                                                    )
-                                                  : ""
-                                              }
-                                              onChange={(e) =>
-                                                field.onChange(
-                                                  new Date(e.target.value)
-                                                )
-                                              }
-                                            />
-                                          </FormControl>
-                                          <FormMessage />
-                                        </FormItem>
-                                      )}
-                                    />
-                                  </div>
-
-                                  <FormField
-                                    control={updateCouponForm.control}
-                                    name="isActive"
-                                    render={({ field }) => (
-                                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                                        <div className="space-y-0.5">
-                                          <FormLabel className="text-base">
-                                            Active
-                                          </FormLabel>
-                                          <div className="text-sm text-muted-foreground">
-                                            Make this coupon active immediately
-                                          </div>
-                                        </div>
-                                        <FormControl>
-                                          <Switch
-                                            checked={field.value}
-                                            onCheckedChange={field.onChange}
-                                          />
-                                        </FormControl>
-                                      </FormItem>
-                                    )}
-                                  />
-
-                                  <DialogFooter>
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      onClick={() =>
-                                        setShowUpdateCouponDialog(false)
-                                      }
-                                    >
-                                      Cancel
-                                    </Button>
-                                    <Button type="submit">Update Coupon</Button>
-                                  </DialogFooter>
-                                </form>
-                              </Form>
-                            </DialogContent>
-                          </Dialog>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="text-red-600 hover:text-red-700 border-red-300 hover:bg-red-50 bg-transparent"
-                              >
-                                <Trash2Icon className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>
-                                  Delete Coupon
-                                </AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Are you sure you want to delete this coupon?
-                                  This action cannot be undone.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction
-                                  onClick={() => handleDeleteCoupon(coupon._id)}
-                                  className="bg-red-600 hover:bg-red-700"
-                                >
-                                  Delete
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          <CouponsTable
+            open={showUpdateCouponDialog}
+            setOpen={setShowUpdateCouponDialog}
+            coupons={coupons}
+            updateCouponForm={updateCouponForm}
+            onUpdateCoupon={onUpdateCoupon}
+            handleUpdateCoupon={handleUpdateCoupon}
+            handleToggleCoupon={handleToggleCoupon}
+            handleDeleteCoupon={handleDeleteCoupon}
+          />
         </TabsContent>
 
         {/* Maintenance Tab */}
@@ -1518,7 +990,7 @@ export default function DashboardPage() {
                         <TableCell>₹{log.billAmount}</TableCell>
                         <TableCell>
                           <Button variant="outline" size="sm">
-                            <Eye className="h-4 w-4" />
+                            <EyeIcon className="h-4 w-4" />
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -1617,51 +1089,12 @@ export default function DashboardPage() {
       </Tabs>
 
       {/* Maintenance Dialog */}
-      <Dialog
+      <MaintenanceDialog
         open={showMaintenanceDialog}
-        onOpenChange={setShowMaintenanceDialog}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Maintenance Logs</DialogTitle>
-            <DialogDescription>
-              View maintenance history for {selectedMotorcycle?.make}{" "}
-              {selectedMotorcycle?.vehicleModel}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            {logs
-              .filter((log) => log.motorcycleId === selectedMotorcycle?._id)
-              .map((log) => (
-                <div key={log._id} className="border rounded-lg p-4">
-                  <div className="flex justify-between items-start mb-2">
-                    <Badge className={getStatusColor(log.status)}>
-                      {log.status}
-                    </Badge>
-                    <span className="text-sm text-gray-500 space-x-3">
-                      {log.dateIn &&
-                        "Date In" + format(log.dateIn, "MMM dd, yyyy")}
-                      {log.dateOut &&
-                        "Date Out" + format(log.dateOut, "MMM dd, yyyy")}
-                    </span>
-                  </div>
-                  {/* <p className="text-sm mb-2">{log.reportMessage}</p> */}
-                  <p className="text-sm font-semibold">
-                    Cost: ₹{log.billAmount}
-                  </p>
-                </div>
-              ))}
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowMaintenanceDialog(false)}
-            >
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        setOpen={setShowMaintenanceDialog}
+        logs={logs}
+        selectedMotorcycle={selectedMotorcycle}
+      />
     </div>
   );
 }

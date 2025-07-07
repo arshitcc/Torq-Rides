@@ -6,6 +6,7 @@ import { Response } from "express";
 import mongoose from "mongoose";
 import { Motorcycle } from "../models/motorcycles.model";
 import { deleteFile, uploadFile } from "../utils/cloudinary";
+import { UserRolesEnum } from "../constants/constants";
 
 const getAllMotorcycles = asyncHandler(
   async (req: CustomRequest, res: Response) => {
@@ -17,13 +18,17 @@ const getAllMotorcycles = asyncHandler(
       year,
       minPrice,
       maxPrice,
-      available,
+      isAvailable,
       page,
       offset,
+      category,
+      availableInCities: cities,
+      sort,
     } = req.query;
 
     if (make) matchState.make = make;
     if (vehicleModel) matchState.vehicleModel = vehicleModel;
+    if (category) matchState.category = category;
     if (year) matchState.year = Number(year);
     if (minPrice && maxPrice)
       matchState.rentPerDay = {
@@ -36,29 +41,53 @@ const getAllMotorcycles = asyncHandler(
       if (maxPrice) matchState.rentPerDay.$lte = Number(maxPrice);
     }
 
-    if (searchTerm) {
+    const availableInCities = cities?.toString().split(",");
+    if (availableInCities?.length) {
+      matchState.availableInCities = { $in: availableInCities };
+    }
+
+    if (searchTerm?.toString().trim()) {
       matchState.$or = [
         { make: { $regex: searchTerm, $options: "i" } },
         { vehicleModel: { $regex: searchTerm, $options: "i" } },
+        { description: { $regex: searchTerm, $options: "i" } },
+        req.user.role === UserRolesEnum.ADMIN && {
+          registrationNumber: { $regex: searchTerm, $options: "i" },
+        },
       ];
     }
 
-    if (
-      available &&
-      (available.toString() === "true" || available.toString() === "false")
-    ) {
-      matchState.isAvailable = available;
+    if (req.user.role === UserRolesEnum.CUSTOMER) {
+      matchState.isAvailable = true;
+    } else if (req.user.role !== UserRolesEnum.CUSTOMER) {
+      if (isAvailable) {
+        matchState.isAvailable = isAvailable === "true" ? true : false;
+      }
     }
 
     const pageNum = Number.isNaN(Number(page)) ? 1 : Math.max(Number(page), 1);
     const limit = Number.isNaN(Number(offset))
       ? 10
       : Math.max(Number(offset), 1);
-    const skip = (pageNum - 1) * Math.min(limit, 10);
+    const skip = (pageNum - 1) * Math.min(limit, 12);
+
+    const sortStage: Record<string, 1 | -1> =
+      sort === "Newest"
+        ? { createdAt: -1 }
+        : sort === "LTH"
+          ? { rentPerDay: 1 }
+          : sort === "HTL"
+            ? { rentPerDay: -1 }
+            : sort === "Rating"
+              ? { rating: -1 }
+              : { updatedAt: -1 };
 
     const motorcycles = await Motorcycle.aggregate([
       {
         $match: matchState,
+      },
+      {
+        $sort: sortStage,
       },
       {
         $facet: {
@@ -257,24 +286,9 @@ const updateMotorcycleDetails = asyncHandler(
       description,
       category,
       specs,
+      availableInCities,
+      imagesToBeDeleted,
     } = req.body;
-
-    const file = req.file?.path;
-
-    if (file) {
-      const old_image_public_id = motorcycle?.image?.public_id;
-      const image = await uploadFile(file);
-      motorcycle.image = {
-        public_id: image.public_id,
-        url: image.secure_url,
-        resource_type: image.resource_type,
-        format: image.format,
-      };
-
-      if (old_image_public_id) {
-        deleteFile(old_image_public_id, image.resource_type);
-      }
-    }
 
     if (make) motorcycle.make = make;
     if (vehicleModel) motorcycle.vehicleModel = vehicleModel;
@@ -285,39 +299,22 @@ const updateMotorcycleDetails = asyncHandler(
     if (category) motorcycle.category = category;
     if (specs) motorcycle.specs = specs;
 
-    await motorcycle.save({ validateBeforeSave: false });
+    motorcycle.availableInCities.push(...availableInCities);
 
-    return res
-      .status(200)
-      .json(
-        new ApiResponse(
-          200,
-          true,
-          "Motorcycle Updated Successfully",
-          motorcycle,
-        ),
-      );
-  },
-);
+    const file = req.file?.path;
 
-const updateMotorcycleMaintainanceLogs = asyncHandler(
-  async (req: CustomRequest, res: Response) => {
-    const { motorcycleId } = req.params;
-
-    const motorcycle = await Motorcycle.findById(motorcycleId);
-
-    if (!motorcycle) {
-      throw new ApiError(404, "Motorcycle not found");
+    if (file) {
+      const image = await uploadFile(file);
+      motorcycle.images.push({
+        public_id: image.public_id,
+        url: image.secure_url,
+        resource_type: image.resource_type,
+        format: image.format,
+      });
+      imagesToBeDeleted.forEach((imageId: string) => {
+        deleteFile(imageId, "image");
+      });
     }
-
-    const { date, reportMessage, status, cost } = req.body;
-
-    motorcycle.maintainanceLogs.push({
-      date,
-      reportMessage: reportMessage,
-      status: status,
-      cost: cost,
-    });
 
     await motorcycle.save({ validateBeforeSave: false });
 
@@ -345,7 +342,9 @@ const deleteMotorcycle = asyncHandler(
     }
 
     await Motorcycle.findByIdAndDelete(motorcycleId);
-    deleteFile(motorcycle.image.public_id, motorcycle.image.resource_type);
+    motorcycle.images.forEach((image) => {
+      deleteFile(image.public_id, image.resource_type);
+    });
 
     return res
       .status(200)
@@ -387,7 +386,6 @@ export {
   getMotorcycleById,
   addMotorcycle,
   updateMotorcycleDetails,
-  updateMotorcycleMaintainanceLogs,
   deleteMotorcycle,
   updateMotorcycleAvailability,
 };

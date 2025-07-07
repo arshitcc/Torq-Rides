@@ -44,31 +44,26 @@ export interface File {
 export interface IMotorcycle extends mongoose.Document {
   make: string;
   vehicleModel: string;
+  registrationNumber: string;
   year: number;
   rentPerDay: number;
   description: string;
   category: MotorcycleCategory;
-  image: File;
+  availableInCities: AvailableInCities[];
   specs: {
     engine: string;
     power: string;
     weight: string;
   };
-  maintainanceLogs: {
-    date: Date;
-    reportMessage: string;
-    status: MotorcycleStatus;
-    cost: number;
-  }[];
   isAvailable: boolean;
   availableQuantity: number;
-  reviewIds: mongoose.Types.ObjectId[];
   variant: string;
   color: string;
   securityDeposit: number;
   kmsLimitPerDay: number;
   extraKmsCharges: number;
   images: File[];
+  rating: number;
 }
 
 const motorcycleSchema = new mongoose.Schema<IMotorcycle>(
@@ -78,6 +73,10 @@ const motorcycleSchema = new mongoose.Schema<IMotorcycle>(
       required: true,
     },
     vehicleModel: {
+      type: String,
+      required: true,
+    },
+    registrationNumber: {
       type: String,
       required: true,
     },
@@ -98,24 +97,6 @@ const motorcycleSchema = new mongoose.Schema<IMotorcycle>(
       enum: AvailableMotorcycleCategories,
       required: true,
     },
-    image: {
-      public_id: {
-        type: String,
-        required: true,
-      },
-      url: {
-        type: String,
-        required: true,
-      },
-      resource_type: {
-        type: String,
-        required: true,
-      },
-      format: {
-        type: String,
-        required: true,
-      },
-    },
     specs: {
       engine: {
         type: String,
@@ -130,41 +111,21 @@ const motorcycleSchema = new mongoose.Schema<IMotorcycle>(
         required: true,
       },
     },
-    maintainanceLogs: [
-      {
-        date: {
-          type: Date,
-          required: true,
-        },
-        reportMessage: {
-          type: String,
-          required: true,
-        },
-        status: {
-          type: String,
-          enum: AvailableMotorcycleStatus,
-          default: MotorcycleStatusEnum.OK,
-        },
-        cost: {
-          type: Number,
-          default: 0,
-        },
-      },
-    ],
     isAvailable: {
       type: Boolean,
       default: true,
     },
-    reviewIds: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Review",
-      },
-    ],
     availableQuantity: {
       type: Number,
       default: 0,
     },
+    availableInCities: [
+      {
+        type: String,
+        enum: AvailableInCities,
+        required: true,
+      },
+    ],
     variant: {
       type: String,
       required: true,
@@ -205,6 +166,12 @@ const motorcycleSchema = new mongoose.Schema<IMotorcycle>(
         },
       },
     ],
+    rating: {
+      type: Number,
+      default: 0,
+      min: 1,
+      max: 5,
+    },
   },
   { timestamps: true },
 );

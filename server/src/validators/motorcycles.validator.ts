@@ -1,7 +1,6 @@
 import { query, body } from "express-validator";
 import {
   AvailableMotorcycleCategories,
-  AvailableMotorcycleStatus,
 } from "../models/motorcycles.model";
 
 const getAllMotorcyclesValidtors = () => {
@@ -59,7 +58,6 @@ const addMotorcycleValidators = () => {
           if(!val) return {};
           return JSON.parse(val);
         } catch (err) {
-          console.log(err)
           throw new Error("Specifications must be valid JSON");
         }
       }),
@@ -159,42 +157,8 @@ const updateMotorcycleByIdValidators = () => {
   ];
 };
 
-const updateMotorcycleMaintainanceValidators = () => {
-  return [
-    body("date")
-      .exists({ checkFalsy: true })
-      .withMessage("Service date is required")
-      .isISO8601()
-      .withMessage("date must be a valid ISO date"),
-
-    body("reportMessage")
-      .exists({ checkFalsy: true })
-      .withMessage("Service Message is required")
-      .notEmpty()
-      .withMessage("Service Message cannot be empty")
-      .isString()
-      .withMessage("Service Message must be a string"),
-
-    body("status")
-      .exists({ checkFalsy: true })
-      .withMessage("status is required")
-      .toUpperCase()
-      .isIn(AvailableMotorcycleStatus)
-      .withMessage(
-        `status must be one of: ${AvailableMotorcycleStatus.join(", ")}`,
-      ),
-
-    body("cost")
-      .exists({ checkFalsy: true })
-      .withMessage("cost is required")
-      .isFloat({ min: 0 })
-      .withMessage("Provide a valid cost"),
-  ];
-};
-
 export {
   getAllMotorcyclesValidtors,
   addMotorcycleValidators,
   updateMotorcycleByIdValidators,
-  updateMotorcycleMaintainanceValidators,
 };

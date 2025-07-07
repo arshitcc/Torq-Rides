@@ -5,7 +5,9 @@ export interface ICartItem {
   motorcycleId: mongoose.Types.ObjectId;
   quantity: number;
   pickupDate: Date;
-  returnDate: Date;
+  dropoffDate: Date;
+  pickupTime: string;
+  dropoffTime: string;
   motorcycle?: IMotorcycle;
 }
 
@@ -38,8 +40,16 @@ const cartSchema = new mongoose.Schema<ICart>(
             type: Date,
             required: true,
           },
-          returnDate: {
+          dropoffDate: {
             type: Date,
+            required: true,
+          },
+          pickupTime: {
+            type: String,
+            required: true,
+          },
+          dropoffTime: {
+            type: String,
             required: true,
           },
         },

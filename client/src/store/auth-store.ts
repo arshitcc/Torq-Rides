@@ -21,7 +21,12 @@ interface AuthState {
   error: string | null;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
-  setUser: (user: User | null, isAuthenticated: boolean) => void;
+  setUser: (
+    user: User | null,
+    isAuthenticated?: boolean,
+    loading?: boolean,
+    error?: string | null
+  ) => void;
   getCurrentUser: () => Promise<void>;
   register: (data: SignupFormData) => Promise<void>;
   login: (data: LoginFormData) => Promise<void>;
@@ -40,16 +45,21 @@ interface AuthState {
   assignRole: (userId: string, data: AssignRoleFormData) => Promise<void>;
 }
 
+export const initialAuthState = {
+  user: null,
+  isAuthenticated: false,
+  loading: false,
+  error: null,
+};
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
-      isAuthenticated: false,
-      user: null,
-      loading: false,
-      error: null,
+      ...initialAuthState,
       setLoading: (loading) => set({ loading }),
       setError: (error) => set({ error }),
-      setUser: (user, isAuthenticated) => set({ user, isAuthenticated }),
+      setUser: (user, isAuthenticated, loading, error) =>
+        set({ user, isAuthenticated, loading, error }),
 
       getCurrentUser: async () => {
         set({ loading: true, error: null });

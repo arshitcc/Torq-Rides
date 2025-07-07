@@ -96,7 +96,7 @@ const bookingConfirmationTemplate = ({
             month: "short",
             year: "numeric",
           }),
-          "Return Date": b.returnDate.toLocaleDateString("en-IN", {
+          "Return Date": b.dropoffDate.toLocaleDateString("en-IN", {
             day: "2-digit",
             month: "short",
             year: "numeric",
@@ -104,13 +104,14 @@ const bookingConfirmationTemplate = ({
           Days:
             1 +
             Math.ceil(
-              ((b.returnDate.getTime() - b.pickupDate.getTime()) / 1000 ** 60) *
+              ((b.dropoffDate.getTime() - b.pickupDate.getTime()) /
+                1000 ** 60) *
                 60 *
                 24,
             ),
           "Rate/Day": `INR ${b.motorcycle?.rentPerDay}/-`,
           Quantity: b.quantity,
-          "Item Total": `INR ${b.motorcycle?.rentPerDay! * b.quantity * ((b.returnDate.getTime() - b.pickupDate.getTime()) / (1000 * 60 * 60 * 24))}/-`,
+          "Item Total": `INR ${b.motorcycle?.rentPerDay! * b.quantity * ((b.dropoffDate.getTime() - b.pickupDate.getTime()) / (1000 * 60 * 60 * 24))}/-`,
         })),
         columns: {
           // adjust widths as needed

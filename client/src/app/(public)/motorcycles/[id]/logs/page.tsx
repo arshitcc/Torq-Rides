@@ -256,7 +256,7 @@ export default function MotorcycleLogsPage() {
 
   const totalPages = Math.ceil((metadata?.total || 0) / itemsPerPage);
 
-  if (!user || user.role !== "ADMIN") {
+  if (!user || user.role !== UserRolesEnum.ADMIN) {
     return null;
   }
 
@@ -282,10 +282,10 @@ export default function MotorcycleLogsPage() {
         <Card className="border-yellow-primary/20 mb-6">
           <CardContent className="p-6">
             <div className="flex items-center space-x-4">
-              <div className="relative w-20 h-20 rounded-lg overflow-hidden">
+              <div className="relative w-20 h-20 rounded-lg overflow-hidden ">
                 <Image
                   src={
-                    motorcycle.image?.url ||
+                    motorcycle.images[0]?.url ||
                     "/placeholder.svg?height=80&width=80"
                   }
                   alt={`${motorcycle.make} ${motorcycle.vehicleModel}`}

@@ -94,9 +94,23 @@ export const AvailableInCitiesEnum = {
   NEW_DELHI: "NEW DELHI",
 } as const;
 
+export const AvailableMotorcycleMakesEnum = {
+  ROYAL_ENFIELD: "Royal Enfield",
+  KTM: "KTM",
+  BMW: "BMW",
+  YAMAHA: "Yamaha",
+  HONDA: "Honda",
+  SUZUKI: "Suzuki",
+  KAWASAKI: "Kawasaki",
+  TVS: "TVS",
+} as const;
+
 export const AvailableMotorcycleStatus = Object.values(MotorcycleStatusEnum);
 export const AvailableMotorcycleCategories = Object.values(
   MotorcycleCategoryEnum
+);
+export const AvailableMotorcycleMakes = Object.values(
+  AvailableMotorcycleMakesEnum
 );
 export const AvailableBookingStatus = Object.values(BookingStatusEnum);
 export const AvailablePaymentStatus = Object.values(PaymentStatusEnum);
@@ -104,11 +118,18 @@ export const AvailableInCities = Object.values(AvailableInCitiesEnum);
 
 export type MotorcycleStatus = (typeof AvailableMotorcycleStatus)[number];
 export type MotorcycleCategory = (typeof AvailableMotorcycleCategories)[number];
+export type MotorcycleMake = (typeof AvailableMotorcycleMakes)[number];
 export type BookingStatus = (typeof AvailableBookingStatus)[number];
 export type PaymentStatus = (typeof AvailablePaymentStatus)[number];
 export type AvailableInCities = (typeof AvailableInCities)[number];
 
-export type AdminMotorcycle = {
+
+export type CityStock = {
+  city: AvailableInCities;
+  quantity: number;
+};
+
+export type Motorcycle = {
   _id: string;
   make: string;
   vehicleModel: string;
@@ -122,12 +143,6 @@ export type AdminMotorcycle = {
     power: string;
     weight: string;
   };
-  maintainanceLogs: {
-    date: Date;
-    reportMessage: string;
-    status: MotorcycleStatus;
-    cost: number;
-  }[];
   isAvailable: boolean;
   availableQuantity: number;
   variant: string;
@@ -138,9 +153,13 @@ export type AdminMotorcycle = {
   images: File[];
   createdAt: Date;
   updatedAt: Date;
+  availableInCities: CityStock[];
+  rating: number;
+  registrationNumber: string;
 };
 
-export type CustomerMotorcycle = Omit<AdminMotorcycle, "maintainanceLogs">;
+export type CustomerMotorcycle = Motorcycle;
+export type AdminMotorcycle = Omit<Motorcycle, "registrationNumber">;
 
 export type Booking = {
   _id: string;
@@ -193,8 +212,10 @@ export type CartItem = {
   motorcycleId: string;
   quantity: number;
   pickupDate: Date;
-  returnDate: Date;
-  motorcycle: CustomerMotorcycle;
+  dropoffDate: Date;
+  pickupTime: string;
+  dropoffTime: string;
+  motorcycle: Motorcycle;
 };
 
 export type Cart = {

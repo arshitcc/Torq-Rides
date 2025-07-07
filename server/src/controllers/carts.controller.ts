@@ -46,7 +46,7 @@ export const getCart = async (customerId: string) => {
             {
               $dateDiff: {
                 startDate: "$items.pickupDate",
-                endDate: "$items.returnDate",
+                endDate: "$items.dropoffDate",
                 unit: "day",
               },
             },
@@ -170,7 +170,13 @@ const getUserCart = asyncHandler(async (req: CustomRequest, res: Response) => {
 
 const addOrUpdateMotorcycleToCart = asyncHandler(
   async (req: CustomRequest, res: Response) => {
-    const { quantity, pickupDate, returnDate }: ICartItem = req.body;
+    const {
+      quantity,
+      pickupDate,
+      dropoffDate,
+      pickupTime,
+      dropoffTime,
+    }: ICartItem = req.body;
 
     const { motorcycleId } = req.params;
 
@@ -199,7 +205,9 @@ const addOrUpdateMotorcycleToCart = asyncHandler(
             motorcycleId,
             quantity,
             pickupDate,
-            returnDate,
+            dropoffDate,
+            pickupTime,
+            dropoffTime,
           },
         ],
       });
@@ -218,18 +226,23 @@ const addOrUpdateMotorcycleToCart = asyncHandler(
     if (exisitngMotorcycle) {
       exisitngMotorcycle.quantity = Number(quantity);
       if (pickupDate) exisitngMotorcycle.pickupDate = pickupDate;
-      if (returnDate) exisitngMotorcycle.returnDate = returnDate;
+      if (dropoffDate) exisitngMotorcycle.dropoffDate = dropoffDate;
+      if (pickupTime) exisitngMotorcycle.pickupTime = pickupTime;
+      if (dropoffTime) exisitngMotorcycle.dropoffTime = dropoffTime;
       if (cart.couponId) cart.couponId = null;
     } else {
       cart.items.push({
         motorcycleId: new mongoose.Types.ObjectId(motorcycleId),
         quantity,
         pickupDate,
-        returnDate,
+        dropoffDate,
+        pickupTime,
+        dropoffTime,
       });
     }
 
-    await cart.save({ validateBeforeSave: true });
+
+    await cart.save({ validateBeforeSave: false });
 
     const finalCart = await getCart(req.user._id as string);
 

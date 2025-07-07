@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ import {
   MapPinIcon,
   ArrowUpRightIcon,
   ShoppingCartIcon,
+  BookUserIcon,
 } from "lucide-react";
 import {
   NavigationMenu,
@@ -54,12 +55,12 @@ import {
 } from "./ui/select";
 
 const bikeCategories = [
-  { name: "Royal Enfield Rentals", href: "/bikes/royal-enfield" },
-  { name: "KTM Rentals", href: "/bikes/ktm" },
-  { name: "BMW Rentals", href: "/bikes/bmw" },
-  { name: "Triumph Rentals", href: "/bikes/triumph" },
-  { name: "Superbike Rentals", href: "/bikes/superbike" },
-  { name: "Adventure Motorcycles", href: "/bikes/adventure" },
+  { name: "Royal Enfield Rentals", href: "/motorcycles?make=Royal Enfield" },
+  { name: "KTM Rentals", href: "/motorcycles?make=KTM" },
+  { name: "BMW Rentals", href: "/motorcycles?make=BMW" },
+  { name: "Triumph Rentals", href: "/motorcycles?make=Triumph" },
+  { name: "Superbike Rentals", href: "/motorcycles?category=SPORTS" },
+  { name: "Adventure Motorcycles", href: "/motorcycles?category=ADVENTURE" },
 ];
 
 const carCategories = [
@@ -94,6 +95,28 @@ export function Navbar() {
   const { cart } = useCartStore();
   const { setTheme } = useTheme();
 
+  const [isSticky, setIsSticky] = useState(false);
+  const [lastScrollY, setLastScrollY] = useState(0);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      if (currentScrollY < lastScrollY) {
+        setIsSticky(true);
+      } else {
+        setIsSticky(false);
+      }
+
+      setLastScrollY(currentScrollY);
+    };
+
+    window.addEventListener("scroll", handleScroll);
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, [lastScrollY]);
+
   const handleLogout = async () => {
     await logout();
     window.localStorage.clear();
@@ -127,8 +150,12 @@ export function Navbar() {
   const cartItemsCount = cart?.items?.length || 0;
 
   return (
-    <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
-      <div className="container mx-auto px-4">
+    <nav
+      className={`bg-background/95 backdrop-blur supports-[backdrop-filter]:dark:bg-background/60 ${
+        isSticky ? "sticky top-0 z-50" : "top-0 z-50"
+      }`}
+    >
+      <div className="container mx-auto px-6">
         <div className="flex h-16 items-center justify-between">
           <Link href="/" className="flex items-center space-x-2">
             <Image src="/logo/logo.png" alt="logo" width={150} height={100} />
@@ -258,6 +285,7 @@ export function Navbar() {
                 </NavigationMenuItem>
               </NavigationMenuList>
             </NavigationMenu>
+            
           </div>
 
           {/* Right Section */}
@@ -398,30 +426,8 @@ export function Navbar() {
 
           {/* Mobile Navigation */}
 
-          <div className="md:hidden flex items-center space-x-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon">
-                  <SunIcon className="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
-                  <MoonIcon className="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
-                  <span className="sr-only">Toggle theme</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setTheme("light")}>
-                  <SunIcon />
-                  Light
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setTheme("dark")}>
-                  <MoonIcon />
-                  Dark
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setTheme("system")}>
-                  <ComputerIcon />
-                  System
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+          <div className="lg:hidden flex items-center space-x-2">
+            <ThemeToggle />
             <Sheet open={isOpen} onOpenChange={setIsOpen}>
               <SheetTrigger asChild>
                 <Button

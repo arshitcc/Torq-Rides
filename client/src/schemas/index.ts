@@ -17,11 +17,11 @@ export const bookingSchema = z
       required_error: "Pickup date is required",
     }),
     endDate: z.date({
-      required_error: "Return date is required",
+      required_error: " is required",
     }),
   })
   .refine((data) => data.endDate > data.startDate, {
-    message: "Return date must be after pickup date",
+    message: " must be after pickup date",
     path: ["endDate"],
   });
 

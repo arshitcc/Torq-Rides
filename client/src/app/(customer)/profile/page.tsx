@@ -53,6 +53,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import NotFound from "@/app/not-found";
 
 export default function ProfilePage() {
   const {
@@ -246,7 +247,10 @@ export default function ProfilePage() {
     }
   };
 
-  if (!user) return null;
+
+  if (!user) {
+    return <NotFound/>
+  }
 
   const userBookings = bookings.filter(
     (booking) => booking.customerId === user._id

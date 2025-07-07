@@ -68,7 +68,7 @@ export default function ContactPage() {
                   </div>
                   <div>
                     <h3 className="font-semibold">Phone</h3>
-                    <p className="text-gray-600">+91 98765 43210</p>
+                    <p className="text-gray-600">+91 95601 98483</p>
                   </div>
                 </div>
               </CardContent>
@@ -82,7 +82,7 @@ export default function ContactPage() {
                   </div>
                   <div>
                     <h3 className="font-semibold">Email</h3>
-                    <p className="text-gray-600">info@torqrides.com</p>
+                    <p className="text-gray-600">hello@torqrides.com</p>
                   </div>
                 </div>
               </CardContent>
@@ -95,10 +95,7 @@ export default function ContactPage() {
                     <MapPinIcon className="h-6 w-6 text-primary" />
                   </div>
                   <div>
-                    <h3 className="font-semibold">Address</h3>
-                    <p className="text-gray-600">
-                      123 Bike Street, Mumbai, Maharashtra 400001
-                    </p>
+                    <h3 className="font-semibold">Gurgaon | Delhi</h3>
                   </div>
                 </div>
               </CardContent>
@@ -113,7 +110,7 @@ export default function ContactPage() {
                   <div>
                     <h3 className="font-semibold">Business Hours</h3>
                     <p className="text-gray-600">
-                      Mon - Sun: 9:00 AM - 8:00 PM
+                      Mon - Sun: 9:00 AM - 10:00 PM
                     </p>
                   </div>
                 </div>
@@ -200,7 +197,7 @@ export default function ContactPage() {
                     )}
                   />
 
-                  <Button type="submit" className="w-full">
+                  <Button type="submit" className="w-full py-6 bg-yellow-500 text-white text-lg sm:text-md">
                     Submit Enquiry
                   </Button>
                 </form>

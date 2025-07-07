@@ -92,7 +92,7 @@ const bookingSchema = new mongoose.Schema<IBooking>(
             type: Date,
             required: true,
           },
-          returnDate: {
+          dropoffDate: {
             type: Date,
             required: true,
           },

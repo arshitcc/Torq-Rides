@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { motorcycleAPI } from "@/lib/api";
-import { CustomerMotorcycle, AdminMotorcycle, MotorcycleLog } from "@/types";
+import { Motorcycle, MotorcycleLog } from "@/types";
 import {
   CreateMotorcycleLogFormData,
   UpdateMotorcycleLogFormData,
@@ -8,8 +8,8 @@ import {
 import { AxiosError } from "axios";
 
 interface MotorcycleState {
-  motorcycles: CustomerMotorcycle[] | AdminMotorcycle[];
-  motorcycle: CustomerMotorcycle | AdminMotorcycle | null;
+  motorcycles: Motorcycle[];
+  motorcycle: Motorcycle | null;
   logs: MotorcycleLog[];
   loading: boolean;
   error: string | null;
@@ -19,7 +19,7 @@ interface MotorcycleState {
     totalPages: number;
   };
   setMotorcycles: (
-    motorcycles: CustomerMotorcycle[] | AdminMotorcycle[]
+    motorcycles: Motorcycle[]
   ) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
@@ -28,7 +28,7 @@ interface MotorcycleState {
   // API functions
   getAllMotorcycles: (params?: any) => Promise<void>;
   addMotorcycle: (data: FormData) => Promise<void>;
-  getMotorcycleById: (motorcycleId: string) => Promise<CustomerMotorcycle>;
+  getMotorcycleById: (motorcycleId: string) => Promise<Motorcycle>;
   updateMotorcycleDetails: (motorcycleId: string, data: any) => Promise<void>;
   updateMotorcycleMaintenanceLogs: (
     motorcycleId: string,

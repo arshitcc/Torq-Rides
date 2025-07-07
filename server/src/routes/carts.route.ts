@@ -4,13 +4,6 @@ import {
   verifyPermission,
 } from "../middlewares/auth.middleware";
 import { UserRolesEnum } from "../constants/constants";
-import {
-  getAllBookingsValidators,
-  createBookingValidators,
-  modifyBookingValidators,
-  verifyRazorpayPaymentValidator,
-  verifyPaypalPaymentValidator,
-} from "../validators/bookings.validator";
 import { validate } from "../middlewares/validator.middleware";
 import {
   getUserCart,
@@ -18,14 +11,13 @@ import {
   removeMotorcycleFromCart,
   clearCart,
 } from "../controllers/carts.controller";
-import {
-  mongoIdPathVariableValidator,
-} from "../validators/common/mongodb/mongodb.validators";
+import { mongoIdPathVariableValidator } from "../validators/common/mongodb/mongodb.validators";
 import { addOrUpdateMotorcycleToCartValidator } from "../validators/carts.validator";
 
 const router = Router();
 
 router.use(authenticateUser);
+router.use(verifyPermission([UserRolesEnum.CUSTOMER]));
 
 router.route("/").get(getUserCart);
 
@@ -37,9 +29,12 @@ router
     mongoIdPathVariableValidator("motorcycleId"),
     addOrUpdateMotorcycleToCartValidator(),
     validate,
-    addOrUpdateMotorcycleToCart
+    addOrUpdateMotorcycleToCart,
   )
-  .delete(mongoIdPathVariableValidator("motorcycleId"), validate, removeMotorcycleFromCart);
+  .delete(
+    mongoIdPathVariableValidator("motorcycleId"),
+    validate,
+    removeMotorcycleFromCart,
+  );
 
 export default router;
-

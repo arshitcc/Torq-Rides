@@ -10,7 +10,11 @@ interface CartState {
   cart: Cart | null;
   loading: boolean;
   error: string | null;
-  setCart: (cart: Cart) => void;
+  setCart: (
+    cart: Cart | null,
+    loading?: boolean,
+    error?: string | null
+  ) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   // API functions
@@ -26,13 +30,18 @@ interface CartState {
   removeCouponFromCart: () => Promise<void>;
 }
 
+export const initialCartState = {
+  cart: null,
+  loading: false,
+  error: null,
+};
+
 export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
-      cart: null,
-      loading: false,
-      error: null,
-      setCart: (cart) => set({ cart, error: null }),
+      ...initialCartState,
+      setCart: (cart, loading = false, error = null) =>
+        set({ cart, loading, error }),
       setLoading: (loading) => set({ loading }),
       setError: (error) => set({ error }),
 
@@ -114,7 +123,7 @@ export const useCartStore = create<CartState>()(
               }`
             );
           }
-        } catch (error : AxiosError | any) {
+        } catch (error: AxiosError | any) {
           set({
             loading: false,
             error: error.response?.data?.message || "Failed to apply coupon",
@@ -129,7 +138,7 @@ export const useCartStore = create<CartState>()(
           const response = await cartAPI.removeCouponFromCart();
           const cart = response.data.data;
           set({ loading: false, cart });
-        } catch (error : AxiosError | any) {
+        } catch (error: AxiosError | any) {
           set({
             loading: false,
             error: error.response?.data?.message || "Failed to remove coupon",

@@ -175,12 +175,12 @@ export const getbooking = async (
                   "$$it.motorcycle.rentPerDay",
                   "$$it.quantity",
                   {
-                    // days = returnDate − pickupDate + 1
+                    // days = dropoffDate − pickupDate + 1
                     $add: [
                       {
                         $dateDiff: {
                           startDate: "$$it.pickupDate",
-                          endDate: "$$it.returnDate",
+                          endDate: "$$it.dropoffDate",
                           unit: "day",
                         },
                       },
@@ -244,7 +244,7 @@ export const getbooking = async (
     //       motorcycleId: 1,
     //       quantity: 1,
     //       pickupDate: 1,
-    //       returnDate: 1,
+    //       dropoffDate: 1,
     //     },
     //     paymentStatus: 1,
     //     createdAt: 1,

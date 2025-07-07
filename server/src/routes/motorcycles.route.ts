@@ -9,7 +9,6 @@ import {
   addMotorcycleValidators,
   getAllMotorcyclesValidtors,
   updateMotorcycleByIdValidators,
-  updateMotorcycleMaintainanceValidators,
 } from "../validators/motorcycles.validator";
 import { validate } from "../middlewares/validator.middleware";
 import {
@@ -18,7 +17,6 @@ import {
   addMotorcycle,
   updateMotorcycleDetails,
   deleteMotorcycle,
-  updateMotorcycleMaintainanceLogs,
   updateMotorcycleAvailability,
 } from "../controllers/motorcycles.controller";
 import logsRouter from "./motorcycle-logs.route";
@@ -64,13 +62,6 @@ router
     updateMotorcycleByIdValidators(),
     validate,
     updateMotorcycleDetails,
-  )
-  .patch(
-    verifyPermission([UserRolesEnum.ADMIN]),
-    mongoIdPathVariableValidator("motorcycleId"),
-    updateMotorcycleMaintainanceValidators(),
-    validate,
-    updateMotorcycleMaintainanceLogs,
   )
   .delete(
     verifyPermission([UserRolesEnum.ADMIN]),

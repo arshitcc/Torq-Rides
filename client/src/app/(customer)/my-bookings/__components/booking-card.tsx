@@ -14,7 +14,13 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { DownloadIcon, EditIcon, InfoIcon, StarIcon, XIcon } from "lucide-react";
+import {
+  DownloadIcon,
+  EditIcon,
+  InfoIcon,
+  StarIcon,
+  XIcon,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   AlertDialog,
@@ -65,7 +71,7 @@ function BookingCard({
                   className="relative w-12 h-12 rounded-lg overflow-hidden"
                 >
                   <Image
-                    src={item.motorcycle?.image?.url || "/placeholder.svg"}
+                    src={item.motorcycle?.images[0]?.url || "/placeholder.svg"}
                     alt={`${item.motorcycle?.make} ${item.motorcycle?.vehicleModel}`}
                     fill
                     className="object-cover"
@@ -163,7 +169,7 @@ function BookingCard({
                                 <div className="relative w-16 h-16 rounded-lg overflow-hidden">
                                   <Image
                                     src={
-                                      item.motorcycle?.image?.url ||
+                                      item.motorcycle?.images[0]?.url ||
                                       "/placeholder.svg"
                                     }
                                     alt={`${item.motorcycle?.make} ${item.motorcycle?.vehicleModel}`}
@@ -188,7 +194,7 @@ function BookingCard({
                                       <p>
                                         Return:{" "}
                                         {format(
-                                          new Date(item.returnDate),
+                                          new Date(item.dropoffDate),
                                           "PPP"
                                         )}
                                       </p>
@@ -209,7 +215,7 @@ function BookingCard({
                     </div>
 
                     {/* Pricing */}
-                    <div className="bg-gray-50 p-4 rounded-lg">
+                    <div className="bg-gray-50 dark:bg-[#18181B] p-4 rounded-lg">
                       <h4 className="text-lg font-semibold mb-3">
                         Pricing Details
                       </h4>

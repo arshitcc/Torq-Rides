@@ -28,6 +28,7 @@ import { useState } from "react";
 import { MapPinIcon, CalendarIcon, ClockIcon, SearchIcon } from "lucide-react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 interface HeroFormValues {
   pickupLocation: string;
@@ -52,8 +53,9 @@ function SearchRides() {
     defaultValues: {
       pickupLocation: "",
       dropoffLocation: "",
-      pickupTime: "",
-      dropoffTime: "",
+      pickupDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      pickupTime: "9:00 AM",
+      dropoffTime: "6:00 PM",
     },
   });
 
@@ -147,11 +149,24 @@ function SearchRides() {
                   name="pickupTime"
                   control={form.control}
                   render={({ field }) => {
-                    const [hour, setHour] = useState("1");
+                    const [hour, setHour] = useState("9");
                     const [minute, setMinute] = useState("00");
-                    const [period, setPeriod] = useState("PM");
+                    const [period, setPeriod] = useState("AM");
                     const canSet = hour && minute && period;
                     const handleSet = () => {
+                      if (!canSet) return;
+                      if (
+                        (Number(hour) > 10 && period === "PM") ||
+                        (Number(hour) < 9 && period === "AM")
+                      ) {
+                        toast.error(
+                          "Our Business hours are between 9:00 AM to 10:00 PM"
+                        );
+                        setHour("9");
+                        setMinute("00");
+                        setPeriod("AM");
+                        return;
+                      }
                       field.onChange(`${hour}:${minute} ${period}`);
                     };
 
@@ -247,7 +262,7 @@ function SearchRides() {
                                     size="sm"
                                     disabled={!canSet}
                                     onClick={handleSet}
-                                    className="bg-yellow-primary hover:bg-yellow-600"
+                                    className="bg-yellow-primary hover:bg-yellow-600 dark:text-white"
                                   >
                                     Set Time
                                   </Button>
@@ -337,16 +352,29 @@ function SearchRides() {
                   )}
                 />
 
-                {/* Pickup Time */}
+                {/* Drop Off Time */}
                 <FormField
                   name="dropoffTime"
                   control={form.control}
                   render={({ field }) => {
-                    const [hour, setHour] = useState("1");
+                    const [hour, setHour] = useState("6");
                     const [minute, setMinute] = useState("00");
                     const [period, setPeriod] = useState("PM");
                     const canSet = hour && minute && period;
                     const handleSet = () => {
+                      if (!canSet) return;
+                      if (
+                        (Number(hour) > 10 && period === "PM") ||
+                        (Number(hour) < 9 && period === "AM")
+                      ) {
+                        toast.error(
+                          "Our Business hours are between 9:00 AM to 10:00 PM"
+                        );
+                        setHour("6");
+                        setMinute("00");
+                        setPeriod("PM");
+                        return;
+                      }
                       field.onChange(`${hour}:${minute} ${period}`);
                     };
 
@@ -442,7 +470,7 @@ function SearchRides() {
                                     size="sm"
                                     disabled={!canSet}
                                     onClick={handleSet}
-                                    className="bg-yellow-primary hover:bg-yellow-600"
+                                    className="bg-yellow-primary hover:bg-yellow-600 dark:text-white"
                                   >
                                     Set Time
                                   </Button>
