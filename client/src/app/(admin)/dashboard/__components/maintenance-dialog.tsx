@@ -11,7 +11,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
-import { getStatusColor } from "../page";
+import { getStatusColor } from "../filters";
+
 
 interface MaintenanceDialogProps {
   open: boolean;
