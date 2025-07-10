@@ -241,15 +241,12 @@ export const useAuthStore = create<AuthState>()(
           formData.append("type", data.type);
           if (data.name) formData.append("name", data.name);
           const res = await authAPI.uploadDocument(formData);
-          toast.success(res.data.message || "Document uploaded");
-          await get().getCurrentUser();
+          set((state) => ({user : res.data.data}))
         } catch (error: AxiosError | any) {
           set({
             error: error.response?.data?.message || "Upload document failed",
           });
-          toast.error(
-            error.response?.data?.message || "Upload document failed"
-          );
+          throw error
         } finally {
           set({ loading: false });
         }

@@ -5,6 +5,9 @@ import { Toaster } from "@/components/ui/sonner";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "./__components/footer";
 import { ThemeProvider } from "@/components/theme-provider";
+import Link from "next/link";
+import { sendWhatsappMessage } from "@/lib/wa_me";
+import WhatsappIcon from "@/components/WhatsappIcon";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,6 +30,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const url = sendWhatsappMessage();
   return (
     <html lang="en" suppressHydrationWarning>
       <body
@@ -43,6 +47,13 @@ export default function RootLayout({
           <main>{children}</main>
           <Footer />
           <Toaster />
+          <Link
+            href={url}
+            target="_blank"
+            className="cursor-pointer fixed bottom-4 right-4 z-50"
+          >
+            <WhatsappIcon />
+          </Link>
         </ThemeProvider>
       </body>
     </html>

@@ -25,6 +25,10 @@ import {
   CheckCircleIcon,
   XIcon,
   EyeIcon,
+  CreditCardIcon,
+  SmartphoneIcon,
+  BuildingIcon,
+  BitcoinIcon,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -57,8 +61,6 @@ export default function CartPage() {
   const [couponCode, setCouponCode] = useState("");
   const [showBreakup, setShowBreakup] = useState<string | null>(null);
   const [applyingCoupon, setApplyingCoupon] = useState(false);
-
-  console.log(cart);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -108,15 +110,17 @@ export default function CartPage() {
     const dailyRate = item.motorcycle.rentPerDay;
     const quantity = item.quantity;
     const subtotal = days * dailyRate * quantity;
-    const securityDeposit = item.motorcycle.securityDeposit * quantity;
+    const securityDepositPerBike = item.motorcycle.securityDeposit;
+    const securityDepositTotal = item.motorcycle.securityDeposit * quantity;
 
     return {
       days,
       dailyRate,
       quantity,
       subtotal,
-      securityDeposit,
-      total: subtotal + securityDeposit,
+      securityDepositPerBike,
+      securityDepositTotal,
+      total: subtotal + securityDepositTotal,
     };
   };
 
@@ -200,15 +204,18 @@ export default function CartPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-6">
+    <div className="container mx-auto px-4 py-8 space-y-4">
+      <div>
+        <Button asChild variant="ghost">
+          <Link href="/motorcycles">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Continue Shopping
+          </Link>
+        </Button>
+      </div>
+
+      <div className="flex flex-row items-center justify-between mb-6">
         <div className="flex items-center space-x-4">
-          <Button asChild variant="ghost">
-            <Link href="/motorcycles">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Continue Shopping
-            </Link>
-          </Button>
           <h1 className="text-3xl font-bold ml-4">
             Cart ({cart?.items?.length})
           </h1>
@@ -230,26 +237,28 @@ export default function CartPage() {
             cart.items.map((item, index) => (
               <Card
                 key={`${item.motorcycleId}-${index}`}
-                className="overflow-hidden"
+                className="overflow-hidden py-0 gap-0 pt-0"
               >
                 <CardContent className="p-0">
-                  <div className="flex flex-col md:flex-row">
+                  <div className="flex flex-col md:flex-row items-center gap-2 px-0 md:px-2">
                     {/* Motorcycle Image */}
-                    <div className="relative w-full md:w-64 h-48">
-                      <Image
-                        src={
-                          item.motorcycle.images[0]?.url || "/placeholder.svg"
-                        }
-                        alt={`${item.motorcycle.make} ${item.motorcycle.vehicleModel}`}
-                        fill
-                        className="object-cover"
-                      />
+                    <div className="relative w-full md:w-64 h-64">
+                      <Link href={`/motorcycles/${item.motorcycleId}`}>
+                        <Image
+                          src={
+                            item.motorcycle.images[0]?.url || "/placeholder.svg"
+                          }
+                          alt={`${item.motorcycle.make} ${item.motorcycle.vehicleModel}`}
+                          fill
+                          className="object-fit rounded-none rounded-t-xl  sm:rounded-xl"
+                        />
+                      </Link>
                     </div>
 
                     {/* Motorcycle Details */}
-                    <div className="flex-1 p-6">
+                    <div className="flex-1 p-4">
                       <div className="flex justify-between items-start mb-4">
-                        <div>
+                        <Link href={`/motorcycles/${item.motorcycleId}`}>
                           <h3 className="text-xl font-bold">
                             {item.motorcycle.make}{" "}
                             {item.motorcycle.vehicleModel}
@@ -257,7 +266,7 @@ export default function CartPage() {
                           <Badge variant="secondary" className="mt-1">
                             {item.motorcycle.category}
                           </Badge>
-                        </div>
+                        </Link>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -310,7 +319,7 @@ export default function CartPage() {
 
                       {/* Pricing */}
                       <div className="flex justify-between items-center pt-4 border-t">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 items-center space-x-4">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 items-center space-x-4">
                           <div className="text-center">
                             <p className="text-sm text-gray-500">Total Rent</p>
                             <p className="font-semibold">
@@ -371,10 +380,24 @@ export default function CartPage() {
                                           <span>Subtotal Rent:</span>
                                           <span>₹{breakup.subtotal}</span>
                                         </div>
+                                        <Separator />
                                         <div className="flex justify-between">
-                                          <span>Security Deposit:</span>
                                           <span>
-                                            ₹{breakup.securityDeposit}
+                                            Security Deposit per Bike:
+                                          </span>
+                                          <span>
+                                            ₹{breakup.securityDepositPerBike}
+                                          </span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                          <span>Quantity:</span>
+                                          <span>{breakup.quantity}</span>
+                                        </div>
+                                        <Separator />
+                                        <div className="flex justify-between">
+                                          <span>Security Deposit Total:</span>
+                                          <span>
+                                            ₹{breakup.securityDepositTotal}
                                           </span>
                                         </div>
                                         <Separator />
@@ -568,7 +591,7 @@ export default function CartPage() {
                   onCheckedChange={() => setAgreeToTerms((prev) => !prev)}
                 />
                 <Label htmlFor="terms" className="text-sm leading-relaxed">
-                  I agree to the RentHop's{" "}
+                  I agree to the TORQ Rides's{" "}
                   <Link
                     href="/terms"
                     className="text-yellow-600 hover:underline"
@@ -596,16 +619,30 @@ export default function CartPage() {
                 <h4 className="font-medium mb-3 text-center">
                   100% Secure Payment By
                 </h4>
-                <div className="flex justify-center items-center space-x-4">
-                  <CreditCard className="w-8 h-8 text-gray-400" />
-                  <Smartphone className="w-8 h-8 text-gray-400" />
-                  <Building className="w-8 h-8 text-gray-400" />
-                </div>
-                <div className="flex justify-center space-x-8 text-xs text-gray-500 mt-2">
-                  <span>VISA</span>
-                  <span>UPI</span>
-                  <span>RuPay</span>
-                  <span>Mastercard</span>
+                {/* Payment Methods unchanged */}
+                <div className="mt-6 pt-6 border-t">
+                  <h4 className="font-medium mb-3 text-center">
+                    Accepted Payment Methods
+                  </h4>
+                  <div className="flex justify-around text-xs text-gray-500 mt-2">
+                    <div className="flex flex-col items-center gap-1.5">
+                      <CreditCardIcon className="w-8 h-8 text-gray-400" />
+                      <span>Cards</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-1.5">
+                      {" "}
+                      <SmartphoneIcon className="w-8 h-8 text-gray-400" />{" "}
+                      <span>UPI</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-1.5">
+                      <BuildingIcon className="w-8 h-8 text-gray-400" />
+                      <span>Net Banking</span>
+                    </div>
+                    <div className="flex flex-col items-center gap-1.5">
+                      <BitcoinIcon className="w-8 h-8 text-gray-400" />
+                      <span>Crypto</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>

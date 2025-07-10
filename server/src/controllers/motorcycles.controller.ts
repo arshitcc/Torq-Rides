@@ -51,10 +51,13 @@ const getAllMotorcycles = asyncHandler(
         { make: { $regex: searchTerm, $options: "i" } },
         { vehicleModel: { $regex: searchTerm, $options: "i" } },
         { description: { $regex: searchTerm, $options: "i" } },
-        req.user.role === UserRolesEnum.ADMIN && {
-          registrationNumber: { $regex: searchTerm, $options: "i" },
-        },
       ];
+
+      if (req.user.role === UserRolesEnum.ADMIN) {
+        matchState.$or.push({
+          registrationNumber: { $regex: searchTerm, $options: "i" },
+        });
+      }
     }
 
     if (req.user.role === UserRolesEnum.CUSTOMER) {
@@ -115,30 +118,32 @@ const addMotorcycle = asyncHandler(
     const {
       make,
       vehicleModel,
+      registrationNumber,
       year,
-      color,
       variant,
-      rentPerDay,
-      description,
+      color,
       category,
-      specs,
-      isAvailable,
       availableQuantity,
+      description,
+      rentPerDay,
       securityDeposit,
       kmsLimitPerDay,
       extraKmsCharges,
+      specs,
+      isAvailable,
+      availableInCities,
     } = req.body;
 
-    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    const files = req.files as Express.Multer.File[];
 
-    const file = files["image"][0].path;
+    const file = files[0].path;
 
     if (!file) {
-      throw new ApiError(400, "Image is required");
+      throw new ApiError(400, "Main Image is required");
     }
 
     const images = await Promise.all(
-      files["images"].map(async (image) => {
+      files.map(async (image) => {
         const img = await uploadFile(image.path);
         return {
           public_id: img.public_id,
@@ -149,23 +154,16 @@ const addMotorcycle = asyncHandler(
       }),
     );
 
-    const image = await uploadFile(file);
-
     const motorcycle = await Motorcycle.create({
       make,
       vehicleModel,
       year: Number(year),
       rentPerDay: Number(rentPerDay),
+      registrationNumber,
       description,
       color,
       variant,
       category,
-      image: {
-        public_id: image.public_id,
-        url: image.secure_url,
-        resource_type: image.resource_type,
-        format: image.format,
-      },
       images,
       specs,
       isAvailable: Boolean(isAvailable),
@@ -173,6 +171,7 @@ const addMotorcycle = asyncHandler(
       extraKmsCharges: Number(extraKmsCharges),
       kmsLimitPerDay: Number(kmsLimitPerDay),
       securityDeposit: Number(securityDeposit),
+      availableInCities,
     });
 
     if (!motorcycle) {
@@ -280,41 +279,66 @@ const updateMotorcycleDetails = asyncHandler(
     const {
       make,
       vehicleModel,
+      registrationNumber,
       year,
-      isAvailable,
-      rentPerDay,
-      description,
+      variant,
+      color,
       category,
+      availableQuantity,
+      description,
+      rentPerDay,
+      securityDeposit,
+      kmsLimitPerDay,
+      extraKmsCharges,
       specs,
+      isAvailable,
       availableInCities,
-      imagesToBeDeleted,
     } = req.body;
 
-    if (make) motorcycle.make = make;
-    if (vehicleModel) motorcycle.vehicleModel = vehicleModel;
-    if (isAvailable) motorcycle.isAvailable = isAvailable;
-    if (year) motorcycle.year = year;
-    if (rentPerDay) motorcycle.rentPerDay = rentPerDay;
-    if (description) motorcycle.description = description;
-    if (category) motorcycle.category = category;
-    if (specs) motorcycle.specs = specs;
+    const files = req.files as Express.Multer.File[];
 
-    motorcycle.availableInCities.push(...availableInCities);
+    const file = files[0].path;
 
-    const file = req.file?.path;
-
-    if (file) {
-      const image = await uploadFile(file);
-      motorcycle.images.push({
-        public_id: image.public_id,
-        url: image.secure_url,
-        resource_type: image.resource_type,
-        format: image.format,
-      });
-      imagesToBeDeleted.forEach((imageId: string) => {
-        deleteFile(imageId, "image");
-      });
+    if (!file) {
+      throw new ApiError(400, "Main Image is required");
     }
+
+    const images = await Promise.all(
+      files.map(async (image) => {
+        const img = await uploadFile(image.path);
+        return {
+          public_id: img.public_id,
+          url: img.secure_url,
+          resource_type: img.resource_type,
+          format: img.format,
+        };
+      }),
+    );
+
+    motorcycle.make = make;
+    motorcycle.vehicleModel = vehicleModel;
+    motorcycle.registrationNumber = registrationNumber;
+    motorcycle.year = Number(year);
+    motorcycle.variant = variant;
+    motorcycle.color = color;
+    motorcycle.category = category;
+    motorcycle.availableQuantity = Number(availableQuantity);
+    motorcycle.description = description;
+    motorcycle.rentPerDay = Number(rentPerDay);
+    motorcycle.securityDeposit = Number(securityDeposit);
+    motorcycle.kmsLimitPerDay = Number(kmsLimitPerDay);
+    motorcycle.extraKmsCharges = Number(extraKmsCharges);
+    motorcycle.specs = specs;
+    motorcycle.isAvailable = Boolean(isAvailable);
+    motorcycle.availableInCities = availableInCities;
+    motorcycle.images.push(
+      ...images.map((img) => ({
+        public_id: img.public_id,
+        url: img.url,
+        resource_type: img.resource_type,
+        format: img.format,
+      })),
+    );
 
     await motorcycle.save({ validateBeforeSave: false });
 
@@ -381,6 +405,31 @@ const updateMotorcycleAvailability = asyncHandler(
   },
 );
 
+const deleteMotorcycleImage = asyncHandler(
+  async (req: CustomRequest, res: Response) => {
+    const { motorcycleId } = req.params;
+    const { imageId } = req.body;
+    const motorcycle = await Motorcycle.findById(motorcycleId);
+    if (!motorcycle) {
+      throw new ApiError(404, "Motorcycle not found");
+    }
+    const image = motorcycle.images.find(
+      (image) => image.public_id === imageId,
+    );
+    if (!image) {
+      throw new ApiError(404, "Image not found");
+    }
+    await deleteFile(image.public_id, image.resource_type);
+    motorcycle.images = motorcycle.images.filter(
+      (image) => image.public_id !== imageId,
+    );
+    await motorcycle.save({ validateBeforeSave: false });
+    return res
+      .status(200)
+      .json(new ApiResponse(200, true, "Image deleted successfully"));
+  },
+);
+
 export {
   getAllMotorcycles,
   getMotorcycleById,
@@ -388,4 +437,5 @@ export {
   updateMotorcycleDetails,
   deleteMotorcycle,
   updateMotorcycleAvailability,
+  deleteMotorcycleImage,
 };

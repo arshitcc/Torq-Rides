@@ -263,7 +263,7 @@ export default function MotorcycleLogsPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
-        <Link href="/dashboard?tab=motorcycles">
+        <Link href="/dashboard">
           <Button variant="outline" className="mb-4 bg-transparent">
             <ArrowLeftIcon className="h-4 w-4 mr-2" />
             Back to Dashboard

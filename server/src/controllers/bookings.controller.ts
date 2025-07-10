@@ -749,6 +749,203 @@ const updateBookingStatus = asyncHandler(
   },
 );
 
+const getAnalytics = asyncHandler(async (req: CustomRequest, res: Response) => {
+  // Assume salesFromDate and salesUptoDate are JS Date objects, and
+  // (optionally) reportMonth is an integer 1–12 of the month you want to drill into.
+  // If you omit reportMonth, we’ll default to the month of salesFromDate.
+
+  const salesFromDate = new Date(); /* your from date */
+  const salesUptoDate = new Date(); /* your upto date */
+  const reportMonth = 4; /* optional: a month number 1–12 */
+
+  // Precompute for “current month” logic:
+  const now = new Date();
+  const thisYear = now.getFullYear();
+  const thisMonth = now.getMonth() + 1;
+  const endOfMonth =
+    reportMonth === thisMonth && now >= salesFromDate
+      ? now
+      : new Date(thisYear, reportMonth || now.getMonth() + 1, 0, 23, 59, 59);
+
+  const matchStage = {
+    $match: {
+      bookingDate: {
+        $gte: salesFromDate,
+        $lte: salesUptoDate,
+      },
+      status: "COMPLETED", // only count completed bookings
+      paymentStatus: "FULLY-PAID", // only fully paid ones
+    },
+  };
+
+  const lookupMotor = {
+    $lookup: {
+      from: "motorcycles",
+      localField: "items.motorcycleId",
+      foreignField: "_id",
+      as: "motorcycles",
+    },
+  };
+
+  const unwindItems = { $unwind: "$items" };
+  const addDateFields = {
+    $addFields: {
+      year: { $year: "$bookingDate" },
+      month: { $month: "$bookingDate" },
+      day: { $dayOfMonth: "$bookingDate" },
+      // week of month (1–5):
+      weekOfMonth: {
+        $ceil: { $divide: [{ $dayOfMonth: "$bookingDate" }, 7] },
+      },
+    },
+  };
+
+  const facetStage = {
+    $facet: {
+      // 1) Weekly totals for the “reportMonth”
+      weekly: [
+        {
+          $match: {
+            year: thisYear,
+            month: reportMonth || thisMonth,
+          },
+        },
+        {
+          $group: {
+            _id: "$weekOfMonth",
+            totalSales: { $sum: "$rentTotal" },
+          },
+        },
+        { $sort: { _id: 1 as const } },
+        {
+          $project: {
+            name: { $concat: ["Week ", { $toString: "$_id" }] },
+            weekly: "$totalSales",
+            _id: 0,
+          },
+        },
+      ],
+
+      // 2) Monthly totals for the full range
+      monthly: [
+        {
+          $group: {
+            _id: { year: "$year", month: "$month" },
+            totalSales: { $sum: "$rentTotal" },
+          },
+        },
+        { $sort: { "_id.year": 1 as const, "_id.month": 1 as const } },
+        {
+          $project: {
+            name: {
+              $arrayElemAt: [
+                [
+                  "",
+                  "Jan",
+                  "Feb",
+                  "Mar",
+                  "Apr",
+                  "May",
+                  "Jun",
+                  "Jul",
+                  "Aug",
+                  "Sep",
+                  "Oct",
+                  "Nov",
+                  "Dec",
+                ],
+                "$_id.month",
+              ],
+            },
+            monthly: "$totalSales",
+            _id: 0,
+          },
+        },
+      ],
+
+      // 3) Year‑to‑date monthly breakdown for the year of salesFromDate
+      yearly: [
+        { $match: { year: thisYear } },
+        {
+          $group: {
+            _id: "$month",
+            totalSales: { $sum: "$rentTotal" },
+          },
+        },
+        { $sort: { _id: 1 as const } },
+        {
+          $project: {
+            name: {
+              $arrayElemAt: [
+                [
+                  "",
+                  "Jan",
+                  "Feb",
+                  "Mar",
+                  "Apr",
+                  "May",
+                  "Jun",
+                  "Jul",
+                  "Aug",
+                  "Sep",
+                  "Oct",
+                  "Nov",
+                  "Dec",
+                ],
+                "$_id",
+              ],
+            },
+            yearly: "$totalSales",
+            _id: 0,
+          },
+        },
+      ],
+
+      // 4) Distribution of bookings by motorcycle category
+      bikes: [
+        unwindItems,
+        lookupMotor,
+        { $unwind: "$motorcycles" },
+        {
+          $group: {
+            _id: "$motorcycles.category",
+            count: { $sum: 1 },
+          },
+        },
+        {
+          $project: {
+            name: "$_id",
+            value: "$count",
+            _id: 0,
+          },
+        },
+      ],
+    },
+  };
+
+  const analytics = await Booking.aggregate([
+    matchStage,
+    addDateFields,
+    facetStage,
+  ]);
+
+  // Then, in your application code, you can merge the three time series
+  // (weekly, monthly, yearly) into one `salesData` array by month name,
+  // e.g.:
+  //   salesData = monthly.map(m => ({
+  //     name: m.name,
+  //     weekly: (weekly.find(w=>w.name.endsWith(m.name)) || {}).weekly || 0,
+  //     monthly: m.monthly,
+  //     yearly:  (yearly.find(y=>y.name===m.name)    || {}).yearly  || 0
+  //   }));
+  //
+  // And `bikesSalesData = result[0].bikes`.
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, true, "Analytics", analytics));
+});
+
 export {
   getAllBookings,
   createBooking,
@@ -759,4 +956,5 @@ export {
   generatePaypalOrder,
   verifyPaypalPayment,
   updateBookingStatus,
+  getAnalytics,
 };

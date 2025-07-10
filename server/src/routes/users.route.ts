@@ -81,8 +81,6 @@ router
   .route("/profile/upload-documents")
   .post(
     authenticateUser,
-    uploadUserDocumentValidator(),
-    validate,
     upload.single("document"),
     uploadUserDocument,
   );

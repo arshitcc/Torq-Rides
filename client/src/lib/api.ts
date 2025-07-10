@@ -67,9 +67,6 @@ export const motorcycleAPI = {
   updateMotorcycleAvailability: (motorcycleId: string, data: any) =>
     api.post(`/motorcycles/${motorcycleId}`, data),
 
-  updateMotorcycleMaintenanceLogs: (motorcycleId: string, data: any) =>
-    api.patch(`/motorcycles/${motorcycleId}`, data),
-
   deleteMotorcycle: (motorcycleId: string) =>
     api.delete(`/motorcycles/${motorcycleId}`),
 
@@ -94,6 +91,9 @@ export const motorcycleAPI = {
 
   deleteMotorcycleLog: (motorcycleId: string, logId: string) =>
     api.delete(`/motorcycles/logs/${motorcycleId}/${logId}`),
+
+  deleteMotorcycleImage: (motorcycleId: string, imageId: string) =>
+    api.patch(`/motorcycles/${motorcycleId}`, { imageId }),
 };
 
 export const bookingAPI = {

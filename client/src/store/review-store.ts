@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { reviewAPI } from "@/lib/api";
 import { Review } from "@/types";
+import { AxiosError } from "axios";
 
 interface ReviewState {
   reviews: Review[];
@@ -16,10 +17,7 @@ interface ReviewState {
   setError: (error: string | null) => void;
   // API functions
   getAllReviewsOfMotorcycleById: (motorcycleId: string) => Promise<void>;
-  addNewReviewToBookingId: (
-    bookingId: string,
-    data: any
-  ) => Promise<void>;
+  addNewReviewToBookingId: (bookingId: string, data: any) => Promise<void>;
   updateReviewById: (reviewId: string, data: any) => Promise<void>;
   deleteReviewById: (reviewId: string) => Promise<void>;
 }
@@ -46,7 +44,7 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
       );
       const { data: reviews, metadata } = response.data.data;
       set({ reviews, loading: false, metadata });
-    } catch (error: any) {
+    } catch (error: AxiosError | any) {
       set({
         loading: false,
         error: error.response?.data?.message || "Failed to fetch reviews",
@@ -58,16 +56,13 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
   addNewReviewToBookingId: async (bookingId, data) => {
     set({ loading: true, error: null });
     try {
-      const response = await reviewAPI.addNewReviewToBookingId(
-        bookingId,
-        data
-      );
+      const response = await reviewAPI.addNewReviewToBookingId(bookingId, data);
       const newReview = response.data.data;
       set((state) => ({
         reviews: [...state.reviews, newReview],
         loading: false,
       }));
-    } catch (error: any) {
+    } catch (error: AxiosError | any) {
       set({
         loading: false,
         error: error.response?.data?.message || "Failed to add review",
@@ -87,7 +82,7 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
         ),
         loading: false,
       }));
-    } catch (error: any) {
+    } catch (error: AxiosError | any) {
       set({
         loading: false,
         error: error.response?.data?.message || "Failed to update review",
@@ -104,7 +99,7 @@ export const useReviewStore = create<ReviewState>((set, get) => ({
         reviews: state.reviews.filter((r) => r._id !== reviewId),
         loading: false,
       }));
-    } catch (error: any) {
+    } catch (error: AxiosError | any) {
       set({
         loading: false,
         error: error.response?.data?.message || "Failed to delete review",

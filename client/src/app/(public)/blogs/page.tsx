@@ -199,13 +199,13 @@ export default function BlogsPage() {
               industry insights
             </p>
             <div className="max-w-md mx-auto">
-              <div className="relative">
-                <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+              <div className="relative flex items-center">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
                 <Input
                   placeholder="Search articles..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 bg-white text-black"
+                  className="pl-10 bg-white"
                 />
               </div>
             </div>
@@ -215,7 +215,7 @@ export default function BlogsPage() {
 
       <div className="container mx-auto px-4 py-12">
         <Tabs defaultValue="articles" className="space-y-8">
-          <TabsList className="grid w-full grid-cols-3 max-w-md mx-auto">
+          <TabsList className="flex items-center justify-start flex-wrap h-auto space-y-1">
             <TabsTrigger value="articles">Articles</TabsTrigger>
             <TabsTrigger value="tips">Quick Tips</TabsTrigger>
             <TabsTrigger value="news">News</TabsTrigger>

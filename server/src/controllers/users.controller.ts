@@ -476,6 +476,10 @@ const uploadUserDocument = asyncHandler(
 
     const { type, name } = req.body;
 
+    if(!type?.trim() || !name?.trim()) {
+      throw new ApiError(400, "Document type and name is required !!");
+    }
+
     const updatedUser = await User.findByIdAndUpdate(
       req.user._id,
       {

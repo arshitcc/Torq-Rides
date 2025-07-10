@@ -26,17 +26,12 @@ import { useAuthStore } from "@/store/auth-store";
 import {
   ArrowLeftIcon,
   StarIcon,
-  CreditCardIcon,
-  SmartphoneIcon,
-  BuildingIcon,
-  BitcoinIcon,
   Loader2Icon,
   CalendarIcon,
-  CheckIcon,
   MinusIcon,
   PlusIcon,
   ShoppingCartIcon,
-  ClockIcon,
+  CheckCircleIcon,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -72,14 +67,19 @@ export default function MotorcycleDetailPage() {
   } = useCartStore();
 
   const { user, isAuthenticated } = useAuthStore();
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [currentReviewIndex, setCurrentReviewIndex] = useState(0);
+
+  const inCart = cart?.items.find((item) => item.motorcycleId === id);
 
   const cartForm = useForm<AddToCartFormData>({
     resolver: zodResolver(addToCartSchema),
     defaultValues: {
-      quantity: 1,
-      pickupTime: "9:00 AM",
-      dropoffTime: "6:00 PM",
+      quantity: inCart?.quantity || 1,
+      pickupTime: inCart?.pickupTime || "9:00 AM",
+      pickupDate: inCart?.pickupDate || new Date(),
+      dropoffTime: inCart?.dropoffTime || "6:00 PM",
+      dropoffDate: inCart?.dropoffDate,
     },
   });
 
@@ -159,24 +159,82 @@ export default function MotorcycleDetailPage() {
         <div className="lg:col-span-2 space-y-8">
           <Card className="p-0 group overflow-hidden">
             <CardContent className="p-0">
-              <div className="relative h-80 md:h-120 overflow-hidden">
+              <div className="relative h-80 md:h-160 overflow-hidden">
                 <Image
-                  src={motorcycle?.images[0]?.url || "/placeholder.svg"}
+                  src={
+                    motorcycle?.images[selectedImageIndex]?.url ||
+                    "/placeholder.svg"
+                  }
                   alt={`${motorcycle?.make} ${motorcycle?.vehicleModel}`}
                   fill
-                  className="object-cover transform transition-transform duration-500 group-hover:scale-110"
+                  className="object-fit transform transition-transform duration-500 group-hover:scale-110"
                 />
-                <Badge className="absolute top-4 right-4" variant="secondary">
+                <Badge className="absolute top-4 right-20" variant="secondary">
                   {motorcycle?.category}
                 </Badge>
+                <Badge className="absolute top-4 right-4" variant="secondary">
+                  {motorcycle?.year}
+                </Badge>
               </div>
-              <div className="p-6">
+              {motorcycle && motorcycle.images.length > 1 && (
+                <div className="p-4">
+                  <div className="flex gap-2 overflow-x-auto">
+                    {motorcycle.images.map((image, index) => (
+                      <Button
+                        key={index}
+                        onClick={() => setSelectedImageIndex(index)}
+                        className={`cursor-pointer relative h-16 w-20 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-colors ${
+                          selectedImageIndex === index
+                            ? "border-primary"
+                            : "border-gray-200 hover:border-gray-300"
+                        }`}
+                      >
+                        <Image
+                          src={image.url || "/placeholder.svg"}
+                          alt={`${motorcycle.make} ${
+                            motorcycle.vehicleModel
+                          } view ${index + 1}`}
+                          fill
+                          className="object-cover"
+                        />
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <div className="p-4 text-center">
+                <p className="text-sm text-muted-foreground">
+                  *Images are for representation purposes only.
+                </p>
+              </div>
+
+              <div className="p-6 space-y-6">
                 <h1 className="text-3xl font-bold mb-2">
                   {motorcycle?.make} {motorcycle?.vehicleModel}
                 </h1>
                 <p className="text-gray-600 mb-4">{motorcycle?.description}</p>
                 <div className="text-3xl font-bold text-primary">
                   ₹{motorcycle?.rentPerDay}/day
+                </div>
+                <div className="flex flex-col sm:grid grid-cols-3 gap-4 text-sm">
+                  <div className="bg-gray-100 p-4 rounded-xl flex flex-row justify-between">
+                    <div className="text-muted-foreground">Deposit</div>
+                    <div className="font-medium">
+                      ₹ {motorcycle?.securityDeposit}
+                    </div>
+                  </div>
+                  <div className="bg-gray-100 p-4 rounded-xl flex flex-row justify-between">
+                    <div className="text-muted-foreground">Trip Limit</div>
+                    <div className="font-medium">
+                      {motorcycle?.kmsLimitPerDay} kms
+                    </div>
+                  </div>
+                  <div className="bg-gray-100 p-4 rounded-xl flex flex-row justify-between">
+                    <div className="text-muted-foreground">Extra Km Charge</div>
+                    <div className="font-medium">
+                      ₹ {motorcycle?.extraKmsCharges} per km
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -189,21 +247,31 @@ export default function MotorcycleDetailPage() {
             </CardHeader>
             <CardContent>
               {motorcycle?.specs && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 sm:first:border-l-0 sm:last:border-r-0">
                   {Object.entries(motorcycle.specs).map(([key, value]) => (
                     <div
                       key={key}
-                      className="flex items-center justify-between py-2 border-b border-primary-200 dark:border-primary-700"
+                      className="flex items-center justify-between p-2 border-r-0 sm:border-r border-primary-200 dark:border-primary-700"
                     >
                       <div className="flex items-center space-x-2">
-                        <CheckIcon className="w-5 h-5" />
+                        <CheckCircleIcon className="w-5 h-5 text-yellow-500" />
                         <span className="font-medium ">
                           {key[0].toUpperCase() + key.slice(1)}
                         </span>
                       </div>
-                      <span className="">{value}</span>
+                      <span>{value}</span>
                     </div>
                   ))}
+                  <div
+                    key={"seater"}
+                    className="flex items-center justify-between p-2 border-primary-200 dark:border-primary-700"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <CheckCircleIcon className="w-5 h-5 text-yellow-500" />
+                      <span className="font-medium ">Seats</span>
+                    </div>
+                    <span className="font-bold">2 Seater</span>
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -640,16 +708,20 @@ export default function MotorcycleDetailPage() {
                               <MinusIcon className="h-4 w-4" />
                             </Button>
                             <Input
-                              type="number"
                               min="1"
                               max={motorcycle?.availableQuantity}
                               className="text-center"
                               {...field}
-                              onChange={(e) =>
-                                field.onChange(
-                                  Number.parseInt(e.target.value) || 1
+                              onChange={(e) => {
+                                const val = Number(e.target.value);
+                                if (
+                                  !isNaN(val) &&
+                                  val >= 0 &&
+                                  val <= motorcycle?.availableQuantity!
                                 )
-                              }
+                                  field.onChange(val);
+                                else field.onChange(1);
+                              }}
                             />
                             <Button
                               type="button"
@@ -705,7 +777,7 @@ export default function MotorcycleDetailPage() {
                     disabled={cartLoading}
                   >
                     {cartLoading ? (
-                      "Adding..."
+                      <Loader2Icon className="mr-2 h-4 w-4 animate-spin" />
                     ) : (
                       <>
                         <ShoppingCartIcon className="mr-2 h-4 w-4" />
@@ -715,30 +787,6 @@ export default function MotorcycleDetailPage() {
                   </Button>
                 </form>
               </Form>
-
-              {/* Payment Methods unchanged */}
-              <div className="mt-6 pt-6 border-t">
-                <h4 className="font-medium mb-3">Accepted Payment Methods</h4>
-                <div className="flex justify-around text-xs text-gray-500 mt-2">
-                  <div className="flex flex-col items-center gap-1.5">
-                    <CreditCardIcon className="w-8 h-8 text-gray-400" />
-                    <span>Cards</span>
-                  </div>
-                  <div className="flex flex-col items-center gap-1.5">
-                    {" "}
-                    <SmartphoneIcon className="w-8 h-8 text-gray-400" />{" "}
-                    <span>UPI</span>
-                  </div>
-                  <div className="flex flex-col items-center gap-1.5">
-                    <BuildingIcon className="w-8 h-8 text-gray-400" />
-                    <span>Net Banking</span>
-                  </div>
-                  <div className="flex flex-col items-center gap-1.5">
-                    <BitcoinIcon className="w-8 h-8 text-gray-400" />
-                    <span>Crypto</span>
-                  </div>
-                </div>
-              </div>
             </CardContent>
           </Card>
         </div>

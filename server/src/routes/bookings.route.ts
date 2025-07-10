@@ -22,6 +22,7 @@ import {
   generatePaypalOrder,
   verifyPaypalPayment,
   updateBookingStatus,
+  getAnalytics,
 } from "../controllers/bookings.controller";
 import {
   mongoIdPathVariableValidator,
@@ -46,6 +47,10 @@ router
     validate,
     createBooking,
   );
+
+router
+  .route("/analytics")
+  .get(verifyPermission([UserRolesEnum.ADMIN]), getAnalytics);
 
 router
   .route("/:bookingId")

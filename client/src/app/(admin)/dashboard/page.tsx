@@ -415,7 +415,7 @@ export default function DashboardPage() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="flex items-center justify-start flex-wrap h-auto space-y-1">
           <TabsTrigger value="overview" className="cursor-pointer">
             Overview
           </TabsTrigger>
@@ -728,16 +728,18 @@ export default function DashboardPage() {
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    handleUpdateMotorcycle(motorcycle)
-                                  }
-                                  className="cursor-pointer border-yellow-primary/30 hover:bg-yellow-primary/10 bg-transparent"
-                                >
-                                  <EditIcon className="h-4 w-4" />
-                                </Button>
+                                <Link href={`/motorcycles/${motorcycle._id}/edit`}>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    // onClick={() =>
+                                    //   handleUpdateMotorcycle(motorcycle)
+                                    // }
+                                    className="cursor-pointer border-yellow-primary/30 hover:bg-yellow-primary/10 bg-transparent"
+                                  >
+                                    <EditIcon className="h-4 w-4" />
+                                  </Button>
+                                </Link>
                               </TooltipTrigger>
                               <TooltipContent>
                                 <p>Update Motorcycle</p>

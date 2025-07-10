@@ -18,9 +18,7 @@ interface MotorcycleState {
     page: number;
     totalPages: number;
   };
-  setMotorcycles: (
-    motorcycles: Motorcycle[]
-  ) => void;
+  setMotorcycles: (motorcycles: Motorcycle[]) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   setMetadata: (metadata: any) => void;
@@ -30,10 +28,6 @@ interface MotorcycleState {
   addMotorcycle: (data: FormData) => Promise<void>;
   getMotorcycleById: (motorcycleId: string) => Promise<Motorcycle>;
   updateMotorcycleDetails: (motorcycleId: string, data: any) => Promise<void>;
-  updateMotorcycleMaintenanceLogs: (
-    motorcycleId: string,
-    data: any
-  ) => Promise<void>;
   updateMotorcycleAvailability: (
     motorcycleId: string,
     data: { isAvailable: boolean }
@@ -53,6 +47,10 @@ interface MotorcycleState {
     data: UpdateMotorcycleLogFormData
   ) => Promise<void>;
   deleteMotorcycleLog: (motorcycleId: string, logId: string) => Promise<void>;
+  deleteMotorcycleImage: (
+    motorcycleId: string,
+    imageId: string
+  ) => Promise<void>;
 }
 
 export const useMotorcycleStore = create<MotorcycleState>((set, get) => ({
@@ -78,7 +76,7 @@ export const useMotorcycleStore = create<MotorcycleState>((set, get) => ({
       const response = await motorcycleAPI.getAllMotorcycles(params);
       const { data, metadata } = response.data.data;
       set({ motorcycles: data, metadata: metadata[0], loading: false });
-    } catch (error: any) {
+    } catch (error: AxiosError | any) {
       set({
         loading: false,
         error: error.response?.data?.message || "Failed to fetch motorcycles",
@@ -96,7 +94,7 @@ export const useMotorcycleStore = create<MotorcycleState>((set, get) => ({
         motorcycles: [...state.motorcycles, newMotorcycle],
         loading: false,
       }));
-    } catch (error: any) {
+    } catch (error: AxiosError | any) {
       set({
         loading: false,
         error: error.response?.data?.message || "Failed to add motorcycle",
@@ -112,7 +110,7 @@ export const useMotorcycleStore = create<MotorcycleState>((set, get) => ({
       const motorcycle = response.data.data;
       set({ loading: false, motorcycle });
       return response.data;
-    } catch (error: any) {
+    } catch (error: AxiosError | any) {
       set({
         loading: false,
         error: error.response?.data?.message ?? "Failed to fetch motorcycle",
@@ -166,21 +164,6 @@ export const useMotorcycleStore = create<MotorcycleState>((set, get) => ({
     }
   },
 
-  updateMotorcycleMaintenanceLogs: async (motorcycleId, data) => {
-    set({ loading: true, error: null });
-    try {
-      await motorcycleAPI.updateMotorcycleMaintenanceLogs(motorcycleId, data);
-      set({ loading: false });
-    } catch (error: AxiosError | any) {
-      set({
-        loading: false,
-        error:
-          error.response?.data?.message || "Failed to update maintenance logs",
-      });
-      throw error;
-    }
-  },
-
   deleteMotorcycle: async (motorcycleId) => {
     set({ loading: true, error: null });
     try {
@@ -189,7 +172,7 @@ export const useMotorcycleStore = create<MotorcycleState>((set, get) => ({
         motorcycles: state.motorcycles.filter((m) => m._id !== motorcycleId),
         loading: false,
       }));
-    } catch (error: any) {
+    } catch (error: AxiosError | any) {
       set({
         loading: false,
         error: error.response?.data?.message || "Failed to delete motorcycle",
@@ -206,7 +189,7 @@ export const useMotorcycleStore = create<MotorcycleState>((set, get) => ({
       const response = await motorcycleAPI.getAllMotorcycleLogs();
       const { data } = response.data.data;
       set({ motorcycles: data, loading: false });
-    } catch (error: any) {
+    } catch (error: AxiosError | any) {
       set({
         loading: false,
         error:
@@ -228,7 +211,7 @@ export const useMotorcycleStore = create<MotorcycleState>((set, get) => ({
         motorcycles: [...state.motorcycles, newMotorcycleLog],
         loading: false,
       }));
-    } catch (error: any) {
+    } catch (error: AxiosError | any) {
       set({
         loading: false,
         error:
@@ -244,7 +227,7 @@ export const useMotorcycleStore = create<MotorcycleState>((set, get) => ({
       const response = await motorcycleAPI.getMotorcycleLogs(motorcycleId);
       const { data } = response.data.data;
       set({ motorcycles: data, loading: false });
-    } catch (error: any) {
+    } catch (error: AxiosError | any) {
       set({
         loading: false,
         error:
@@ -270,7 +253,7 @@ export const useMotorcycleStore = create<MotorcycleState>((set, get) => ({
         loading: false,
         error: null,
       }));
-    } catch (error: any) {
+    } catch (error: AxiosError | any) {
       set({
         loading: false,
         error:
@@ -288,7 +271,27 @@ export const useMotorcycleStore = create<MotorcycleState>((set, get) => ({
         logs: state.logs.filter((log) => log._id !== logId),
         loading: false,
       }));
-    } catch (error: any) {
+    } catch (error: AxiosError | any) {
+      set({
+        loading: false,
+        error:
+          error.response?.data?.message || "Failed to delete motorcycle log",
+      });
+      throw error;
+    }
+  },
+
+  deleteMotorcycleImage: async (motorcycleId, imageId) => {
+    set({ loading: true, error: null });
+    try {
+      await motorcycleAPI.deleteMotorcycleImage(motorcycleId, imageId);
+      set((state) => ({
+        "motorcycle.images": state.motorcycle?.images.filter(
+          (img) => img.public_id !== imageId
+        ),
+        loading: false,
+      }));
+    } catch (error: AxiosError | any) {
       set({
         loading: false,
         error:

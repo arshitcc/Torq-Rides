@@ -32,7 +32,6 @@ import {
   EyeIcon,
   Trash2Icon,
   UploadIcon,
-  Loader2Icon,
 } from "lucide-react";
 import { format } from "date-fns";
 import {
@@ -45,7 +44,6 @@ import {
 } from "@/schemas/users.schema";
 import { UserRolesEnum } from "@/types";
 import { AxiosError } from "axios";
-import Image from "next/image";
 import {
   Select,
   SelectContent,
@@ -70,7 +68,6 @@ export default function ProfilePage() {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
@@ -116,8 +113,6 @@ export default function ProfilePage() {
         fullname: user.fullname,
         email: user.email,
         username: user.username,
-        // phone: user.phone || "",
-        // address: user.address || "",
       });
     }
 
@@ -138,11 +133,6 @@ export default function ProfilePage() {
     const file = event.target.files?.[0];
     if (file) {
       setSelectedFile(file);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setPreviewUrl(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
     }
   };
 
@@ -206,14 +196,13 @@ export default function ProfilePage() {
       await uploadDocument(data, selectedFile);
       toast.success("Your document has been uploaded successfully.");
       documentForm.reset();
-      setSelectedFile(null);
-      setPreviewUrl(null);
     } catch (error: AxiosError | any) {
       toast.error(
         error.response?.data?.message ||
           "Failed to upload document. Please try again."
       );
     } finally {
+      setSelectedFile(null);
       setIsUploading(false);
     }
   };
@@ -247,9 +236,8 @@ export default function ProfilePage() {
     }
   };
 
-
   if (!user) {
-    return <NotFound/>
+    return <NotFound />;
   }
 
   const userBookings = bookings.filter(
@@ -356,7 +344,7 @@ export default function ProfilePage() {
         {/* Profile Content */}
         <div className="lg:col-span-3">
           <Tabs defaultValue="profile" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-4">
+            <TabsList className="flex items-center justify-start flex-wrap h-auto space-y-1">
               <TabsTrigger value="profile" className="cursor-pointer">
                 Profile Info
               </TabsTrigger>
@@ -720,17 +708,11 @@ export default function ProfilePage() {
                           </div>
                         </div>
 
-                        {previewUrl && (
+                        {selectedFile && (
                           <div className="mt-4">
-                            <p className="text-sm font-medium mb-2">Preview:</p>
-                            <div className="border rounded-lg p-4">
-                              <Image
-                                src={previewUrl || "/placeholder.svg"}
-                                alt="Document preview"
-                                width={200}
-                                height={200}
-                                className="max-w-full h-auto rounded"
-                              />
+                            <p className="text-sm font-medium mb-2">File To Upload:</p>
+                            <div className="border rounded-lg p-4 bg-gray-100">
+                              {selectedFile.name}
                             </div>
                           </div>
                         )}

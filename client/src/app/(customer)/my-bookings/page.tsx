@@ -4,6 +4,14 @@ import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { useBookingStore } from "@/store/booking-store";
 import { useAuthStore } from "@/store/auth-store";
 import { toast } from "sonner";
@@ -12,8 +20,6 @@ import {
   ClockIcon,
   Loader2Icon,
   BikeIcon,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   XIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -36,20 +42,16 @@ export default function MyBookingsPage() {
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    if (user) {
-      if (user.role !== UserRolesEnum.CUSTOMER) {
-        toast.warning("Access Denied");
-        router.push("/");
-      } else {
-        // Authorized: fetch bookings
-        window.scrollTo({ top: 0, behavior: "smooth" });
-        getAllBookings({
-          customerId: user._id,
-          page: currentPage,
-          offset: itemsPerPage,
-        });
-      }
+    if (!user || user.role !== UserRolesEnum.CUSTOMER) {
+      router.push("/");
     }
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    getAllBookings({
+      customerId: user?._id,
+      page: currentPage,
+      offset: itemsPerPage,
+    });
   }, [isAuthenticated, user, currentPage, getAllBookings, router]);
 
   const handleCancelBooking = async (bookingId: string) => {
@@ -97,7 +99,7 @@ export default function MyBookingsPage() {
       <div className="mb-8">
         <div className="flex items-center space-x-3 mb-2">
           <BikeIcon className="h-8 w-8 text-primary" />
-          <h1 className="text-4xl font-bold">My Bookings {totalBookings}</h1>
+          <h1 className="text-4xl font-bold">My Bookings ({totalBookings})</h1>
         </div>
         <p className="text-gray-600">Manage your motorcycle rental bookings</p>
       </div>
@@ -109,7 +111,7 @@ export default function MyBookingsPage() {
       )}
 
       <Tabs defaultValue="all" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="flex items-center justify-start flex-wrap h-auto space-y-1">
           <TabsTrigger value="all">All ({bookings.length})</TabsTrigger>
           <TabsTrigger value="upcoming">
             Upcoming ({upcomingBookings.length})
@@ -234,62 +236,42 @@ export default function MyBookingsPage() {
         </TabsContent>
       </Tabs>
 
+      {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex flex-col md:flex-row gap-6 items-center justify-between mt-8">
-          <div className="text-sm text-gray-600">
-            Page {currentPageFromMeta} of {totalPages}
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handlePageChange(currentPageFromMeta - 1)}
-              disabled={currentPageFromMeta <= 1}
-            >
-              <ChevronLeftIcon className="h-4 w-4" />
-              Previous
-            </Button>
-
-            <div className="flex items-center gap-1">
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                let pageNum;
-                if (totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (currentPageFromMeta <= 3) {
-                  pageNum = i + 1;
-                } else if (currentPageFromMeta >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i;
-                } else {
-                  pageNum = currentPageFromMeta - 2 + i;
+        <Pagination className="overflow-x-auto">
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious
+                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                className={
+                  currentPage === 1 ? "pointer-events-none opacity-50" : ""
                 }
-
-                return (
-                  <Button
-                    key={pageNum}
-                    variant={
-                      pageNum === currentPageFromMeta ? "default" : "outline"
-                    }
-                    size="sm"
-                    onClick={() => handlePageChange(pageNum)}
-                    className="w-8 h-8 p-0"
-                  >
-                    {pageNum}
-                  </Button>
-                );
-              })}
-            </div>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => handlePageChange(currentPageFromMeta + 1)}
-              disabled={currentPageFromMeta >= totalPages}
-            >
-              Next
-              <ChevronRightIcon className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
+              />
+            </PaginationItem>
+            {Array.from({ length: totalPages }, (_, i) => (
+              <PaginationItem key={i + 1}>
+                <PaginationLink
+                  onClick={() => setCurrentPage(i + 1)}
+                  isActive={currentPage === i + 1}
+                >
+                  {1 + i}
+                </PaginationLink>
+              </PaginationItem>
+            ))}
+            <PaginationItem>
+              <PaginationNext
+                onClick={() =>
+                  setCurrentPage((p) => Math.min(p + 1, totalPages))
+                }
+                className={
+                  currentPage === totalPages
+                    ? "pointer-events-none opacity-50"
+                    : ""
+                }
+              />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
       )}
     </div>
   );

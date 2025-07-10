@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { couponAPI } from "@/lib/api";
 import { PromoCode } from "@/types";
 import { CouponFormData, UpdateCouponFormData } from "@/schemas/coupons.schema";
+import { AxiosError } from "axios";
 
 interface PromoCodeState {
   coupons: PromoCode[];
@@ -47,7 +48,7 @@ export const useCouponStore = create<PromoCodeState>((set, get) => ({
       const response = await couponAPI.getAllCoupons();
       const { data, metadata } = response.data.data;
       set({ coupons: data, metadata, loading: false });
-    } catch (error: any) {
+    } catch (error: AxiosError | any) {
       set({
         loading: false,
         error: error.response?.data?.message || "Failed to fetch coupons",
@@ -65,7 +66,7 @@ export const useCouponStore = create<PromoCodeState>((set, get) => ({
         coupons: [createdCoupon, ...state.coupons],
         loading: false,
       }));
-    } catch (error: any) {
+    } catch (error: AxiosError | any) {
       set({
         loading: false,
         error: error.response?.data?.message || "Failed to create coupon",
@@ -80,7 +81,7 @@ export const useCouponStore = create<PromoCodeState>((set, get) => ({
       const response = await couponAPI.getCouponById(couponId);
       set({ loading: false });
       return response.data;
-    } catch (error: any) {
+    } catch (error: AxiosError | any) {
       set({
         loading: false,
         error: error.response?.data?.message || "Failed to fetch coupon",
@@ -100,7 +101,7 @@ export const useCouponStore = create<PromoCodeState>((set, get) => ({
         ),
         loading: false,
       }));
-    } catch (error: any) {
+    } catch (error: AxiosError | any) {
       set({
         loading: false,
         error: error.response?.data?.message || "Failed to update coupon",
@@ -119,7 +120,7 @@ export const useCouponStore = create<PromoCodeState>((set, get) => ({
         ),
         loading: false,
       }));
-    } catch (error: any) {
+    } catch (error: AxiosError | any) {
       set({
         loading: false,
         error:
@@ -137,7 +138,7 @@ export const useCouponStore = create<PromoCodeState>((set, get) => ({
         coupons: state.coupons.filter((c) => c._id !== couponId),
         loading: false,
       }));
-    } catch (error: any) {
+    } catch (error: AxiosError | any) {
       set({
         loading: false,
         error: error.response?.data?.message || "Failed to delete coupon",

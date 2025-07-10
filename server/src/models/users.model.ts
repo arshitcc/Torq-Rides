@@ -27,12 +27,12 @@ export const DocumentTypesEnum = {
 
 export const AvailableDocumentTypes = Object.values(DocumentTypesEnum);
 
-export type DocumentTypes = typeof AvailableDocumentTypes[number];
+export type DocumentTypes = (typeof AvailableDocumentTypes)[number];
 
 export interface IDocument {
   type: DocumentTypes;
   name: string;
-  file : File
+  file: File;
 }
 
 export interface IUser extends mongoose.Document {
@@ -49,7 +49,7 @@ export interface IUser extends mongoose.Document {
   forgotPasswordToken: string | undefined;
   forgotPasswordExpiry: Date | undefined;
   refreshToken: string;
-  documents : IDocument[];
+  documents: IDocument[];
 
   isPasswordCorrect(password: string): boolean;
   generateAccessToken(): string;
@@ -124,6 +124,25 @@ const userSchema = new mongoose.Schema<IUser>(
     forgotPasswordExpiry: {
       type: Date,
     },
+    documents: [
+      {
+        type: {
+          type: String,
+          enum: AvailableDocumentTypes,
+          required: true,
+        },
+        name: {
+          type: String,
+          required: true,
+        },
+        file: {
+          url: String,
+          format: String,
+          resource_type: String,
+          public_id: String,
+        },
+      },
+    ],
   },
   { timestamps: true },
 );

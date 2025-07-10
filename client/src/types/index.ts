@@ -123,21 +123,16 @@ export type BookingStatus = (typeof AvailableBookingStatus)[number];
 export type PaymentStatus = (typeof AvailablePaymentStatus)[number];
 export type AvailableInCities = (typeof AvailableInCities)[number];
 
-
-export type CityStock = {
-  city: AvailableInCities;
-  quantity: number;
-};
-
 export type Motorcycle = {
   _id: string;
   make: string;
   vehicleModel: string;
+  registrationNumber: string;
   year: number;
   rentPerDay: number;
   description: string;
   category: MotorcycleCategory;
-  image: File;
+  availableInCities: AvailableInCities[];
   specs: {
     engine: string;
     power: string;
@@ -151,15 +146,13 @@ export type Motorcycle = {
   kmsLimitPerDay: number;
   extraKmsCharges: number;
   images: File[];
+  rating: number;
   createdAt: Date;
   updatedAt: Date;
-  availableInCities: CityStock[];
-  rating: number;
-  registrationNumber: string;
 };
 
-export type CustomerMotorcycle = Motorcycle;
-export type AdminMotorcycle = Omit<Motorcycle, "registrationNumber">;
+export type CustomerMotorcycle = Omit<Motorcycle, "registrationNumber">;
+export type AdminMotorcycle = Motorcycle;
 
 export type Booking = {
   _id: string;

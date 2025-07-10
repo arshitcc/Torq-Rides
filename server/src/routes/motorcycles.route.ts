@@ -18,6 +18,7 @@ import {
   updateMotorcycleDetails,
   deleteMotorcycle,
   updateMotorcycleAvailability,
+  deleteMotorcycleImage,
 } from "../controllers/motorcycles.controller";
 import logsRouter from "./motorcycle-logs.route";
 import { mongoIdPathVariableValidator } from "../validators/common/mongodb/mongodb.validators";
@@ -31,10 +32,7 @@ router
   .get(getAllMotorcyclesValidtors(), validate, getAllMotorcycles)
   .post(
     verifyPermission([UserRolesEnum.ADMIN]),
-    upload.fields([
-      { name: "image", maxCount: 1 },
-      { name: "images", maxCount: 5 },
-    ]),
+    upload.array("images", 5),
     addMotorcycleValidators(),
     validate,
     addMotorcycle,
@@ -55,10 +53,16 @@ router
     validate,
     updateMotorcycleAvailability,
   )
+  .patch(
+    verifyPermission([UserRolesEnum.ADMIN]),
+    mongoIdPathVariableValidator("motorcycleId"),
+    validate,
+    deleteMotorcycleImage,
+  )
   .put(
     verifyPermission([UserRolesEnum.ADMIN]),
     mongoIdPathVariableValidator("motorcycleId"),
-    upload.single("image"),
+    upload.array("images", 5),
     updateMotorcycleByIdValidators(),
     validate,
     updateMotorcycleDetails,

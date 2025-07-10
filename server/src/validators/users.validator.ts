@@ -110,13 +110,14 @@ const userAssignRoleValidator = () => {
 const uploadUserDocumentValidator = () => {
   return [
     body("type")
-      .trim()
-      .notEmpty()
-      .withMessage("Document type is required")
       .isIn(AvailableDocumentTypes)
       .withMessage("Invalid document type"),
 
-    body("name").trim().notEmpty().withMessage("Document name is required"),
+    body("name")
+      .optional()
+      .trim()
+      .isEmpty()
+      .withMessage("Document name is required"),
   ];
 };
 
@@ -127,5 +128,5 @@ export {
   userForgotPasswordRequestValidator,
   userResetForgottenPasswordValidator,
   userAssignRoleValidator,
-  uploadUserDocumentValidator
+  uploadUserDocumentValidator,
 };

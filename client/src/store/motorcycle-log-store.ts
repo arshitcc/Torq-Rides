@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { motorcycleAPI } from "@/lib/api";
 import type { MotorcycleLog } from "@/types";
+import { AxiosError } from "axios";
 
 interface MotorcycleLogState {
   logs: MotorcycleLog[];
@@ -50,7 +51,7 @@ export const useMotorcycleLogStore = create<MotorcycleLogState>((set, get) => ({
       const response = await motorcycleAPI.getAllMotorcycleLogs(params);
       const { data, metadata } = response.data.data;
       set({ logs: data, metadata: metadata[0], loading: false });
-    } catch (error: any) {
+    } catch (error: AxiosError | any) {
       set({
         loading: false,
         error:
@@ -69,7 +70,7 @@ export const useMotorcycleLogStore = create<MotorcycleLogState>((set, get) => ({
       );
       const { data, metadata } = response.data;
       set({ logs: data, metadata, loading: false });
-    } catch (error: any) {
+    } catch (error: AxiosError | any) {
       set({
         loading: false,
         error:
@@ -91,7 +92,7 @@ export const useMotorcycleLogStore = create<MotorcycleLogState>((set, get) => ({
         logs: [newLog, ...state.logs],
         loading: false,
       }));
-    } catch (error: any) {
+    } catch (error: AxiosError | any) {
       set({
         loading: false,
         error:
@@ -114,7 +115,7 @@ export const useMotorcycleLogStore = create<MotorcycleLogState>((set, get) => ({
         logs: state.logs.map((log) => (log._id === logId ? updatedLog : log)),
         loading: false,
       }));
-    } catch (error: any) {
+    } catch (error: AxiosError | any) {
       set({
         loading: false,
         error:
@@ -132,7 +133,7 @@ export const useMotorcycleLogStore = create<MotorcycleLogState>((set, get) => ({
         logs: state.logs.filter((log) => log._id !== logId),
         loading: false,
       }));
-    } catch (error: any) {
+    } catch (error: AxiosError | any) {
       set({
         loading: false,
         error:

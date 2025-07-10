@@ -4,7 +4,6 @@ import { ICartItem } from "./carts.model";
 import {
   AvailableInCities,
   AvailableInCitiesEnum,
-  IMotorcycle,
 } from "./motorcycles.model";
 import {
   AvailablePaymentProviders,

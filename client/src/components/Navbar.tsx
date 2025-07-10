@@ -21,15 +21,12 @@ import {
 } from "@/components/ui/sheet";
 import {
   MenuIcon,
-  SunIcon,
-  MoonIcon,
-  ComputerIcon,
   UserPlusIcon,
   UserIcon,
   MapPinIcon,
   ArrowUpRightIcon,
   ShoppingCartIcon,
-  BookUserIcon,
+  ArrowUpRightFromSquare,
 } from "lucide-react";
 import {
   NavigationMenu,
@@ -73,14 +70,14 @@ const carCategories = [
 ];
 
 const tourCategories = [
-  { name: "Guided Tours", href: "/tours/guided" },
-  { name: "Self-Riding Tours", href: "/tours/self-riding" },
-  { name: "Corporate Tours", href: "/tours/corporate" },
+  { name: "Guided Tours", href: "/tours?category=guided-tours" },
+  { name: "Self-Riding Tours", href: "/tours?category=self-riding" },
+  { name: "Corporate Tours", href: "/tours?category=corporate-tours" },
 ];
 
 const offRoadCategories = [
-  { name: "Aravali Trail Rides", href: "/off-road/aravali" },
-  { name: "Off-Road Adventure Park", href: "/off-road/adventure-park" },
+  { name: "Aravali Trail Rides", href: "/off-roads/aravali-trail-rides" },
+  { name: "Off-Road Adventure Park", href: "/off-roads/adventure-park" },
 ];
 
 const locations = [
@@ -93,9 +90,8 @@ export function Navbar() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const { cart } = useCartStore();
-  const { setTheme } = useTheme();
 
-  const [isSticky, setIsSticky] = useState(false);
+  const [isSticky, setIsSticky] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
 
   useEffect(() => {
@@ -133,6 +129,9 @@ export function Navbar() {
   const navItems = [
     { href: "/", label: "Home" },
     { href: "/motorcycles", label: "Motorcycles" },
+    { href: "/cars", label: "Cars" },
+    { href: "/tours", label: "Tours" },
+    { href: "/off-road", label: "Off-Road" },
     { href: "/blogs", label: "Blogs" },
     ...(user?.role === UserRolesEnum.CUSTOMER
       ? [{ href: "/my-bookings", label: "My Bookings" }]
@@ -152,17 +151,20 @@ export function Navbar() {
   return (
     <nav
       className={`bg-background/95 backdrop-blur supports-[backdrop-filter]:dark:bg-background/60 ${
-        isSticky ? "sticky top-0 z-50" : "top-0 z-50"
+        isSticky ? "sticky top-0 z-60" : ""
       }`}
     >
       <div className="container mx-auto px-6">
         <div className="flex h-16 items-center justify-between">
-          <Link href="/" className="flex items-center space-x-2">
-            <Image src="/logo/logo.png" alt="logo" width={150} height={100} />
-          </Link>
-
-          <div className="hidden lg:flex items-center space-x-8">
-            <NavigationMenu>
+          <div className="flex items-center">
+            <Link href="/" className="flex items-center space-x-2 mr-8">
+              <Image src="/logo/logo.png" alt="logo" width={150} height={100} />
+            </Link>
+            <NavigationMenu
+              className="hidden lg:flex items-center space-x-8"
+              viewport={false}
+              suppressHydrationWarning
+            >
               <NavigationMenuList>
                 {/* Bikes Menu */}
                 <NavigationMenuItem>
@@ -260,32 +262,15 @@ export function Navbar() {
                   </NavigationMenuContent>
                 </NavigationMenuItem>
 
-                {/* Locations Menu */}
-                <NavigationMenuItem>
-                  <NavigationMenuTrigger className="text-sm font-medium hover:text-yellow-primary">
-                    Locations
-                  </NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    <div className="grid w-[400px] gap-3 p-4">
-                      {locations.map((location) => (
-                        <NavigationMenuLink key={location.href} asChild>
-                          <Link
-                            href={location.href}
-                            className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-yellow-primary/10 hover:text-yellow-primary focus:bg-yellow-primary/10 focus:text-yellow-primary"
-                          >
-                            <div className="text-sm font-medium leading-none flex gap-2">
-                              <ArrowUpRightIcon className="hover:text-yellow-primary" />
-                              {location.name}
-                            </div>
-                          </Link>
-                        </NavigationMenuLink>
-                      ))}
-                    </div>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
+                <Link
+                  href={"/blogs"}
+                  className="flex items-center gap-2 font-medium hover:bg-accent py-1 px-4 rounded-md hover:bg-yellow-primary/10 hover:text-yellow-primary"
+                >
+                  <ArrowUpRightFromSquare className="h-3 w-3" />
+                  Blogs
+                </Link>
               </NavigationMenuList>
             </NavigationMenu>
-            
           </div>
 
           {/* Right Section */}
@@ -295,9 +280,9 @@ export function Navbar() {
               <Select>
                 <SelectTrigger className="w-[180px] text-black dark:text-white">
                   <MapPinIcon className="h-4 w-4 text-yellow-primary" />
-                  <SelectValue placeholder="Select a location" />
+                  <SelectValue placeholder="Gurgaon" />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-60">
                   {locations.map((location) => (
                     <SelectItem key={location.href} value={location.href}>
                       {location.name}
@@ -332,16 +317,6 @@ export function Navbar() {
             {/* Auth Section */}
             {user ? (
               <div className="flex items-center space-x-2">
-                <Button
-                  variant="outline"
-                  asChild
-                  className="hover:bg-yellow-primary/10"
-                >
-                  <Link href="/profile">
-                    <UserIcon className="mr-2 h-4 w-4 text-yellow-primary" />
-                    MY ACCOUNT
-                  </Link>
-                </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button

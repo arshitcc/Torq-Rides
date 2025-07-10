@@ -213,7 +213,10 @@ export default function MotorcyclesPage() {
             className="dark:text-white h-12 placeholder:font-normal text-md font-semibold pl-10 dark:bg-transparent text-yellow-500 focus-visible:border-yellow-500 dark:hover:border-yellow-500 border-1 border-gray-300 dark:border-gray-700 transition-all duration-200 ease-in-out"
             placeholder="Search by Brand or Model..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setCurrentPage(1);
+              setSearchTerm(e.target.value);
+            }}
           />
         </div>
 
@@ -590,7 +593,7 @@ export default function MotorcyclesPage() {
                             src={motorcycle.images[0].url || "/placeholder.svg"}
                             alt={`${motorcycle.make} ${motorcycle.vehicleModel}`}
                             fill
-                            className="object-cover transform transition-transform duration-500 group-hover:scale-110"
+                            className="object-fit transform transition-transform duration-500 group-hover:scale-110"
                           />
                           <Badge
                             variant="secondary"
@@ -629,7 +632,7 @@ export default function MotorcyclesPage() {
                         </div>
                       </CardContent>
                       <CardFooter className="p-4 pt-0">
-                        <Button className="mx-auto bg-yellow-primary hover:bg-yellow-600 text-black font-semibold group">
+                        <Button className="mx-auto bg-yellow-primary hover:bg-yellow-600 font-semibold group dark:text-white">
                           Book Now
                           <ArrowRightIcon className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                         </Button>
