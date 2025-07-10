@@ -15,7 +15,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
-  DownloadIcon,
   EditIcon,
   InfoIcon,
   StarIcon,
@@ -307,12 +306,6 @@ function BookingCard({
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
-            )}
-
-            {showActions.includes("download") && (
-              <Button variant="outline" size="sm">
-                <DownloadIcon className="h-4 w-4" />
-              </Button>
             )}
           </div>
         </div>

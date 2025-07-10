@@ -21,6 +21,14 @@ interface BookingState {
   createBooking: (data: any) => Promise<boolean>;
   modifyBooking: (bookingId: string, data: any) => Promise<void>;
   cancelBooking: (bookingId: string) => Promise<void>;
+
+  // Payment Functions :
+  generateRazorpayOrder: (mode: string) => Promise<void>;
+  verifyRazorpayPayment: (data: {
+    razorpay_payment_id: string;
+    razorpay_signature: string;
+    razorpay_order_id: string;
+  }) => Promise<Booking>;
 }
 
 export const useBookingStore = create<BookingState>((set, get) => ({
@@ -118,6 +126,38 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       set({
         loading: false,
         error: error.response?.data?.message || "Failed to cancel booking",
+      });
+      throw error;
+    }
+  },
+
+  generateRazorpayOrder: async (mode) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await bookingAPI.generateRazorpayOrder(mode);
+      const order = response.data.data;
+      return order;
+    } catch (error: AxiosError | any) {
+      set({
+        loading: false,
+        error:
+          error.response?.data?.message || "Failed to generate razorpay order",
+      });
+      throw error;
+    }
+  },
+
+  verifyRazorpayPayment: async (data) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await bookingAPI.verifyRazorpayOrder(data);
+      const order = response.data.data;
+      return order;
+    } catch (error: AxiosError | any) {
+      set({
+        loading: false,
+        error:
+          error.response?.data?.message || "Failed to verify razorpay order",
       });
       throw error;
     }

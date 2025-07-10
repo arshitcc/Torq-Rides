@@ -12,6 +12,14 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useBookingStore } from "@/store/booking-store";
 import { useAuthStore } from "@/store/auth-store";
 import { toast } from "sonner";
@@ -21,12 +29,36 @@ import {
   Loader2Icon,
   BikeIcon,
   XIcon,
+  StarIcon,
+  DownloadIcon,
+  InfoIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Booking, UserRolesEnum } from "@/types";
 import { AxiosError } from "axios";
-import BookingCard from "./__components/booking-card";
-import { isCancelled, isPast, isUpcoming } from "./filters";
+import {
+  getPaymentStatusColor,
+  getStatusColor,
+  isCancelled,
+  isPast,
+  isUpcoming,
+} from "./filters";
+import Image from "next/image";
+import { format } from "date-fns";
+import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { ReviewModal } from "./__components/review-modal";
+import { BookingDetailsDialog } from "./__components/booking-details-dialog";
 
 export default function MyBookingsPage() {
   const { bookings, loading, error, getAllBookings, cancelBooking, metadata } =
@@ -35,8 +67,6 @@ export default function MyBookingsPage() {
   const router = useRouter();
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
-
-  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
 
   // Redirect logic moved to useEffect to avoid setState in render
   useEffect(() => {
@@ -66,12 +96,123 @@ export default function MyBookingsPage() {
     }
   };
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
+  const renderBookingRow = (booking: Booking) => (
+    <TableRow key={booking._id}>
+      <TableCell className="font-medium">
+        #{booking._id.slice(-8).toUpperCase()}
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center space-x-3">
+          <div className="flex -space-x-2">
+            {booking.items.slice(0, 2).map((item, index) => (
+              <div
+                key={index}
+                className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-white"
+              >
+                <Image
+                  src={item.motorcycle?.images[0]?.url || "/placeholder.svg"}
+                  alt={`${item.motorcycle.make} ${item.motorcycle.vehicleModel}`}
+                  fill
+                  className="object-cover"
+                />
+              </div>
+            ))}
+            {booking.items.length > 2 && (
+              <div className="w-10 h-10 rounded-full bg-gray-100 border-2 border-white flex items-center justify-center">
+                <span className="text-xs font-medium">
+                  +{booking.items.length - 2}
+                </span>
+              </div>
+            )}
+          </div>
+          <div>
+            <p className="font-medium">
+              {booking.items[0]?.motorcycle.make}{" "}
+              {booking.items[0]?.motorcycle.vehicleModel}
+            </p>
+            {booking.items.length > 1 && (
+              <p className="text-sm text-gray-500">
+                +{booking.items.length - 1} more
+              </p>
+            )}
+          </div>
+        </div>
+      </TableCell>
+      <TableCell>
+        {format(new Date(booking.bookingDate), "MMM dd, yyyy")}
+      </TableCell>
+      <TableCell>
+        <Badge className={getStatusColor(booking.status)}>
+          {booking.status}
+        </Badge>
+      </TableCell>
+      <TableCell>
+        <Badge className={getPaymentStatusColor(booking.paymentStatus)}>
+          {booking.paymentStatus}
+        </Badge>
+      </TableCell>
+      <TableCell className="font-semibold">
+        ₹{booking.discountedTotal.toLocaleString()}
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center space-x-2">
+          <BookingDetailsDialog
+            booking={booking}
+            trigger={
+              <Button variant="outline" size="sm">
+                <InfoIcon className="h-4 w-4" />
+              </Button>
+            }
+          />
+
+          {booking.status === "CONFIRMED" && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-red-600 hover:text-red-700 bg-transparent"
+                >
+                  <XIcon className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Cancel Booking</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Are you sure you want to cancel this booking? This action
+                    cannot be undone and cancellation charges may apply.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Keep Booking</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => handleCancelBooking(booking._id)}
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    Cancel Booking
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
+
+          {booking.status === "COMPLETED" && (
+            <ReviewModal
+              booking={booking}
+              trigger={
+                <Button variant="outline" size="sm">
+                  <StarIcon className="h-4 w-4" />
+                </Button>
+              }
+            />
+          )}
+        </div>
+      </TableCell>
+    </TableRow>
+  );
 
   const totalPages = Math.ceil(metadata?.total / itemsPerPage) || 1;
-  const currentPageFromMeta = metadata?.page || 1;
   const totalBookings = metadata?.total || 0;
 
   const upcomingBookings = bookings.filter(isUpcoming);
@@ -112,7 +253,7 @@ export default function MyBookingsPage() {
 
       <Tabs defaultValue="all" className="w-full">
         <TabsList className="flex items-center justify-start flex-wrap h-auto space-y-1">
-          <TabsTrigger value="all">All ({bookings.length})</TabsTrigger>
+          <TabsTrigger value="all">All ({totalBookings})</TabsTrigger>
           <TabsTrigger value="upcoming">
             Upcoming ({upcomingBookings.length})
           </TabsTrigger>
@@ -139,17 +280,24 @@ export default function MyBookingsPage() {
               </CardContent>
             </Card>
           ) : (
-            <div>
-              {bookings.map((booking) => (
-                <BookingCard
-                  key={booking._id}
-                  booking={booking}
-                  setSelectedBooking={setSelectedBooking}
-                  handleCancelBooking={handleCancelBooking}
-                  showActions={["details"]}
-                />
-              ))}
-            </div>
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Booking ID</TableHead>
+                      <TableHead>Motorcycles</TableHead>
+                      <TableHead>Booking Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Payment</TableHead>
+                      <TableHead>Total Amount</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>{bookings.map(renderBookingRow)}</TableBody>
+                </Table>
+              </CardContent>
+            </Card>
           )}
         </TabsContent>
 
@@ -167,17 +315,26 @@ export default function MyBookingsPage() {
               </CardContent>
             </Card>
           ) : (
-            <div>
-              {upcomingBookings.map((booking) => (
-                <BookingCard
-                  key={booking._id}
-                  booking={booking}
-                  setSelectedBooking={setSelectedBooking}
-                  handleCancelBooking={handleCancelBooking}
-                  showActions={["details", "edit", "cancel"]}
-                />
-              ))}
-            </div>
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Booking ID</TableHead>
+                      <TableHead>Motorcycles</TableHead>
+                      <TableHead>Booking Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Payment</TableHead>
+                      <TableHead>Total Amount</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {upcomingBookings.map(renderBookingRow)}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
           )}
         </TabsContent>
 
@@ -193,17 +350,24 @@ export default function MyBookingsPage() {
               </CardContent>
             </Card>
           ) : (
-            <div>
-              {pastBookings.map((booking) => (
-                <BookingCard
-                  key={booking._id}
-                  booking={booking}
-                  setSelectedBooking={setSelectedBooking}
-                  handleCancelBooking={handleCancelBooking}
-                  showActions={["details", "download"]}
-                />
-              ))}
-            </div>
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Booking ID</TableHead>
+                      <TableHead>Motorcycles</TableHead>
+                      <TableHead>Booking Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Payment</TableHead>
+                      <TableHead>Total Amount</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>{pastBookings.map(renderBookingRow)}</TableBody>
+                </Table>
+              </CardContent>
+            </Card>
           )}
         </TabsContent>
 
@@ -221,24 +385,33 @@ export default function MyBookingsPage() {
               </CardContent>
             </Card>
           ) : (
-            <div>
-              {cancelledBookings.map((booking) => (
-                <BookingCard
-                  key={booking._id}
-                  booking={booking}
-                  setSelectedBooking={setSelectedBooking}
-                  handleCancelBooking={handleCancelBooking}
-                  showActions={["details"]}
-                />
-              ))}
-            </div>
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Booking ID</TableHead>
+                      <TableHead>Motorcycles</TableHead>
+                      <TableHead>Booking Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Payment</TableHead>
+                      <TableHead>Total Amount</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {cancelledBookings.map(renderBookingRow)}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
           )}
         </TabsContent>
       </Tabs>
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <Pagination className="overflow-x-auto">
+        <Pagination className="overflow-x-auto mt-4">
           <PaginationContent>
             <PaginationItem>
               <PaginationPrevious

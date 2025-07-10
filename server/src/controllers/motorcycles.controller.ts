@@ -62,6 +62,7 @@ const getAllMotorcycles = asyncHandler(
 
     if (req.user.role === UserRolesEnum.CUSTOMER) {
       matchState.isAvailable = true;
+      matchState.availableQuantity = { $gt: 0 };
     } else if (req.user.role !== UserRolesEnum.CUSTOMER) {
       if (isAvailable) {
         matchState.isAvailable = isAvailable === "true" ? true : false;

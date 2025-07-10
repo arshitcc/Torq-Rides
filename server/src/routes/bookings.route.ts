@@ -67,20 +67,8 @@ router
     cancelBooking,
   );
 
-router
-  .route("/provider/razorpay")
-  .post(
-    mongoIdRequestBodyValidator("addressId"),
-    validate,
-    generateRazorpayOrder,
-  );
-router
-  .route("/provider/paypal")
-  .post(
-    mongoIdRequestBodyValidator("addressId"),
-    validate,
-    generatePaypalOrder,
-  );
+router.route("/provider/razorpay").post(generateRazorpayOrder);
+router.route("/provider/paypal").post(generatePaypalOrder);
 
 router
   .route("/provider/razorpay/verify-payment")

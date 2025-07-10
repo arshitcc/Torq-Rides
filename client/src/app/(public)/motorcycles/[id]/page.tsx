@@ -50,6 +50,7 @@ import { useCartStore } from "@/store/cart-store";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { PopoverClose } from "@radix-ui/react-popover";
+import { AxiosError } from "axios";
 
 export default function MotorcycleDetailPage() {
   const params = useParams();
@@ -121,8 +122,8 @@ export default function MotorcycleDetailPage() {
         toast.success("Added to Cart!");
         cartForm.reset();
       }
-    } catch (error) {
-      toast.error("Failed to add to cart. Please try again.");
+    } catch (error: AxiosError | any) {
+      toast.error(error?.response?.data?.message || "Failed to add to cart.");
     }
   };
 

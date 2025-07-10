@@ -28,9 +28,11 @@ import { Loader2Icon } from "lucide-react";
 import { useEffect } from "react";
 import { useCartStore } from "@/store/cart-store";
 import { AxiosError } from "axios";
+import { UserRolesEnum } from "@/types";
 
 export default function LoginPage() {
-  const { login, loading, isAuthenticated, error, setError } = useAuthStore();
+  const { login, loading, isAuthenticated, error, setError, user } =
+    useAuthStore();
   const { getUserCart } = useCartStore();
   const router = useRouter();
 
@@ -52,7 +54,7 @@ export default function LoginPage() {
     try {
       setError(null);
       await login(data);
-      getUserCart();
+      if (user?.role === UserRolesEnum.CUSTOMER) getUserCart();
       router.push("/");
     } catch (error: AxiosError | any) {
       toast.error(error.response?.data?.message || "Login failed");

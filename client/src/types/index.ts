@@ -77,7 +77,7 @@ export const BookingStatusEnum = {
 } as const;
 
 export const PaymentStatusEnum = {
-  PARTIAL: "PARTIAL",
+  PARTIAL: "PARTIAL-PAID",
   REFUNDED: "REFUNDED",
   PARTIAL_REFUNDED: "PARTIAL-REFUNDED",
   FULLY_REFUNDED: "FULLY-REFUNDED",
@@ -158,17 +158,19 @@ export type Booking = {
   _id: string;
   customerId: string;
   status: BookingStatus;
+  bookingDate: Date;
   rentTotal: number;
   securityDepositTotal: number;
   cartTotal: number;
   discountedTotal: number;
+  paidAmount: number;
+  remainingAmount: number;
   location: AvailableInCities;
-  paymentProvider: PaymentProviders;
-  paymentId: string;
-  bookingDate: Date;
   customer: User;
   isAvailable: boolean;
   items: CartItem[];
+  paymentProvider: PaymentProviders;
+  paymentId: string;
   paymentStatus: PaymentStatus;
   createdAt: Date;
   updatedAt: Date;

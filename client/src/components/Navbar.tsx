@@ -388,11 +388,11 @@ export function Navbar() {
               <div className="flex items-center space-x-2">
                 <Button
                   asChild
-                  className="bg-yellow-primary hover:bg-yellow-600 text-black font-semibold"
+                  className="bg-yellow-primary hover:bg-yellow-600 text-white font-semibold"
                 >
                   <Link href="/signup">
                     <UserPlusIcon className="mr-2 h-4 w-4" />
-                    SIGN-UP
+                    Sign-Up
                   </Link>
                 </Button>
               </div>

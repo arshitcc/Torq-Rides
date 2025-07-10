@@ -29,6 +29,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination";
 import { useBookingStore } from "@/store/booking-store";
 import { useAuthStore } from "@/store/auth-store";
 import { toast } from "sonner";
@@ -69,6 +77,7 @@ export default function AllBookingsPage() {
     getAllBookings,
     modifyBooking,
     cancelBooking,
+    metadata,
   } = useBookingStore();
   const { user, isAuthenticated } = useAuthStore();
 
@@ -78,6 +87,8 @@ export default function AllBookingsPage() {
   const [statusFilter, setStatusFilter] = useState("All");
   const [selectedBooking, setSelectedBooking] = useState<any>(null);
   const [newStatus, setNewStatus] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 9;
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -89,8 +100,11 @@ export default function AllBookingsPage() {
     }
 
     // Fetch all bookings
-    getAllBookings();
-  }, [user, getAllBookings, router, toast]);
+    getAllBookings({
+      page: currentPage,
+      offset: itemsPerPage,
+    });
+  }, [user, getAllBookings, router, toast, currentPage]);
 
   const filteredBookings = bookings.filter((booking) => {
     const matchesSearch =
@@ -153,6 +167,8 @@ export default function AllBookingsPage() {
     );
   }
 
+  const totalPages = Math.ceil(metadata?.total / itemsPerPage) || 1;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-yellow-50 via-amber-50 to-orange-50 dark:from-[#121212] dark:via-[#121212] dark:to-[#18181B]">
       <div className="container mx-auto px-4 py-8">
@@ -185,7 +201,7 @@ export default function AllBookingsPage() {
                     Total Bookings
                   </p>
                   <p className="text-2xl font-bold text-yellow-700">
-                    {bookings.length}
+                    {metadata.total}
                   </p>
                 </div>
                 <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
@@ -472,6 +488,44 @@ export default function AllBookingsPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <Pagination className="overflow-x-auto mt-4">
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                  className={
+                    currentPage === 1 ? "pointer-events-none opacity-50" : ""
+                  }
+                />
+              </PaginationItem>
+              {Array.from({ length: totalPages }, (_, i) => (
+                <PaginationItem key={i + 1}>
+                  <PaginationLink
+                    onClick={() => setCurrentPage(i + 1)}
+                    isActive={currentPage === i + 1}
+                  >
+                    {1 + i}
+                  </PaginationLink>
+                </PaginationItem>
+              ))}
+              <PaginationItem>
+                <PaginationNext
+                  onClick={() =>
+                    setCurrentPage((p) => Math.min(p + 1, totalPages))
+                  }
+                  className={
+                    currentPage === totalPages
+                      ? "pointer-events-none opacity-50"
+                      : ""
+                  }
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        )}
       </div>
     </div>
   );

@@ -79,10 +79,6 @@ const addMotorcycleValidators = () => {
       .isInt({ min: 1 })
       .withMessage("Vehicle quantity must be an integer"),
 
-    body("isAvailable")
-      .isBoolean()
-      .withMessage("isAvailable must be a boolean"),
-
     body("color").isString().withMessage("Color must be a string"),
 
     body("extraKmsCharges")

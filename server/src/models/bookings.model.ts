@@ -1,10 +1,7 @@
 import mongoose from "mongoose";
 import { IUser } from "./users.model";
 import { ICartItem } from "./carts.model";
-import {
-  AvailableInCities,
-  AvailableInCitiesEnum,
-} from "./motorcycles.model";
+import { AvailableInCities, AvailableInCitiesEnum } from "./motorcycles.model";
 import {
   AvailablePaymentProviders,
   PaymentProviderEnum,
@@ -36,12 +33,14 @@ export type PaymentStatus = (typeof AvailablePaymentStatus)[number];
 export interface IBooking extends mongoose.Document {
   customerId: mongoose.Types.ObjectId;
   status: BookingStatus;
+  bookingDate: Date;
   rentTotal: number;
   securityDepositTotal: number;
   cartTotal: number;
-  bookingDate: Date;
-  customer: IUser;
   discountedTotal: number;
+  paidAmount: number;
+  remainingAmount: number;
+  customer?: IUser;
   couponId: mongoose.Types.ObjectId | null;
   items: ICartItem[];
   location: AvailableInCities;
@@ -67,7 +66,27 @@ const bookingSchema = new mongoose.Schema<IBooking>(
       required: true,
       default: Date.now,
     },
+    rentTotal: {
+      type: Number,
+      required: true,
+    },
+    securityDepositTotal: {
+      type: Number,
+      required: true,
+    },
+    cartTotal: {
+      type: Number,
+      required: true,
+    },
     discountedTotal: {
+      type: Number,
+      required: true,
+    },
+    paidAmount: {
+      type: Number,
+      required: true,
+    },
+    remainingAmount: {
       type: Number,
       required: true,
     },

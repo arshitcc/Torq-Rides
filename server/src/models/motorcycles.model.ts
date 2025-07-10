@@ -168,7 +168,6 @@ const motorcycleSchema = new mongoose.Schema<IMotorcycle>(
     ],
     rating: {
       type: Number,
-      default: 0,
       min: 1,
       max: 5,
     },

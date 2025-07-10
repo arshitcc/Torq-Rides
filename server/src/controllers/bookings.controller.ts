@@ -3,7 +3,11 @@ import { ApiResponse } from "../utils/api-response";
 import { ApiError } from "../utils/api-error";
 import { CustomRequest, User } from "../models/users.model";
 import { Response } from "express";
-import { Booking, BookingStatusEnum } from "../models/bookings.model";
+import {
+  Booking,
+  BookingStatusEnum,
+  PaymentStatusEnum,
+} from "../models/bookings.model";
 import { Motorcycle } from "../models/motorcycles.model";
 import { PromoCode } from "../models/promo-codes.model";
 import mongoose from "mongoose";
@@ -21,20 +25,28 @@ import crypto from "crypto";
 import { RAZORPAY_KEY_SECRET } from "../utils/env";
 import { bookingConfirmationTemplate, sendEmail } from "../utils/mail";
 
-const handleBooking = async (bookingPaymentId: string, req: CustomRequest) => {
-  const order = await Booking.findOneAndUpdate(
-    { paymentId: bookingPaymentId },
-    {
-      $set: {
-        isPaymentDone: true,
-      },
-    },
-    { new: true },
-  );
+const handleBooking = async (
+  bookingPaymentId: string,
+  req: CustomRequest,
+  amount: number,
+) => {
+  const order = await Booking.findOne({
+    paymentId: bookingPaymentId,
+    status: BookingStatusEnum.PENDING,
+  });
 
   if (!order) {
-    throw new ApiError(404, "Order does not exist");
+    throw new ApiError(404, "Booking does not exist");
   }
+
+  order.status = BookingStatusEnum.CONFIRMED;
+  order.paidAmount += amount;
+  order.remainingAmount -= amount;
+  order.paymentStatus =
+    order.remainingAmount === 0
+      ? PaymentStatusEnum.FULLY_PAID
+      : PaymentStatusEnum.PARTIAL;
+  await order.save({ validateBeforeSave: false });
 
   const cart = await Cart.findOne({ customerId: req.user._id });
 
@@ -143,6 +155,12 @@ export const getbooking = async (
         bookingDate: { $first: "$bookingDate" },
         isAvailable: { $first: "$isAvailable" },
         paymentStatus: { $first: "$paymentStatus" },
+        rentTotal: { $first: "$rentTotal" },
+        securityDepositTotal: { $first: "$securityDepositTotal" },
+        cartTotal: { $first: "$cartTotal" },
+        discountedTotal: { $first: "$discountedTotal" },
+        paidAmount: { $first: "$paidAmount" },
+        remainingAmount: { $first: "$remainingAmount" },
         createdAt: { $first: "$createdAt" },
         updatedAt: { $first: "$updatedAt" },
         customer: { $first: "$customer" },
@@ -338,7 +356,7 @@ const getAllBookings = asyncHandler(
 
     const bookings = await Booking.aggregate([
       ...pipeline,
-      { $sort: { bookingDate: -1 } },
+      { $sort: { updatedAt: -1 } },
       {
         $facet: {
           metadata: [{ $count: "total" }, { $addFields: { page: pageNum } }],
@@ -533,6 +551,12 @@ const generateRazorpayOrder = asyncHandler(
       );
     }
 
+    const { mode } = req.body;
+
+    if (!mode) {
+      throw new ApiError(400, "Mode is required");
+    }
+
     const cart = await Cart.findOne({
       customerId: req.user._id,
     });
@@ -543,17 +567,32 @@ const generateRazorpayOrder = asyncHandler(
     const orderItems = cart.items;
     const userCart = await getCart(req.user._id as string);
 
-    const totalPrice = userCart.cartTotal;
     const totalDiscountedPrice = userCart.discountedTotal;
 
+    let amount = mode === "p" ? 0.2 * userCart.rentTotal : totalDiscountedPrice;
+
     const orderOptions = {
-      amount: parseInt(totalDiscountedPrice) * 100,
+      amount: amount * 100,
       currency: "INR",
       receipt: nanoid(10),
+      payment_capture: 1,
     };
 
     try {
       const razorpayOrder = await razorpayInstance.orders.create(orderOptions);
+
+      if (!razorpayOrder) {
+        // Throwing ApiError here will not trigger the error handler middleware
+        return res
+          .status(500)
+          .json(
+            new ApiResponse(
+              500,
+              false,
+              "Something went wrong while initialising the razorpay order.",
+            ),
+          );
+      }
 
       /* 
         Create an order while we generate razorpay session 
@@ -565,8 +604,13 @@ const generateRazorpayOrder = asyncHandler(
         cartId: cart._id,
         customerId: req.user._id,
         items: orderItems,
-        totalCost: totalPrice ?? 0,
+        rentTotal: userCart.rentTotal,
+        securityDepositTotal: userCart.securityDepositTotal,
+        cartTotal: userCart.cartTotal,
+        totalCost: userCart.cartTotal ?? 0,
         discountedTotal: totalDiscountedPrice ?? 0,
+        paidAmount: razorpayOrder.amount_paid / 100,
+        remainingAmount: totalDiscountedPrice - razorpayOrder.amount_paid / 100,
         paymentProvider: PaymentProviderEnum.RAZORPAY,
         paymentId: razorpayOrder.id,
         couponId: userCart.coupon?._id,
@@ -608,8 +652,12 @@ const generateRazorpayOrder = asyncHandler(
 
 const verifyRazorpayPayment = asyncHandler(
   async (req: CustomRequest, res: Response) => {
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } =
-      req.body;
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      amount,
+    } = req.body;
 
     let body = razorpay_order_id + "|" + razorpay_payment_id;
 
@@ -619,7 +667,7 @@ const verifyRazorpayPayment = asyncHandler(
       .digest("hex");
 
     if (expectedSignature === razorpay_signature) {
-      const order = await handleBooking(razorpay_order_id, req);
+      const order = await handleBooking(razorpay_order_id, req, amount);
       return res
         .status(201)
         .json(new ApiResponse(201, true, "Order placed successfully", order));
@@ -700,13 +748,13 @@ const generatePaypalOrder = asyncHandler(
 
 const verifyPaypalPayment = asyncHandler(
   async (req: CustomRequest, res: Response) => {
-    const { orderId } = req.body;
+    const { orderId, amount } = req.body;
 
     const response = await paypalAPI(`/${orderId}/capture`, {});
     const capturedData = await response.json();
 
     if (capturedData?.status === "COMPLETED") {
-      const order = await handleBooking(capturedData.id, req);
+      const order = await handleBooking(capturedData.id, req, amount);
 
       return res
         .status(200)

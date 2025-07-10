@@ -63,7 +63,7 @@ export function ReviewModal({ booking, trigger }: ReviewModalProps) {
             Please share your feedback for{" "}
             {booking.items.length > 0 &&
               booking.items.map((item, idx) => (
-                <strong>
+                <strong key={idx}>
                   {item.motorcycle.make} {item.motorcycle.vehicleModel}
                 </strong>
               ))}
@@ -71,7 +71,7 @@ export function ReviewModal({ booking, trigger }: ReviewModalProps) {
         </DialogHeader>
 
         {/* Booking Details */}
-        <div className="border p-4 rounded-md mb-4 bg-gray-50">
+        <div className="border p-4 rounded-md mb-4 dark:bg-[#18181B]">
           <div className="flex items-center gap-4 mb-2">
             <div className="relative w-16 h-16 rounded-md overflow-hidden">
               {booking.items.length > 0 &&
