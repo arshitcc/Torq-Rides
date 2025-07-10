@@ -285,7 +285,7 @@ export default function MotorcycleLogsPage() {
               <div className="relative w-20 h-20 rounded-lg overflow-hidden ">
                 <Image
                   src={
-                    motorcycle.images[0]?.url ||
+                    motorcycle?.images[0]?.url ||
                     "/placeholder.svg?height=80&width=80"
                   }
                   alt={`${motorcycle.make} ${motorcycle.vehicleModel}`}

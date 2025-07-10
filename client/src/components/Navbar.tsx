@@ -39,7 +39,6 @@ import {
 import { useAuthStore } from "@/store/auth-store";
 import { UserRolesEnum } from "@/types";
 import Image from "next/image";
-import { useTheme } from "next-themes";
 import { ThemeToggle } from "@/app/__components/theme-toggle";
 import { useCartStore } from "@/store/cart-store";
 import { Badge } from "@/components/ui/badge";
@@ -280,7 +279,7 @@ export function Navbar() {
               <Select>
                 <SelectTrigger className="w-[180px] text-black dark:text-white">
                   <MapPinIcon className="h-4 w-4 text-yellow-primary" />
-                  <SelectValue placeholder="Gurgaon" />
+                  <SelectValue placeholder="Select Location" />
                 </SelectTrigger>
                 <SelectContent className="z-60">
                   {locations.map((location) => (

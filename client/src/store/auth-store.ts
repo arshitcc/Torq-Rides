@@ -81,17 +81,12 @@ export const useAuthStore = create<AuthState>()(
       register: async (data) => {
         set({ loading: true, error: null });
         try {
-          const res = await authAPI.register(data);
-          if (res.data.success) {
-            toast.success(res.data.message);
-          }
-          set({ error: res.data.message });
-          toast.error(res.data.message);
+          await authAPI.register(data);
+          set({ error: null });
         } catch (error: AxiosError | any) {
           set({
             error: error.response?.data?.message || "Registration failed",
           });
-          toast.error(error.response?.data?.message || "Registration failed");
           throw error;
         } finally {
           set({ loading: false });
@@ -241,12 +236,12 @@ export const useAuthStore = create<AuthState>()(
           formData.append("type", data.type);
           if (data.name) formData.append("name", data.name);
           const res = await authAPI.uploadDocument(formData);
-          set((state) => ({user : res.data.data}))
+          set((state) => ({ user: res.data.data }));
         } catch (error: AxiosError | any) {
           set({
             error: error.response?.data?.message || "Upload document failed",
           });
-          throw error
+          throw error;
         } finally {
           set({ loading: false });
         }

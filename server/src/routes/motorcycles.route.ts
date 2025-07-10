@@ -25,12 +25,11 @@ import { mongoIdPathVariableValidator } from "../validators/common/mongodb/mongo
 
 const router = Router();
 
-router.use(authenticateUser);
-
 router
   .route("/")
   .get(getAllMotorcyclesValidtors(), validate, getAllMotorcycles)
   .post(
+    authenticateUser,
     verifyPermission([UserRolesEnum.ADMIN]),
     upload.array("images", 5),
     addMotorcycleValidators(),
@@ -48,18 +47,21 @@ router
     getMotorcycleById,
   )
   .post(
+    authenticateUser,
     verifyPermission([UserRolesEnum.ADMIN]),
     mongoIdPathVariableValidator("motorcycleId"),
     validate,
     updateMotorcycleAvailability,
   )
   .patch(
+    authenticateUser,
     verifyPermission([UserRolesEnum.ADMIN]),
     mongoIdPathVariableValidator("motorcycleId"),
     validate,
     deleteMotorcycleImage,
   )
   .put(
+    authenticateUser,
     verifyPermission([UserRolesEnum.ADMIN]),
     mongoIdPathVariableValidator("motorcycleId"),
     upload.array("images", 5),
@@ -68,6 +70,7 @@ router
     updateMotorcycleDetails,
   )
   .delete(
+    authenticateUser,
     verifyPermission([UserRolesEnum.ADMIN]),
     mongoIdPathVariableValidator("motorcycleId"),
     validate,

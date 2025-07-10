@@ -14,7 +14,7 @@ function MotorcycleNotFound() {
         <p className="text-gray-600 dark:text-gray-300 mb-4">
           We couldn’t find the motorcycle you’re looking for.
         </p>
-        <Button onClick={() => router.push("/motorcycles")}>
+        <Button className="bg-yellow-500 hover:bg-yellow-600 text-white" onClick={() => router.push("/motorcycles")}>
           Back to Listings
         </Button>
       </Card>

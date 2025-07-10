@@ -70,7 +70,7 @@ export function AvailableMotorcycles() {
           <Button
             variant="outline"
             size="lg"
-            className="bg-yellow-primary text-white text-lg"
+            className="cursor-pointer bg-yellow-primary text-white hover:text-white text-lg"
           >
             <Link href="/motorcycles">View All Motorcycles</Link>
             <ArrowRightIcon />

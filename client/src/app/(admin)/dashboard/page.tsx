@@ -111,6 +111,7 @@ import UpdateMotorcycleDialog from "./__components/update-motorcycle-dialog";
 import AddCouponDialog from "./__components/add-coupon-dialog";
 import CouponsTable from "./__components/coupons-table";
 import { getStatusColor } from "./filters";
+import { Label } from "@/components/ui/label";
 
 // Sample data for charts
 const salesData = [
@@ -169,7 +170,9 @@ export default function DashboardPage() {
   const [selectedCategory, setSelectedCategory] = useState<
     MotorcycleCategory | "All Categories"
   >("All Categories");
-  const [isAvailable, setIsAvailable] = useState(true);
+  const [isAvailable, setIsAvailable] = useState<"true" | "false" | "all">(
+    "all"
+  );
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm] = useDebounceValue(searchTerm, 500);
 
@@ -226,7 +229,7 @@ export default function DashboardPage() {
       filters.category = selectedCategory;
     }
 
-    if (isAvailable) filters.isAvailable = isAvailable;
+    if (isAvailable !== "all") filters.isAvailable = isAvailable;
 
     // Fetch data
     getAllMotorcycles(filters);
@@ -242,6 +245,7 @@ export default function DashboardPage() {
     toast,
     selectedCategory,
     selectedMake,
+    isAvailable,
     debouncedSearchTerm,
     currentPage,
   ]);
@@ -567,7 +571,7 @@ export default function DashboardPage() {
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold">Motorcycle Fleet Management</h2>
             <Link href="/motorcycles/new">
-              <Button className="cursor-pointer bg-yellow-primary hover:bg-yellow-600 text-black">
+              <Button className="cursor-pointer bg-yellow-500 hover:bg-yellow-600 text-white">
                 <PlusIcon className="h-4 w-4 mr-2" />
                 New Motorcycle
               </Button>
@@ -620,6 +624,32 @@ export default function DashboardPage() {
                         {m}
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label className="block text-sm font-medium text-gray-700 mb-1">
+                  Avaialability
+                </Label>
+
+                <Select
+                  value={isAvailable}
+                  onValueChange={(value: "all" | "true" | "false") =>
+                    setIsAvailable(value)
+                  }
+                >
+                  <SelectTrigger id="make-select" className="dark:text-white">
+                    <SelectValue placeholder="Select Avalability" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-lg shadow-lg">
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem key={"Available"} value={"true"}>
+                      Avaialable
+                    </SelectItem>
+                    <SelectItem key={"Not Available"} value={"false"}>
+                      Not Available
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -682,7 +712,7 @@ export default function DashboardPage() {
                           <div className="relative w-12 h-12 rounded-lg overflow-hidden">
                             <Image
                               src={
-                                motorcycle.images[0]?.url ||
+                                motorcycle?.images[0]?.url ||
                                 "/placeholder.svg?height=48&width=48"
                               }
                               alt={`${motorcycle.make} ${motorcycle.vehicleModel}`}
@@ -728,13 +758,12 @@ export default function DashboardPage() {
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <Link href={`/motorcycles/${motorcycle._id}/edit`}>
+                                <Link
+                                  href={`/motorcycles/${motorcycle._id}/edit`}
+                                >
                                   <Button
                                     variant="outline"
                                     size="sm"
-                                    // onClick={() =>
-                                    //   handleUpdateMotorcycle(motorcycle)
-                                    // }
                                     className="cursor-pointer border-yellow-primary/30 hover:bg-yellow-primary/10 bg-transparent"
                                   >
                                     <EditIcon className="h-4 w-4" />

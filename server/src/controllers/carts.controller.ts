@@ -123,16 +123,16 @@ export const getCart = async (customerId: string) => {
     },
 
     // 8) Apply coupon discount if present
-    {
-      $addFields: {
-        discountedTotal: {
-          $ifNull: [
-            { $subtract: ["$cartTotal", "$coupon.discountValue"] },
-            "$cartTotal",
-          ],
-        },
-      },
-    },
+    // {
+    //   $addFields: {
+    //     discountedTotal: {
+    //       $ifNull: [
+    //         { $subtract: ["$cartTotal", "$coupon.discountValue"] },
+    //         "$cartTotal",
+    //       ],
+    //     },
+    //   },
+    // },
 
     // 9) Final projection
     {
@@ -145,13 +145,26 @@ export const getCart = async (customerId: string) => {
         rentTotal: 1,
         securityDepositTotal: 1,
         cartTotal: 1,
-        discountedTotal: 1,
+        // discountedTotal: 1,
       },
     },
   ]);
 
+  const ct = cartAggregation[0];
+
+  if (!ct.couponId) {
+    ct.discountedTotal = ct.cartTotal;
+  } else {
+    if (ct.coupon.type === "FLAT") {
+      ct.discountedTotal = ct.cartTotal - ct.coupon.discountValue;
+    } else {
+      ct.discountedTotal =
+        ct.cartTotal - ct.cartTotal * (ct.coupon.discountValue / 100);
+    }
+  }
+
   return (
-    cartAggregation[0] ?? {
+    ct ?? {
       _id: null,
       items: [],
       cartTotal: 0,
@@ -240,7 +253,6 @@ const addOrUpdateMotorcycleToCart = asyncHandler(
         dropoffTime,
       });
     }
-
 
     await cart.save({ validateBeforeSave: false });
 

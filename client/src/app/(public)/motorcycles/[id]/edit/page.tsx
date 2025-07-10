@@ -64,14 +64,15 @@ export default function EditMotorcyclePage() {
       make: motorcycle?.make || "",
       vehicleModel: motorcycle?.vehicleModel || "",
       year: motorcycle?.year || new Date().getFullYear(),
+      registrationNumber: motorcycle?.registrationNumber || "",
       rentPerDay: motorcycle?.rentPerDay || 0,
       description: motorcycle?.description || "",
       category: motorcycle?.category || "TOURING",
       variant: motorcycle?.variant || "",
       color: motorcycle?.color || "",
       securityDeposit: motorcycle?.securityDeposit || 0,
-      kmsLimitPerDay: motorcycle?.kmsLimitPerDay || 100,
-      extraKmsCharges: motorcycle?.extraKmsCharges || 5,
+      kmsLimitPerDay: motorcycle?.kmsLimitPerDay || 0,
+      extraKmsCharges: motorcycle?.extraKmsCharges || 0,
       availableQuantity: motorcycle?.availableQuantity || 1,
       specs: {
         engine: motorcycle?.specs.engine || "",
@@ -103,6 +104,7 @@ export default function EditMotorcyclePage() {
       vehicleModel: motorcycle.vehicleModel,
       year: motorcycle.year,
       rentPerDay: motorcycle.rentPerDay,
+      registrationNumber: motorcycle.registrationNumber,
       description: motorcycle.description,
       category: motorcycle.category,
       variant: motorcycle.variant,
@@ -120,9 +122,9 @@ export default function EditMotorcyclePage() {
     });
 
     // populate your image state
-    if (motorcycle.images?.length) {
-      setSelectedImages(motorcycle.images);
-      setMainImage(motorcycle.images[0]);
+    if (motorcycle?.images?.length) {
+      setSelectedImages(motorcycle?.images);
+      setMainImage(motorcycle?.images[0]);
     } else {
       setSelectedImages([]);
       setMainImage(null);
@@ -229,7 +231,7 @@ export default function EditMotorcyclePage() {
             Back to Dashboard
           </Button>
         </Link>
-        <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-yellow-primary to-yellow-600 bg-clip-text text-transparent">
+        <h1 className="text-3xl font-semibold mb-2 bg-clip-text text-yellow-primary">
           Edit Motorcycle
         </h1>
         <p className="text-gray-600 dark:text-gray-300">
@@ -243,7 +245,13 @@ export default function EditMotorcyclePage() {
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                onSubmit(form.getValues());
+              }}
+              className="space-y-6"
+            >
               {/* Basic Information */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-yellow-primary">
@@ -295,11 +303,14 @@ export default function EditMotorcyclePage() {
                         <FormLabel>Year *</FormLabel>
                         <FormControl>
                           <Input
-                            type="number"
                             {...field}
-                            onChange={(e) =>
-                              field.onChange(Number(e.target.value))
-                            }
+                            onChange={(e) => {
+                              if (e.target.value.length > 4) return;
+                              const val = Number(e.target.value);
+                              if (isNaN(val)) field.onChange(1);
+                              if (!isNaN(val) && val >= 0) field.onChange(val);
+                              else field.onChange(0);
+                            }}
                             className="border-yellow-primary/30 focus:border-yellow-primary"
                           />
                         </FormControl>
@@ -343,7 +354,24 @@ export default function EditMotorcyclePage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="registrationNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Registration Number *</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="e.g., UP12AB1234"
+                            {...field}
+                            className="border-yellow-primary/30 focus:border-yellow-primary"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   <FormField
                     control={form.control}
                     name="category"
@@ -352,9 +380,9 @@ export default function EditMotorcyclePage() {
                         <FormLabel>Category *</FormLabel>
                         <Select
                           onValueChange={field.onChange}
-                          value={field.value}
+                          defaultValue={field.value}
                         >
-                          <FormControl>
+                          <FormControl className="w-full">
                             <SelectTrigger className="border-yellow-primary/30 focus:border-yellow-primary">
                               <SelectValue placeholder="Select category" />
                             </SelectTrigger>
@@ -379,12 +407,14 @@ export default function EditMotorcyclePage() {
                         <FormLabel>Available Quantity *</FormLabel>
                         <FormControl>
                           <Input
-                            type="number"
                             min="1"
                             {...field}
-                            onChange={(e) =>
-                              field.onChange(Number(e.target.value))
-                            }
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              if (isNaN(val)) field.onChange(1);
+                              if (!isNaN(val) && val >= 0) field.onChange(val);
+                              else field.onChange(0);
+                            }}
                             className="border-yellow-primary/30 focus:border-yellow-primary"
                           />
                         </FormControl>
@@ -427,12 +457,14 @@ export default function EditMotorcyclePage() {
                         <FormLabel>Rent per Day (₹) *</FormLabel>
                         <FormControl>
                           <Input
-                            type="number"
                             min="0"
                             {...field}
-                            onChange={(e) =>
-                              field.onChange(Number(e.target.value))
-                            }
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              if (isNaN(val)) field.onChange(1);
+                              if (!isNaN(val) && val >= 0) field.onChange(val);
+                              else field.onChange(0);
+                            }}
                             className="border-yellow-primary/30 focus:border-yellow-primary"
                           />
                         </FormControl>
@@ -448,12 +480,14 @@ export default function EditMotorcyclePage() {
                         <FormLabel>Security Deposit (₹) *</FormLabel>
                         <FormControl>
                           <Input
-                            type="number"
                             min="0"
                             {...field}
-                            onChange={(e) =>
-                              field.onChange(Number(e.target.value))
-                            }
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              if (isNaN(val)) field.onChange(1);
+                              if (!isNaN(val) && val >= 0) field.onChange(val);
+                              else field.onChange(0);
+                            }}
                             className="border-yellow-primary/30 focus:border-yellow-primary"
                           />
                         </FormControl>
@@ -472,12 +506,14 @@ export default function EditMotorcyclePage() {
                         <FormLabel>KMS Limit per Day *</FormLabel>
                         <FormControl>
                           <Input
-                            type="number"
                             min="1"
                             {...field}
-                            onChange={(e) =>
-                              field.onChange(Number(e.target.value))
-                            }
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              if (isNaN(val)) field.onChange(1);
+                              if (!isNaN(val) && val >= 0) field.onChange(val);
+                              else field.onChange(0);
+                            }}
                             className="border-yellow-primary/30 focus:border-yellow-primary"
                           />
                         </FormControl>
@@ -493,13 +529,15 @@ export default function EditMotorcyclePage() {
                         <FormLabel>Extra KMS Charges (₹/km) *</FormLabel>
                         <FormControl>
                           <Input
-                            type="number"
                             min="0"
                             step="0.01"
                             {...field}
-                            onChange={(e) =>
-                              field.onChange(Number(e.target.value))
-                            }
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              if (isNaN(val)) field.onChange(1);
+                              if (!isNaN(val) && val >= 0) field.onChange(val);
+                              else field.onChange(0);
+                            }}
                             className="border-yellow-primary/30 focus:border-yellow-primary"
                           />
                         </FormControl>
@@ -734,7 +772,7 @@ export default function EditMotorcyclePage() {
                 <Button
                   type="submit"
                   disabled={loading}
-                  className="flex-1 bg-yellow-primary hover:bg-yellow-600 text-black"
+                  className="flex-1 cursor-pointer bg-yellow-primary hover:bg-yellow-600 text-white"
                 >
                   {loading ? "Updating..." : "Update Motorcycle"}
                 </Button>

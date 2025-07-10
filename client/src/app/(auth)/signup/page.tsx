@@ -51,11 +51,13 @@ export default function SignupPage() {
   const onSubmit = async (data: SignupFormData) => {
     try {
       await register(data);
+      toast.success("Account created successfully!");
       router.push("/login");
     } catch (error: AxiosError | any) {
       toast.error("Error", {
         description:
-          error.message || "Failed to create account. Please try again.",
+          error.response?.data?.message ||
+          "Failed to create account. Please try again.",
       });
     }
   };

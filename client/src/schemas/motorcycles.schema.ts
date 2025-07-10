@@ -7,9 +7,11 @@ export const addMotorcycleSchema = z.object({
     .number()
     .min(1900, "Invalid year")
     .max(new Date().getFullYear() + 1),
+  registrationNumber: z.string(),
+  availableInCities: z.array(z.string()),
   rentPerDay: z.number().min(0, "Rent per day must be positive"),
   description: z.string().min(10, "Description must be at least 10 characters"),
-  category: z.enum(["TOURING", "SPORTS", "CRUISER", "ADVENTURE", "SCOOTER"]),
+  category: z.enum(["TOURING", "SPORTS", "CRUISER", "ADVENTURE", "SCOOTER"], { required_error: "Category is required" }),
   variant: z.string().min(1, "Variant is required"),
   color: z.string().min(1, "Color is required"),
   securityDeposit: z.number().min(0, "Security deposit must be positive"),
@@ -32,6 +34,8 @@ export const updateMotorcycleSchema = z.object({
     .min(1900, "Invalid year")
     .max(new Date().getFullYear() + 1)
     .optional(),
+  registrationNumber: z.string().optional(),
+  availableInCities: z.array(z.string()).optional(),
   rentPerDay: z.number().min(0, "Rent per day must be positive").optional(),
   description: z
     .string()
@@ -66,7 +70,6 @@ export const updateMotorcycleSchema = z.object({
     })
     .optional(),
   isAvailable: z.boolean().optional(),
-  toBeDeletedImages: z.array(z.string()).optional(),
 });
 
 export type AddMotorcycleFormData = z.infer<typeof addMotorcycleSchema>;

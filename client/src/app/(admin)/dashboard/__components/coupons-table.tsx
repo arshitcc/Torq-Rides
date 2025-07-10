@@ -96,7 +96,7 @@ function CouponsTable({
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  {coupon.type === "percentage"
+                  {coupon.type === "PERCENTAGE"
                     ? `${coupon.discountValue}%`
                     : `₹${coupon.discountValue}`}
                 </TableCell>

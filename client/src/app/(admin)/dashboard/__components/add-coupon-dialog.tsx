@@ -47,12 +47,12 @@ function AddCouponDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
+        <Button className="cursor-pointer bg-yellow-500 hover:bg-yellow-600 text-white">
           <PlusIcon className="h-4 w-4 mr-2" />
           Add Coupon
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-w-4xl max-h-[70vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Coupon</DialogTitle>
           <DialogDescription>

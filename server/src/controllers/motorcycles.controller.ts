@@ -1,12 +1,14 @@
 import asyncHandler from "../utils/async-handler";
 import { ApiResponse } from "../utils/api-response";
 import { ApiError } from "../utils/api-error";
-import { CustomRequest } from "../models/users.model";
+import { CustomRequest, IUser } from "../models/users.model";
 import { Response } from "express";
 import mongoose from "mongoose";
 import { Motorcycle } from "../models/motorcycles.model";
 import { deleteFile, uploadFile } from "../utils/cloudinary";
 import { UserRolesEnum } from "../constants/constants";
+import jwt from "jsonwebtoken";
+import { ACCESS_TOKEN_SECRET } from "../utils/env";
 
 const getAllMotorcycles = asyncHandler(
   async (req: CustomRequest, res: Response) => {
@@ -25,6 +27,15 @@ const getAllMotorcycles = asyncHandler(
       availableInCities: cities,
       sort,
     } = req.query;
+
+    const token =
+      req.cookies?.accessToken ||
+      req.headers.authorization?.replace("Bearer ", "");
+
+    let user: IUser | undefined;
+    if (token?.trim()) {
+      user = jwt.verify(token, ACCESS_TOKEN_SECRET!) as IUser;
+    }
 
     if (make) matchState.make = make;
     if (vehicleModel) matchState.vehicleModel = vehicleModel;
@@ -53,20 +64,20 @@ const getAllMotorcycles = asyncHandler(
         { description: { $regex: searchTerm, $options: "i" } },
       ];
 
-      if (req.user.role === UserRolesEnum.ADMIN) {
+      if (user && user?.role === UserRolesEnum.ADMIN) {
         matchState.$or.push({
           registrationNumber: { $regex: searchTerm, $options: "i" },
         });
       }
     }
 
-    if (req.user.role === UserRolesEnum.CUSTOMER) {
-      matchState.isAvailable = true;
-      matchState.availableQuantity = { $gt: 0 };
-    } else if (req.user.role !== UserRolesEnum.CUSTOMER) {
+    if (user && user?.role !== UserRolesEnum.CUSTOMER) {
       if (isAvailable) {
         matchState.isAvailable = isAvailable === "true" ? true : false;
       }
+    } else {
+      matchState.isAvailable = true;
+      matchState.availableQuantity = { $gt: 0 };
     }
 
     const pageNum = Number.isNaN(Number(page)) ? 1 : Math.max(Number(page), 1);
@@ -134,6 +145,17 @@ const addMotorcycle = asyncHandler(
       isAvailable,
       availableInCities,
     } = req.body;
+
+    const bike = await Motorcycle.findOne({
+      registrationNumber,
+    });
+
+    if (bike) {
+      throw new ApiError(
+        400,
+        "Motorcycle with this registration number already exists",
+      );
+    }
 
     const files = req.files as Express.Multer.File[];
 
@@ -297,12 +319,6 @@ const updateMotorcycleDetails = asyncHandler(
     } = req.body;
 
     const files = req.files as Express.Multer.File[];
-
-    const file = files[0].path;
-
-    if (!file) {
-      throw new ApiError(400, "Main Image is required");
-    }
 
     const images = await Promise.all(
       files.map(async (image) => {

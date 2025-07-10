@@ -378,7 +378,7 @@ export default function MotorcyclesPage() {
                       <Button
                         variant="outline"
                         onClick={clearFilters}
-                        className="w-full sm:w-auto cursor-pointer dark:text-white dark:hover:text-white rounded-lg"
+                        className="w-full sm:w-auto cursor-pointer dark:text-white dark:hover:text-white rounded-lg p-4"
                       >
                         <FilterXIcon className="h-4 w-4 mr-2" />
                         Clear Filters
@@ -588,9 +588,9 @@ export default function MotorcyclesPage() {
                   >
                     <Link href={`/motorcycles/${motorcycle._id}`}>
                       <CardHeader className="p-0">
-                        <div className="relative h-56 sm:h-64 lg:h-72 overflow-hidden">
+                        <div className="relative h-56 overflow-hidden">
                           <Image
-                            src={motorcycle.images[0].url || "/placeholder.svg"}
+                            src={motorcycle?.images[0].url || "/placeholder.svg"}
                             alt={`${motorcycle.make} ${motorcycle.vehicleModel}`}
                             fill
                             className="object-fit transform transition-transform duration-500 group-hover:scale-110"
@@ -606,11 +606,11 @@ export default function MotorcyclesPage() {
                           </Badge>
                         </div>
                       </CardHeader>
-                      <CardContent className="p-4">
-                        <CardTitle className="text-xl font-semibold mb-4">
+                      <CardContent className="p-0">
+                        <CardTitle className="text-xl text-center font-semibold mb-4">
                           {motorcycle.make} {motorcycle.vehicleModel}
                         </CardTitle>
-                        <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm text-gray-600">
+                        <div className="grid grid-cols-2 gap-y-2 gap-x-4 justify-items-center text-sm text-gray-600">
                           <div className="flex items-center">
                             <span>{motorcycle.year}</span>
                           </div>
@@ -631,8 +631,8 @@ export default function MotorcyclesPage() {
                           )}
                         </div>
                       </CardContent>
-                      <CardFooter className="p-4 pt-0">
-                        <Button className="mx-auto bg-yellow-primary hover:bg-yellow-600 font-semibold group dark:text-white">
+                      <CardFooter className="p-4 pt-0 mt-4">
+                        <Button className="mx-auto cursor-pointer bg-yellow-primary hover:bg-yellow-600 font-semibold group dark:text-white">
                           Book Now
                           <ArrowRightIcon className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                         </Button>

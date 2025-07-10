@@ -29,6 +29,8 @@ import { MapPinIcon, CalendarIcon, ClockIcon, SearchIcon } from "lucide-react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { useCartStore } from "@/store/cart-store";
+import { useRouter } from "next/navigation";
 
 interface HeroFormValues {
   pickupLocation: string;
@@ -51,8 +53,6 @@ function SearchRides() {
 
   const form = useForm<HeroFormValues>({
     defaultValues: {
-      pickupLocation: "",
-      dropoffLocation: "",
       pickupDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
       pickupTime: "9:00 AM",
       dropoffTime: "6:00 PM",
@@ -63,9 +63,18 @@ function SearchRides() {
   const MINUTES = ["00", "15", "30", "45"];
   const PERIODS = ["AM", "PM"];
 
+  const { setPickupDate, setDropoffDate, setPickupTime, setDropoffTime } =
+    useCartStore();
+
+  const router = useRouter();
+
   const onSubmit = (data: HeroFormValues) => {
-    console.log("Search data:", data);
-    // implement search
+    setPickupDate(data.pickupDate);
+    setDropoffDate(data.dropoffDate);
+    setPickupTime(data.pickupTime);
+    setDropoffTime(data.dropoffTime);
+
+    router.push("/motorcycles");
   };
 
   return (

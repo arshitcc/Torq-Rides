@@ -286,7 +286,7 @@ export const useMotorcycleStore = create<MotorcycleState>((set, get) => ({
     try {
       await motorcycleAPI.deleteMotorcycleImage(motorcycleId, imageId);
       set((state) => ({
-        "motorcycle.images": state.motorcycle?.images.filter(
+        "motorcycle?.images": state.motorcycle?.images.filter(
           (img) => img.public_id !== imageId
         ),
         loading: false,

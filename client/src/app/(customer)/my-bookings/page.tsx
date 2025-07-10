@@ -188,7 +188,7 @@ export default function MyBookingsPage() {
                   <AlertDialogCancel>Keep Booking</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={() => handleCancelBooking(booking._id)}
-                    className="bg-red-600 hover:bg-red-700"
+                    className="bg-red-600 hover:bg-red-700 dark:text-white"
                   >
                     Cancel Booking
                   </AlertDialogAction>

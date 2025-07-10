@@ -19,8 +19,6 @@ import { mongoIdPathVariableValidator } from "../validators/common/mongodb/mongo
 
 const router = Router();
 
-router.use(authenticateUser);
-
 router
   .route("/:motorcycleId")
   .get(
@@ -30,6 +28,7 @@ router
 router
   .route("/:bookingId")
   .post(
+    authenticateUser,
     verifyPermission([UserRolesEnum.CUSTOMER]),
     mongoIdPathVariableValidator("bookingId"),
     addNewReviewValidators(),
@@ -40,6 +39,7 @@ router
 router
   .route("/:reviewId")
   .put(
+    authenticateUser,
     verifyPermission([UserRolesEnum.CUSTOMER]),
     mongoIdPathVariableValidator("reviewId"),
     updateReviewValidators(),
@@ -47,6 +47,7 @@ router
     updateReviewById,
   )
   .delete(
+    authenticateUser,
     verifyPermission([UserRolesEnum.CUSTOMER, UserRolesEnum.ADMIN]),
     mongoIdPathVariableValidator("reviewId"),
     deleteReviewById,

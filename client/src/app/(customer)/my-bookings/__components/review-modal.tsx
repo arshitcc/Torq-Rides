@@ -78,7 +78,7 @@ export function ReviewModal({ booking, trigger }: ReviewModalProps) {
                 booking.items.map((item, idx) => (
                   <Image
                     src={
-                      item.motorcycle.images[0]?.url ||
+                      item.motorcycle?.images[0]?.url ||
                       "/placeholder.svg?height=64&width=64"
                     }
                     alt={`${item.motorcycle.make} ${item.motorcycle.vehicleModel}`}

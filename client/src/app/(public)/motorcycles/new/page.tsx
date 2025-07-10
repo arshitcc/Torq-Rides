@@ -31,13 +31,14 @@ import {
   type AddMotorcycleFormData,
 } from "@/schemas/motorcycles.schema";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Upload, Plus } from "lucide-react";
+import { ArrowLeft, Upload, Plus, Loader2Icon } from "lucide-react";
 import Link from "next/link";
 import { useEffect } from "react";
 import { UserRolesEnum } from "@/types";
+import { AxiosError } from "axios";
 
 export default function NewMotorcyclePage() {
-  const { user } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
   const { addMotorcycle, loading } = useMotorcycleStore();
   const router = useRouter();
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
@@ -49,15 +50,16 @@ export default function NewMotorcyclePage() {
       make: "",
       vehicleModel: "",
       year: new Date().getFullYear(),
+      registrationNumber: "",
       rentPerDay: 0,
       description: "",
       category: "TOURING",
       variant: "",
       color: "",
       securityDeposit: 0,
-      kmsLimitPerDay: 100,
-      extraKmsCharges: 5,
-      availableQuantity: 1,
+      kmsLimitPerDay: 0,
+      extraKmsCharges: 0,
+      availableQuantity: 0,
       specs: {
         engine: "",
         power: "",
@@ -68,12 +70,9 @@ export default function NewMotorcyclePage() {
   });
 
   useEffect(() => {
-    if (!user) {
-      router.push("/login");
-      return;
-    }
+    if (!isAuthenticated) return;
 
-    if (user.role !== UserRolesEnum.ADMIN) {
+    if (!user || user.role !== UserRolesEnum.ADMIN) {
       toast.warning("Access Denied !!");
       router.push("/");
       return;
@@ -106,7 +105,7 @@ export default function NewMotorcyclePage() {
       const formData = new FormData();
 
       // Add main image
-      formData.append("image", mainImage);
+      formData.append("images", mainImage);
 
       // Add additional images
       selectedImages.forEach((image) => {
@@ -125,12 +124,25 @@ export default function NewMotorcyclePage() {
       await addMotorcycle(formData);
       toast.success("Motorcycle Listing Completed Successfully 1!");
       router.push("/dashboard");
-    } catch (error) {
-      toast.error("Failed to add motorcycle !! Please try again.");
+    } catch (error: AxiosError | any) {
+      toast.error(
+        error?.response?.data?.message ??
+          "Failed to add motorcycle !! Please try again."
+      );
     }
   };
 
-  if (!user || user.role !== "ADMIN") {
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-4xl">
+        <div className="flex items-center justify-center h-64">
+          <Loader2Icon className="h-8 w-8 animate-spin text-yellow-primary" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!user || user.role !== UserRolesEnum.ADMIN) {
     return null;
   }
 
@@ -143,7 +155,7 @@ export default function NewMotorcyclePage() {
             Back to Dashboard
           </Button>
         </Link>
-        <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-yellow-primary to-yellow-600 bg-clip-text text-transparent">
+        <h1 className="text-3xl font-bold mb-2 bg-clip-text text-yellow-primary">
           Add New Motorcycle
         </h1>
         <p className="text-gray-600 dark:text-gray-300">
@@ -157,7 +169,13 @@ export default function NewMotorcyclePage() {
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                onSubmit(form.getValues());
+              }}
+              className="space-y-6"
+            >
               {/* Basic Information */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-yellow-primary">
@@ -209,11 +227,14 @@ export default function NewMotorcyclePage() {
                         <FormLabel>Year *</FormLabel>
                         <FormControl>
                           <Input
-                            type="number"
                             {...field}
-                            onChange={(e) =>
-                              field.onChange(Number(e.target.value))
-                            }
+                            onChange={(e) => {
+                              if (e.target.value.length > 4) return;
+                              const val = Number(e.target.value);
+                              if (isNaN(val)) field.onChange(1);
+                              if (!isNaN(val) && val >= 0) field.onChange(val);
+                              else field.onChange(0);
+                            }}
                             className="border-yellow-primary/30 focus:border-yellow-primary"
                           />
                         </FormControl>
@@ -257,7 +278,24 @@ export default function NewMotorcyclePage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="registrationNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Registration Number *</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="e.g., Street 750"
+                            {...field}
+                            className="border-yellow-primary/30 focus:border-yellow-primary"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
                   <FormField
                     control={form.control}
                     name="category"
@@ -266,9 +304,9 @@ export default function NewMotorcyclePage() {
                         <FormLabel>Category *</FormLabel>
                         <Select
                           onValueChange={field.onChange}
-                          defaultValue={field.value}
+                          value={field.value}
                         >
-                          <FormControl>
+                          <FormControl className="w-full">
                             <SelectTrigger className="border-yellow-primary/30 focus:border-yellow-primary">
                               <SelectValue placeholder="Select category" />
                             </SelectTrigger>
@@ -293,12 +331,14 @@ export default function NewMotorcyclePage() {
                         <FormLabel>Available Quantity *</FormLabel>
                         <FormControl>
                           <Input
-                            type="number"
                             min="1"
                             {...field}
-                            onChange={(e) =>
-                              field.onChange(Number(e.target.value))
-                            }
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              if (isNaN(val)) field.onChange(1);
+                              if (!isNaN(val) && val >= 0) field.onChange(val);
+                              else field.onChange(0);
+                            }}
                             className="border-yellow-primary/30 focus:border-yellow-primary"
                           />
                         </FormControl>
@@ -341,12 +381,14 @@ export default function NewMotorcyclePage() {
                         <FormLabel>Rent per Day (₹) *</FormLabel>
                         <FormControl>
                           <Input
-                            type="number"
                             min="0"
                             {...field}
-                            onChange={(e) =>
-                              field.onChange(Number(e.target.value))
-                            }
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              if (isNaN(val)) field.onChange(1);
+                              if (!isNaN(val) && val >= 0) field.onChange(val);
+                              else field.onChange(0);
+                            }}
                             className="border-yellow-primary/30 focus:border-yellow-primary"
                           />
                         </FormControl>
@@ -362,12 +404,14 @@ export default function NewMotorcyclePage() {
                         <FormLabel>Security Deposit (₹) *</FormLabel>
                         <FormControl>
                           <Input
-                            type="number"
                             min="0"
                             {...field}
-                            onChange={(e) =>
-                              field.onChange(Number(e.target.value))
-                            }
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              if (isNaN(val)) field.onChange(1);
+                              if (!isNaN(val) && val >= 0) field.onChange(val);
+                              else field.onChange(0);
+                            }}
                             className="border-yellow-primary/30 focus:border-yellow-primary"
                           />
                         </FormControl>
@@ -386,12 +430,14 @@ export default function NewMotorcyclePage() {
                         <FormLabel>KMS Limit per Day *</FormLabel>
                         <FormControl>
                           <Input
-                            type="number"
                             min="1"
                             {...field}
-                            onChange={(e) =>
-                              field.onChange(Number(e.target.value))
-                            }
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              if (isNaN(val)) field.onChange(1);
+                              if (!isNaN(val) && val >= 0) field.onChange(val);
+                              else field.onChange(0);
+                            }}
                             className="border-yellow-primary/30 focus:border-yellow-primary"
                           />
                         </FormControl>
@@ -407,13 +453,15 @@ export default function NewMotorcyclePage() {
                         <FormLabel>Extra KMS Charges (₹/km) *</FormLabel>
                         <FormControl>
                           <Input
-                            type="number"
                             min="0"
                             step="0.01"
                             {...field}
-                            onChange={(e) =>
-                              field.onChange(Number(e.target.value))
-                            }
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              if (isNaN(val)) field.onChange(1);
+                              if (!isNaN(val) && val >= 0) field.onChange(val);
+                              else field.onChange(0);
+                            }}
                             className="border-yellow-primary/30 focus:border-yellow-primary"
                           />
                         </FormControl>
@@ -591,20 +639,16 @@ export default function NewMotorcyclePage() {
               />
 
               <div className="flex gap-4 pt-6">
-                <Link href="/dashboard">
+                <Link href="/dashboard" className="w-1/2">
                   <Button
                     type="button"
                     variant="outline"
-                    className="flex-1 bg-transparent"
+                    className="w-full flex-1 bg-transparent"
                   >
                     Cancel
                   </Button>
                 </Link>
-                <Button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 bg-yellow-primary hover:bg-yellow-600 text-black"
-                >
+                <Button className="flex-1 cursor-pointer bg-yellow-primary hover:bg-yellow-600 text-white">
                   {loading ? "Adding..." : "Add Motorcycle"}
                 </Button>
               </div>

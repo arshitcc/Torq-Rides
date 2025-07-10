@@ -71,7 +71,7 @@ export function BookingDetailsDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[70vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <BikeIcon className="h-5 w-5" />
@@ -86,8 +86,8 @@ export function BookingDetailsDialog({
           {/* Booking Overview */}
           <Card>
             <CardContent className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="flex items-center gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex items-center gap-3 text-center">
                   <CalendarIcon className="h-5 w-5 text-gray-500" />
                   <div>
                     <p className="text-sm font-medium text-gray-500">
@@ -98,14 +98,12 @@ export function BookingDetailsDialog({
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="w-5 h-5 flex items-center justify-center">
-                    <Badge className={getStatusColor(booking.status)}>
-                      {booking.status}
-                    </Badge>
-                  </div>
+                <div className="flex items-center gap-3 text-center">
+                  <Badge className={getStatusColor(booking.status)}>
+                    {booking.status}
+                  </Badge>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 text-center">
                   <CreditCardIcon className="h-5 w-5 text-gray-500" />
                   <div>
                     <p className="text-sm font-medium text-gray-500">
@@ -118,17 +116,6 @@ export function BookingDetailsDialog({
                     </Badge>
                   </div>
                 </div>
-                {/* <div className="flex items-center gap-3">
-                  <MapPinIcon className="h-5 w-5 text-gray-500" />
-                  <div>
-                    <p className="text-sm font-medium text-gray-500">
-                      Location
-                    </p>
-                    <p className="font-semibold">
-                      {booking.location.city}, {booking.location.state}
-                    </p>
-                  </div>
-                </div> */}
               </div>
             </CardContent>
           </Card>
@@ -147,7 +134,8 @@ export function BookingDetailsDialog({
                       <div className="relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0">
                         <Image
                           src={
-                            item.motorcycle.images[0]?.url || "/placeholder.svg"
+                            item.motorcycle?.images[0]?.url ||
+                            "/placeholder.svg"
                           }
                           alt={`${item.motorcycle.make} ${item.motorcycle.vehicleModel}`}
                           fill
