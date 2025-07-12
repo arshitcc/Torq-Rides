@@ -2,7 +2,7 @@ import React from "react";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Motorcycle, User, UserRoles, UserRolesEnum } from "@/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { getInitials } from "../../page";
+import { getInitials } from "../../filters";
 import { Badge } from "@/components/ui/badge";
 import {
   CheckCircleIcon,
@@ -40,7 +40,10 @@ import Link from "next/link";
 interface MotorcyclesTableRowProps {
   motorcycle: Motorcycle;
   handleDeleteMotorcycle: (motorcycleId: string) => void;
-  handleToggleAvailability: (motorcycleId: string, isAvailable: boolean) => void;
+  handleToggleAvailability: (
+    motorcycleId: string,
+    isAvailable: boolean
+  ) => void;
 }
 
 function MotorcyclesTableRow({

@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { format } from "date-fns";
 import { CheckCircleIcon, XCircleIcon } from "lucide-react";
-import { getInitials } from "../../page";
+import { getInitials } from "../../filters";
 
 interface UserInfoDialogProps {
   selectedUser: User | null;

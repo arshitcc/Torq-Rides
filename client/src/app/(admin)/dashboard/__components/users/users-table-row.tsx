@@ -2,7 +2,7 @@ import React from "react";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { User, UserRoles, UserRolesEnum } from "@/types";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { getInitials } from "../../page";
+import { getInitials } from "../../filters";
 import { Badge } from "@/components/ui/badge";
 import {
   CheckCircleIcon,
@@ -51,7 +51,6 @@ function UsersTableRow({
   setShowUserDocumentsDialog,
   setShowChangeRoleDialog,
 }: UserTableRowProps) {
-
   return (
     <TableRow key={user._id}>
       <TableCell>

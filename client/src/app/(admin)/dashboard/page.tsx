@@ -110,7 +110,7 @@ import { useMotorcycleLogStore } from "@/store/motorcycle-log-store";
 import { useDebounceValue } from "usehooks-ts";
 import AddCouponDialog from "./__components/add-coupon-dialog";
 import CouponsTable from "./__components/coupons-table";
-import { getStatusColor } from "./filters";
+import { getInitials, getStatusColor } from "./filters";
 import { AssignRoleFormData } from "@/schemas/users.schema";
 import UserInfoDialog from "./__components/users/user-info-dialog";
 import ChangeRoleDialog from "./__components/users/change-role-dialog";
@@ -134,13 +134,6 @@ const bikesSalesData = [
   { name: "Touring", value: 15, color: "#ff7300" },
   { name: "Scooter", value: 5, color: "#00ff00" },
 ];
-
-export const getInitials = (fullname: string) => {
-  const names = fullname?.split(" ");
-  return names?.length > 1
-    ? `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase()
-    : names?.[0][0].toUpperCase();
-};
 
 export default function DashboardPage() {
   const {
