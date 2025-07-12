@@ -11,11 +11,18 @@ import {
   LoginFormData,
   ResetPasswordFormData,
   SignupFormData,
+  UpdateProfileFormData,
   UploadDocumentFormData,
 } from "@/schemas/users.schema";
 
 interface AuthState {
   isAuthenticated: boolean;
+  metadata: {
+    total: number;
+    page: number;
+    totalPages: number;
+  };
+  users: User[];
   user: User | null;
   loading: boolean;
   error: string | null;
@@ -27,6 +34,7 @@ interface AuthState {
     loading?: boolean,
     error?: string | null
   ) => void;
+  setUsers: (users: User[]) => void;
   getCurrentUser: () => Promise<void>;
   register: (data: SignupFormData) => Promise<void>;
   login: (data: LoginFormData) => Promise<void>;
@@ -43,9 +51,18 @@ interface AuthState {
   uploadDocument: (data: UploadDocumentFormData, file: File) => Promise<void>;
   deleteUserAccount: (userId: string) => Promise<void>;
   assignRole: (userId: string, data: AssignRoleFormData) => Promise<void>;
+  updateUserProfile: (data: UpdateProfileFormData) => Promise<void>;
+  getAllUsers: (params?: any) => Promise<void>;
+  deleteUserDocument: (documentId: string) => Promise<void>;
 }
 
 export const initialAuthState = {
+  users: [],
+  metadata: {
+    total: 0,
+    page: 1,
+    totalPages: 1,
+  },
   user: null,
   isAuthenticated: false,
   loading: false,
@@ -60,6 +77,7 @@ export const useAuthStore = create<AuthState>()(
       setError: (error) => set({ error }),
       setUser: (user, isAuthenticated, loading, error) =>
         set({ user, isAuthenticated, loading, error }),
+      setUsers: (users) => set({ users }),
 
       getCurrentUser: async () => {
         set({ loading: true, error: null });
@@ -182,10 +200,7 @@ export const useAuthStore = create<AuthState>()(
             formData.append("old_avatar_public_id", old_avatar_public_id);
 
           const response = await authAPI.changeAvatar(formData);
-          if (response.data.success) {
-            set({ user: response.data.data, loading: false, error: null });
-            toast.success(response.data.message);
-          }
+          set({ user: response.data.data, loading: false, error: null });
         } catch (error: AxiosError | any) {
           set({
             error: error.response?.data?.message || "Change avatar failed",
@@ -270,6 +285,65 @@ export const useAuthStore = create<AuthState>()(
         } catch (error: AxiosError | any) {
           set({ error: error.response?.data?.message || "Assign role failed" });
           toast.error(error.response?.data?.message || "Assign role failed");
+        } finally {
+          set({ loading: false });
+        }
+      },
+
+      updateUserProfile: async (data) => {
+        set({ loading: true, error: null });
+        try {
+          const res = await authAPI.updateUserProfile(data);
+          console.log(res);
+          set({ user: res.data.data });
+        } catch (error: AxiosError | any) {
+          set({
+            error: error.response?.data?.message || "Update profile failed",
+          });
+        } finally {
+          set({ loading: false });
+        }
+      },
+
+      getAllUsers: async (params) => {
+        set({ loading: true, error: null });
+        try {
+          const res = await authAPI.getAllUsers(params);
+          const { data, metadata } = res.data.data;
+          set({ users: data, metadata: metadata[0] });
+        } catch (error: AxiosError | any) {
+          set({
+            error: error.response?.data?.message || "Get users failed",
+          });
+        } finally {
+          set({ loading: false });
+        }
+      },
+
+      deleteUserDocument: async (documentId) => {
+        set({ loading: true, error: null });
+        try {
+          const res = await authAPI.deleteUserDocument(documentId);
+          set((state) => {
+            if (!state.user)
+              return { loading: false, error: "Something Went Wrong !!" };
+            return {
+              ...state,
+              user: {
+                ...state.user,
+                documents: state.user.documents.filter(
+                  (doc) => doc._id !== documentId
+                ),
+              },
+            };
+          });
+        } catch (error: AxiosError | any) {
+          set({
+            error: error.response?.data?.message || "Delete document failed",
+          });
+          toast.error(
+            error.response?.data?.message || "Delete document failed"
+          );
         } finally {
           set({ loading: false });
         }

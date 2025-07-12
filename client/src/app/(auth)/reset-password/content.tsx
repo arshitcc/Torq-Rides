@@ -55,6 +55,8 @@ export default function ResetPasswordContent() {
     } else {
       setToken(urlToken);
     }
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }, [searchParams]);
 
   const onSubmit = async (data: ResetPasswordFormData) => {

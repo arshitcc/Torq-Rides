@@ -91,6 +91,7 @@ export default function EditMotorcyclePage() {
     }
 
     if (motorcycleId) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
       getMotorcycleById(motorcycleId.toString());
     }
   }, [motorcycleId, user]);

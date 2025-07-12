@@ -13,7 +13,7 @@ export const signupSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters"),
 });
 
-export const profileSchema = z.object({
+export const updateProfileSchema = z.object({
   fullname: z.string().min(2, "Full name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
   username: z.string().min(3, "Username must be at least 3 characters"),
@@ -59,12 +59,12 @@ export const resetPasswordSchema = z.object({
 });
 
 export const assignRoleSchema = z.object({
-  role: z.enum(["ADMIN", "USER", "SUPPORT"]),
+  role: z.enum(["ADMIN", "CUSTOMER", "SUPPORT"]),
 });
 
 export type LoginFormData = z.infer<typeof loginSchema>;
 export type SignupFormData = z.infer<typeof signupSchema>;
-export type ProfileFormData = z.infer<typeof profileSchema>;
+export type UpdateProfileFormData = z.infer<typeof updateProfileSchema>;
 export type UploadDocumentFormData = z.infer<typeof uploadDocumentSchema>;
 export type ChangeCurrentPasswordFormData = z.infer<
   typeof changeCurrentPasswordSchema

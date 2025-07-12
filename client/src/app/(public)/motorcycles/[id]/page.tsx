@@ -98,6 +98,7 @@ export default function MotorcycleDetailPage() {
   useEffect(() => {
     if(loading) return;
     if (id) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
       getMotorcycleById(id.toString());
       getAllReviewsOfMotorcycleById(id.toString());
     }

@@ -1,4 +1,6 @@
 import multer from "multer";
+import { ApiError } from "../utils/api-error";
+import { Request } from "express";
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -28,9 +30,34 @@ const storage = multer.diskStorage({
   },
 });
 
+const fileFilter = (req: Request, file: Express.Multer.File, cb: any) => {
+  // Allowed mime types
+  const allowedMimes = [
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "image/jpg",
+    "image/gif",
+    "image/webp",
+  ];
+
+  if (allowedMimes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(
+      new ApiError(
+        400,
+        "Invalid file type. Only PDF and image files are allowed.",
+      ),
+      false,
+    );
+  }
+};
+
 export const upload = multer({
   storage,
+  fileFilter,
   limits: {
-    fileSize: 1 * 1000 * 1000,
+    fileSize: 5 * 1000 * 1000,
   },
 });

@@ -36,6 +36,8 @@ export default function SignupPage() {
     if (isAuthenticated) {
       router.push("/");
     }
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }, [isAuthenticated, router]);
 
   const form = useForm<SignupFormData>({

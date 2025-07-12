@@ -14,6 +14,9 @@ import {
   changeAvatar,
   deleteUserAccount,
   uploadUserDocument,
+  updateUserProfile,
+  getAllUsers,
+  deleteUserDocument,
 } from "../controllers/users.controller";
 import { validate } from "../middlewares/validator.middleware";
 import {
@@ -76,13 +79,18 @@ router
     validate,
     changeCurrentPassword,
   );
-
+router
+  .route("/profile/update-profile")
+  .post(authenticateUser, updateUserProfile);
 router
   .route("/profile/upload-documents")
-  .post(
+  .post(authenticateUser, upload.single("document"), uploadUserDocument);
+router
+  .route("/profile/delete-document/:documentId")
+  .delete(
     authenticateUser,
-    upload.single("document"),
-    uploadUserDocument,
+    mongoIdPathVariableValidator("documentId"),
+    deleteUserDocument,
   );
 
 router
@@ -104,5 +112,9 @@ router
     validate,
     assignRole,
   );
+
+router
+  .route("/all-users")
+  .get(authenticateUser, verifyPermission([UserRolesEnum.ADMIN]), getAllUsers);
 
 export default router;

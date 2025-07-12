@@ -29,7 +29,7 @@ export const AvailableDocumentTypes = Object.values(DocumentTypesEnum);
 
 export type DocumentTypes = (typeof AvailableDocumentTypes)[number];
 
-export interface IDocument {
+export interface IDocument extends mongoose.Document {
   type: DocumentTypes;
   name: string;
   file: File;
@@ -39,6 +39,8 @@ export interface IUser extends mongoose.Document {
   fullname: string;
   email: string;
   username: string;
+  phone: string;
+  address: string;
   password: string;
   loginType: string;
   avatar: File;
@@ -82,6 +84,13 @@ const userSchema = new mongoose.Schema<IUser>(
       required: true,
       unique: true,
       lowercase: true,
+    },
+    phone: {
+      type: String,
+      unique: true,
+    },
+    address: {
+      type: String,
     },
     password: {
       type: String,
@@ -133,7 +142,6 @@ const userSchema = new mongoose.Schema<IUser>(
         },
         name: {
           type: String,
-          required: true,
         },
         file: {
           url: String,

@@ -99,6 +99,8 @@ export default function AllBookingsPage() {
       return;
     }
 
+    window.scrollTo({ top: 0, behavior: "smooth" });
+
     // Fetch all bookings
     getAllBookings({
       page: currentPage,

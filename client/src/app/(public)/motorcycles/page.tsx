@@ -187,6 +187,7 @@ export default function MotorcyclesPage() {
   };
 
   useEffect(() => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
     getMotorcycles();
   }, [debouncedSearchTerm, currentPage, selectedSort]);
 

@@ -1,5 +1,6 @@
 "use client";
 
+import type React from "react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -32,18 +33,19 @@ import {
   EyeIcon,
   Trash2Icon,
   UploadIcon,
+  Loader2Icon,
 } from "lucide-react";
 import { format } from "date-fns";
 import {
-  ChangeCurrentPasswordFormData,
+  type ChangeCurrentPasswordFormData,
   changeCurrentPasswordSchema,
-  ProfileFormData,
-  profileSchema,
-  UploadDocumentFormData,
+  type UpdateProfileFormData,
+  updateProfileSchema,
+  type UploadDocumentFormData,
   uploadDocumentSchema,
 } from "@/schemas/users.schema";
-import { UserRolesEnum } from "@/types";
-import { AxiosError } from "axios";
+import { type DocumentTypes, UserRolesEnum } from "@/types";
+import type { AxiosError } from "axios";
 import {
   Select,
   SelectContent,
@@ -51,7 +53,37 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import NotFound from "@/app/not-found";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import Loading from "@/app/loading";
+
+const availableDocuments: { type: DocumentTypes; name: string }[] = [
+  {
+    type: "DRIVING-LICENSE",
+    name: "Driving License",
+  },
+  {
+    type: "AADHAR-CARD",
+    name: "Aadhar Card",
+  },
+  {
+    type: "PAN-CARD",
+    name: "PAN Card",
+  },
+  {
+    type: "E-KYC",
+    name: "e-KYC",
+  },
+];
 
 export default function ProfilePage() {
   const {
@@ -61,6 +93,9 @@ export default function ProfilePage() {
     uploadDocument,
     getCurrentUser,
     changeAvatar,
+    updateUserProfile,
+    deleteUserAccount,
+    deleteUserDocument,
     loading,
     resendEmailVerification,
   } = useAuthStore();
@@ -73,8 +108,8 @@ export default function ProfilePage() {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
-  const profileForm = useForm<ProfileFormData>({
-    resolver: zodResolver(profileSchema),
+  const profileForm = useForm<UpdateProfileFormData>({
+    resolver: zodResolver(updateProfileSchema),
     defaultValues: {
       fullname: "",
       email: "",
@@ -93,13 +128,48 @@ export default function ProfilePage() {
     },
   });
 
+  // Calculate selectable documents based on user's current documents
+  const getSelectableDocuments = () => {
+    if (!user?.documents) return availableDocuments;
+    return availableDocuments.filter(
+      (doc) => !user.documents?.find((userDoc) => userDoc.type === doc.type)
+    );
+  };
+
+  const [selectableDocuments, setSelectableDocuments] = useState<
+    { type: DocumentTypes; name: string }[]
+  >([]);
+
   const documentForm = useForm<UploadDocumentFormData>({
     resolver: zodResolver(uploadDocumentSchema),
     defaultValues: {
-      type: "AADHAR-CARD",
+      type: undefined,
       name: "",
     },
   });
+
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [documentError, setDocumentError] = useState<string | null>(null);
+
+  // Update selectable documents whenever user data changes
+  useEffect(() => {
+    const newSelectableDocuments = getSelectableDocuments();
+    setSelectableDocuments(newSelectableDocuments);
+
+    // Reset document form with new selectable documents
+    if (newSelectableDocuments.length > 0) {
+      documentForm.reset({
+        type: newSelectableDocuments[0].type,
+        name: "",
+      });
+    } else {
+      documentForm.reset({
+        type: undefined,
+        name: "",
+      });
+    }
+  }, [user?.documents]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -113,9 +183,12 @@ export default function ProfilePage() {
         fullname: user.fullname,
         email: user.email,
         username: user.username,
+        phone: user.phone,
+        address: user.address,
       });
     }
 
+    window.scrollTo({ top: 0, behavior: "smooth" });
     // Fetch user's bookings if customer
     if (user.role === UserRolesEnum.CUSTOMER) {
       getAllBookings({ customerId: user._id });
@@ -148,15 +221,15 @@ export default function ProfilePage() {
     }
   };
 
-  const onProfileSubmit = async (data: ProfileFormData) => {
+  const onProfileSubmit = async (data: UpdateProfileFormData) => {
     try {
-      // API call to update profile would go here
-      console.log("Profile update:", data);
-
+      setProfileError("");
+      await updateUserProfile(data);
       toast.success("Profile Updated Successfully !!");
+      setProfileError("");
       setIsEditing(false);
-    } catch (error) {
-      toast.error("Failed !!");
+    } catch (error: AxiosError | any) {
+      setProfileError(error.response?.data?.message || "Failed !!");
     }
   };
 
@@ -164,12 +237,12 @@ export default function ProfilePage() {
     try {
       const { currentPassword, newPassword, confirmNewPassword } = data;
       if (currentPassword === newPassword) {
-        toast.error("New password cannot be same as Current password");
+        setPasswordError("New password cannot be same as Current password");
         return;
       }
 
       if (newPassword !== confirmNewPassword) {
-        toast.error("New password and Confirm password do not match");
+        setPasswordError("New password and Confirm password do not match");
         return;
       }
 
@@ -186,23 +259,25 @@ export default function ProfilePage() {
 
   const onDocumentSubmit = async (data: UploadDocumentFormData) => {
     if (!selectedFile) {
-      toast.error("Please select a file to upload !!");
+      setDocumentError("Please select a file to upload !!");
       return;
     }
 
     setIsUploading(true);
+    setDocumentError("");
+
     try {
-      // API call to upload document would go here
       await uploadDocument(data, selectedFile);
       toast.success("Your document has been uploaded successfully.");
-      documentForm.reset();
+
+      // Clear form and file selection
+      setSelectedFile(null);
     } catch (error: AxiosError | any) {
-      toast.error(
+      setDocumentError(
         error.response?.data?.message ||
           "Failed to upload document. Please try again."
       );
     } finally {
-      setSelectedFile(null);
       setIsUploading(false);
     }
   };
@@ -215,10 +290,8 @@ export default function ProfilePage() {
       await changeAvatar(avatarFile, user?.avatar?.public_id);
 
       toast.success("Profile Picture Updated Successfully !!");
-
       setAvatarFile(null);
       setAvatarPreview(null);
-      getCurrentUser();
     } catch (error: AxiosError | any) {
       toast.error(error.response?.data?.message || "Failed !!");
     } finally {
@@ -226,18 +299,26 @@ export default function ProfilePage() {
     }
   };
 
-  const removeDocument = async (documentType: string) => {
+  const removeDocument = async (
+    documentId: string,
+    documentType: DocumentTypes
+  ) => {
     try {
-      // API call to remove document would go here
-      toast.success("Document removed successfully !!");
-      getCurrentUser();
+      setIsUploading(true);
+      await deleteUserDocument(documentId);
+      toast.success("Document removed successfully");
+
+      // The useEffect will automatically update selectableDocuments and reset the form
+      // when user.documents changes after successful deletion
     } catch (error: AxiosError | any) {
       toast.error(error.response?.data?.message || "Failed to remove document");
+    } finally {
+      setIsUploading(false);
     }
   };
 
   if (!user) {
-    return <NotFound />;
+    return <Loading />;
   }
 
   const userBookings = bookings.filter(
@@ -251,7 +332,7 @@ export default function ProfilePage() {
     0
   );
 
-  const documents = user.documents || [];
+  const userDocuments = user.documents || [];
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -281,7 +362,7 @@ export default function ProfilePage() {
                 </Avatar>
                 <div className="absolute -bottom-2 -right-2">
                   <label htmlFor="avatar-upload" className="cursor-pointer">
-                    <div className="bg-yellow-primary hover:bg-yellow-600 text-black p-2 rounded-full shadow-lg transition-colors">
+                    <div className="bg-yellow-500 hover:bg-yellow-600 text-black p-2 rounded-full shadow-lg transition-colors">
                       <CameraIcon className="h-4 w-4" />
                     </div>
                   </label>
@@ -301,9 +382,13 @@ export default function ProfilePage() {
                     onClick={handleAvatarUpload}
                     disabled={isUploadingAvatar}
                     size="sm"
-                    className="bg-yellow-primary hover:bg-yellow-600 text-black"
+                    className="bg-yellow-500 hover:bg-yellow-600 text-white"
                   >
-                    {isUploadingAvatar ? "Uploading..." : "Update Avatar"}
+                    {isUploadingAvatar ? (
+                      <Loader2Icon className="animate-spin h-4 w-4" />
+                    ) : (
+                      "Update Avatar"
+                    )}
                   </Button>
                 </div>
               )}
@@ -370,6 +455,7 @@ export default function ProfilePage() {
                   <Button
                     variant={isEditing ? "outline" : "default"}
                     onClick={() => setIsEditing(!isEditing)}
+                    className="bg-yellow-500 hover:bg-yellow-600 hover:text-white text-white cursor-pointer"
                   >
                     {isEditing ? "Cancel" : "Edit Profile"}
                   </Button>
@@ -380,6 +466,11 @@ export default function ProfilePage() {
                       onSubmit={profileForm.handleSubmit(onProfileSubmit)}
                       className="space-y-4"
                     >
+                      {profileError && (
+                        <p className="text-red-500 p-2 bg-red-100 rounded-lg border-2 border-red-500">
+                          {profileError}
+                        </p>
+                      )}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <FormField
                           control={profileForm.control}
@@ -462,7 +553,12 @@ export default function ProfilePage() {
 
                       {isEditing && (
                         <div className="flex space-x-4">
-                          <Button type="submit">Save Changes</Button>
+                          <Button
+                            type="submit"
+                            className="bg-yellow-500 hover:bg-yellow-600 text-white"
+                          >
+                            Save Changes
+                          </Button>
                           <Button
                             type="button"
                             variant="outline"
@@ -493,6 +589,11 @@ export default function ProfilePage() {
                       onSubmit={passwordForm.handleSubmit(onPasswordSubmit)}
                       className="space-y-4"
                     >
+                      {passwordError && (
+                        <p className="text-red-500 bg-red-50 rounded-lg p-2 border-1 text-sm w-fit border-red-500">
+                          {passwordError}
+                        </p>
+                      )}
                       <FormField
                         control={passwordForm.control}
                         name="currentPassword"
@@ -547,7 +648,12 @@ export default function ProfilePage() {
                         )}
                       />
 
-                      <Button type="submit">Change Password</Button>
+                      <Button
+                        type="submit"
+                        className="bg-yellow-500 hover:bg-yellow-600 text-white cursor-pointer"
+                      >
+                        Change Password
+                      </Button>
                     </form>
                   </Form>
                 </CardContent>
@@ -564,52 +670,84 @@ export default function ProfilePage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {documents?.length > 0 ? (
+                  {userDocuments?.length > 0 ? (
                     <div className="space-y-4">
                       <h3 className="text-lg font-semibold mb-4">
                         Your Documents
                       </h3>
-                      {documents.map((doc, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between p-4 border rounded-lg"
-                        >
-                          <div className="flex items-center space-x-4">
-                            <div className="bg-yellow-primary/10 p-2 rounded-full">
-                              <FileTextIcon className="h-5 w-5 text-yellow-primary" />
-                            </div>
-                            <div>
-                              <p className="font-medium">{doc.type}</p>
-                              {doc.name && (
-                                <p className="text-sm text-gray-600">
-                                  {doc.name}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-4">
+                        {userDocuments.map((doc, index) => (
+                          <div
+                            key={index}
+                            className="flex flex-col lg:flex-row items-start sm:items-center justify-between p-4 border rounded-lg space-y-3 sm:space-y-0"
+                          >
+                            <div className="flex items-center space-x-4 flex-1">
+                              <div className="bg-yellow-500/10 p-2 rounded-full flex-shrink-0">
+                                <FileTextIcon className="h-5 w-5 text-yellow-500" />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="font-medium truncate">
+                                  {doc.type}
                                 </p>
-                              )}
+                                {doc.name && (
+                                  <p className="text-sm text-gray-600 truncate">
+                                    {doc.name}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2 w-full sm:w-auto">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  window.open(doc.file.url, "_blank")
+                                }
+                                className="flex-1 sm:flex-none"
+                              >
+                                <EyeIcon className="h-4 w-4 mr-1" />
+                                View
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-red-600 hover:text-red-700 flex-1 sm:flex-none bg-transparent"
+                                  >
+                                    <Trash2Icon className="h-4 w-4 mr-1" />
+                                    Remove
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>
+                                      Delete Document
+                                    </AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to delete your{" "}
+                                      {doc.name || doc.type}?
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>
+                                      Cancel
+                                    </AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() =>
+                                        removeDocument(doc._id, doc.type)
+                                      }
+                                      className="bg-red-600 hover:bg-red-700 dark:text-white"
+                                    >
+                                      Delete Document
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
                             </div>
                           </div>
-                          <div className="flex items-center space-x-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() =>
-                                window.open(doc.file.url, "_blank")
-                              }
-                            >
-                              <EyeIcon className="h-4 w-4 mr-1" />
-                              View
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => removeDocument(doc.type)}
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2Icon className="h-4 w-4 mr-1" />
-                              Remove
-                            </Button>
-                          </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   ) : (
                     <div className="text-center py-8">
@@ -620,113 +758,138 @@ export default function ProfilePage() {
                     </div>
                   )}
 
-                  <div className="mt-8 border-t pt-6">
-                    <h3 className="text-lg font-semibold mb-4">
-                      Upload New Document
-                    </h3>
-                    <Form {...documentForm}>
-                      <form
-                        onSubmit={documentForm.handleSubmit(onDocumentSubmit)}
-                        className="space-y-4"
-                      >
-                        <FormField
-                          control={documentForm.control}
-                          name="type"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Document Type</FormLabel>
-                              <Select
-                                onValueChange={field.onChange}
-                                defaultValue={field.value}
-                              >
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Select document type" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  <SelectItem value="AADHAR-CARD">
-                                    Aadhaar Card
-                                  </SelectItem>
-                                  <SelectItem value="DRIVING-LICENSE">
-                                    Driving Licence
-                                  </SelectItem>
-                                  <SelectItem value="PAN-CARD">
-                                    PAN Card
-                                  </SelectItem>
-                                  <SelectItem value="e-KYC">e-KYC</SelectItem>
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
+                  {selectableDocuments.length > 0 && (
+                    <div className="mt-8 border-t pt-6">
+                      <h3 className="text-lg font-semibold mb-4">
+                        Upload New Document <span className="text-muted-foreground text-sm">( * Only PDFs &amp; Image files are allowed)</span>
+                      </h3>
+                      <Form {...documentForm}>
+                        <form
+                          onSubmit={documentForm.handleSubmit(onDocumentSubmit)}
+                          className="space-y-4"
+                        >
+                          {documentError && (
+                            <p className="text-red-500 bg-red-50 rounded-lg p-2 border-1 text-sm w-fit border-red-500">
+                              {documentError}
+                            </p>
                           )}
-                        />
-
-                        <FormField
-                          control={documentForm.control}
-                          name="name"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Document Name (Optional)</FormLabel>
-                              <FormControl>
-                                <Input
-                                  {...field}
-                                  placeholder="Enter document name"
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium">
-                            Upload File
-                          </label>
-                          <div className="flex items-center space-x-4">
-                            <label
-                              htmlFor="document-upload"
-                              className="cursor-pointer"
-                            >
-                              <div className="flex items-center space-x-2 px-4 py-2 border border-dashed border-gray-300 rounded-lg hover:border-yellow-primary transition-colors">
-                                <UploadIcon className="h-4 w-4" />
-                                <span>Choose File</span>
-                              </div>
-                            </label>
-                            <input
-                              id="document-upload"
-                              type="file"
-                              accept="image/*,.pdf"
-                              onChange={handleFileSelect}
-                              className="hidden"
-                            />
-                            {selectedFile && (
-                              <span className="text-sm text-gray-600">
-                                {selectedFile.name}
-                              </span>
+                          <FormField
+                            control={documentForm.control}
+                            name="type"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Document Type</FormLabel>
+                                <Select
+                                  onValueChange={field.onChange}
+                                  value={field.value || ""}
+                                >
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Select document type" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    {selectableDocuments.map((document) => (
+                                      <SelectItem
+                                        key={document.type}
+                                        value={document.type}
+                                      >
+                                        {document.name}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
                             )}
-                          </div>
-                        </div>
+                          />
 
-                        {selectedFile && (
-                          <div className="mt-4">
-                            <p className="text-sm font-medium mb-2">File To Upload:</p>
-                            <div className="border rounded-lg p-4 bg-gray-100">
-                              {selectedFile.name}
+                          <FormField
+                            control={documentForm.control}
+                            name="name"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Document Name (Optional)</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    {...field}
+                                    placeholder="Enter document name"
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium">
+                              Upload File
+                            </label>
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
+                              <label
+                                htmlFor="document-upload"
+                                className="cursor-pointer w-full sm:w-auto"
+                              >
+                                <div className="flex items-center justify-center space-x-2 px-4 py-2 border border-dashed border-gray-300 rounded-lg hover:border-yellow-500 transition-colors">
+                                  <UploadIcon className="h-4 w-4" />
+                                  <span>Choose File</span>
+                                </div>
+                              </label>
+                              <input
+                                id="document-upload"
+                                type="file"
+                                accept="image/*,.pdf"
+                                onChange={handleFileSelect}
+                                className="hidden"
+                              />
+                              {selectedFile && (
+                                <span className="text-sm text-gray-600 truncate max-w-xs">
+                                  {selectedFile.name}
+                                </span>
+                              )}
                             </div>
                           </div>
-                        )}
 
-                        <Button
-                          type="submit"
-                          disabled={!selectedFile || isUploading}
-                          className="bg-yellow-primary hover:bg-yellow-600 text-black"
-                        >
-                          {isUploading ? "Uploading..." : "Upload Document"}
-                        </Button>
-                      </form>
-                    </Form>
-                  </div>
+                          {selectedFile && (
+                            <div className="mt-4">
+                              <p className="text-sm font-medium mb-2">
+                                File To Upload:
+                              </p>
+                              <div className="border rounded-lg p-4 bg-gray-100 dark:bg-[#18181B]">
+                                <p className="text-sm truncate">
+                                  {selectedFile.name}
+                                </p>
+                              </div>
+                            </div>
+                          )}
+
+                          <Button
+                            type="submit"
+                            disabled={!selectedFile || isUploading}
+                            className="bg-yellow-500 hover:bg-yellow-600 text-white cursor-pointer w-full sm:w-auto"
+                          >
+                            {isUploading ? (
+                              <>
+                                <Loader2Icon className="animate-spin h-4 w-4 mr-2" />
+                                Uploading
+                              </>
+                            ) : (
+                              "Upload Document"
+                            )}
+                          </Button>
+                        </form>
+                      </Form>
+                    </div>
+                  )}
+
+                  {selectableDocuments.length === 0 &&
+                    userDocuments.length > 0 && (
+                      <div className="mt-8 border-t pt-6 text-center">
+                        <p className="text-gray-500">
+                          All document types have been uploaded.
+                        </p>
+                      </div>
+                    )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -757,10 +920,9 @@ export default function ProfilePage() {
                               <CreditCardIcon className="h-4 w-4 text-primary" />
                             </div>
                             <div className="flex-1">
-                              {/* <p className="font-medium">
-                                Booked {booking.motorcycle?.make}{" "}
-                                {booking.motorcycle?.vehicleModel}
-                              </p> */}
+                              <p className="font-medium">
+                                Booking #{booking._id.slice(-6)}
+                              </p>
                               <p className="text-sm text-gray-600">
                                 {format(
                                   new Date(booking.bookingDate),

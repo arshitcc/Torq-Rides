@@ -87,6 +87,7 @@ import {
   AlertTriangleIcon,
   XCircleIcon,
   CalendarIcon,
+  Loader2Icon,
 } from "lucide-react";
 import { UserRolesEnum } from "@/types";
 import {
@@ -255,6 +256,19 @@ export default function MotorcycleLogsPage() {
   };
 
   const totalPages = Math.ceil((metadata?.total || 0) / itemsPerPage);
+
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-[#121212]">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-center h-64">
+            <Loader2Icon className="h-8 w-8 text-gray-400 animate-spin" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!user || user.role !== UserRolesEnum.ADMIN) {
     return null;

@@ -121,6 +121,44 @@ const uploadUserDocumentValidator = () => {
   ];
 };
 
+const updateUserProfileValidator = () => {
+  return [
+    body("fullname")
+      .trim()
+      .notEmpty()
+      .withMessage("Name is required")
+      .isLength({ min: 2, max: 100 })
+      .withMessage("Name must be between 2 and 100 characters"),
+
+    body("username")
+      .trim()
+      .notEmpty()
+      .withMessage("Username is required")
+      .isLength({ min: 5, max: 60 })
+      .withMessage("Username must be between 5 and 60 characters"),
+
+    body("email")
+      .trim()
+      .notEmpty()
+      .withMessage("Email is required")
+      .isEmail()
+      .withMessage("Please enter a valid email")
+      .normalizeEmail(),
+
+    body("phone")
+      .trim()
+      .optional()
+      .isMobilePhone("any")
+      .withMessage("Please enter a valid phone number"),
+
+    body("address")
+      .trim()
+      .optional()
+      .isString()
+      .withMessage("Please Send a valid address"),
+  ];
+};
+
 export {
   userRegisterValidation,
   userLoginValidation,
@@ -129,4 +167,5 @@ export {
   userResetForgottenPasswordValidator,
   userAssignRoleValidator,
   uploadUserDocumentValidator,
+  updateUserProfileValidator,
 };

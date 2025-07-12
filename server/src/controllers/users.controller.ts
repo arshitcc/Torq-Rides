@@ -5,7 +5,11 @@ import asyncHandler from "../utils/async-handler";
 import { CustomRequest, IUser, User } from "../models/users.model";
 import { ApiError } from "../utils/api-error";
 import { ApiResponse } from "../utils/api-response";
-import { AvailableUserRoles, UserAuthType } from "../constants/constants";
+import {
+  AvailableUserRoles,
+  UserAuthType,
+  UserRolesEnum,
+} from "../constants/constants";
 import { NODE_ENV, REFRESH_TOKEN_SECRET } from "../utils/env";
 import {
   emailVerificationTemplate,
@@ -453,6 +457,17 @@ const deleteUserAccount = asyncHandler(
       throw new ApiError(404, "User does not exist");
     }
 
+    const { avatar, documents } = user;
+    if (avatar?.public_id) {
+      await deleteFile(avatar.public_id, avatar.resource_type);
+    }
+
+    if (documents) {
+      for (const document of documents) {
+        await deleteFile(document.file.public_id, document.file.resource_type);
+      }
+    }
+
     await User.findByIdAndDelete(userId);
 
     return res
@@ -463,9 +478,19 @@ const deleteUserAccount = asyncHandler(
 
 const uploadUserDocument = asyncHandler(
   async (req: CustomRequest, res: Response) => {
-
     if (!req.file || !req.file.path) {
       throw new ApiError(400, "Document is required !!");
+    }
+
+    const { type, name } = req.body;
+
+    const existingDocument = await User.findOne({
+      _id: req.user._id,
+      "documents.type": type,
+    });
+
+    if (existingDocument) {
+      throw new ApiError(400, `${type} Document already exists`);
     }
 
     const documentPath = req.file?.path || "";
@@ -474,9 +499,7 @@ const uploadUserDocument = asyncHandler(
     }
     const document = await uploadFile(documentPath);
 
-    const { type, name } = req.body;
-
-    if(!type?.trim() || !name?.trim()) {
+    if (!type?.trim()) {
       throw new ApiError(400, "Document type and name is required !!");
     }
 
@@ -514,6 +537,139 @@ const uploadUserDocument = asyncHandler(
   },
 );
 
+const deleteUserDocument = asyncHandler(
+  async (req: CustomRequest, res: Response) => {
+    const { documentId } = req.params;
+
+    const existingUser = await User.findOne({
+      "documents._id": documentId,
+    });
+
+    if (!existingUser) {
+      throw new ApiError(404, "Document not found !!");
+    }
+
+    if (
+      req.user.role === UserRolesEnum.CUSTOMER &&
+      existingUser?._id?.toString() !== req.user._id?.toString()
+    ) {
+      throw new ApiError(403, "Unauthorized action");
+    }
+
+    const document = existingUser.documents.find(
+      (doc) => doc._id?.toString() === documentId,
+    );
+
+    if (!document) {
+      throw new ApiError(404, "Document does not exist");
+    }
+
+    await deleteFile(document.file.public_id, document.file.resource_type);
+
+    await User.findByIdAndUpdate(
+      existingUser._id,
+      {
+        $pull: {
+          documents: {
+            _id: documentId,
+          },
+        },
+      },
+      { new: true },
+    ).select(
+      "-password -refreshToken -emailVerificationToken -emailVerificationExpiry -forgotPasswordToken -forgotPasswordExpiry",
+    );
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, true, "Document deleted successfully"));
+  },
+);
+
+const getAllUsers = asyncHandler(async (req: CustomRequest, res: Response) => {
+  const { page, offset, searchTerm, role, verification } = req.query;
+
+  let matchState: Record<string, any> = {};
+  const data = searchTerm?.toString().toLocaleLowerCase().trim();
+
+  if (data) {
+    matchState.$or = [
+      { fullname: { $regex: data, $options: "i" } },
+      { email: { $regex: data, $options: "i" } },
+      { phone: { $regex: data, $options: "i" } },
+      { username: { $regex: data, $options: "i" } },
+    ];
+  }
+
+  if (role) matchState.role = role;
+  if (verification) matchState.isEmailVerified = (verification === "true" ? true : false);
+
+  const pageNum = Number.isNaN(Number(page)) ? 1 : Math.max(Number(page), 1);
+  const limit = Number.isNaN(Number(offset)) ? 10 : Math.max(Number(offset), 1);
+  const skip = (pageNum - 1) * Math.min(limit, 12);
+
+  const users = await User.aggregate([
+    {
+      $match: matchState,
+    },
+    {
+      $sort: { updatedAt: -1 },
+    },
+    {
+      $project: {
+        _id: 1,
+        fullname: 1,
+        username: 1,
+        phone: 1,
+        email: 1,
+        role: 1,
+        address: 1,
+        isEmailVerified: 1,
+        avatar: 1,
+        documents: 1,
+        createdAt: 1,
+        updatedAt: 1,
+      },
+    },
+    {
+      $facet: {
+        metadata: [{ $count: "total" }, { $addFields: { page: pageNum } }],
+        data: [{ $skip: skip }, { $limit: limit }],
+      },
+    },
+  ]);
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, true, "Users fetched", users[0]));
+});
+
+const updateUserProfile = asyncHandler(
+  async (req: CustomRequest, res: Response) => {
+    const { fullname, email, username, address, phone } = req.body;
+
+    let data: Record<string, any> = {};
+
+    if (address?.trim()) data.address = address.trim();
+    if (phone?.trim()) data.phone = phone.trim();
+
+    const user = await User.findByIdAndUpdate(
+      req.user._id,
+      {
+        fullname,
+        email,
+        username,
+        ...data,
+      },
+      { new: true },
+    );
+
+    return res
+      .status(200)
+      .json(new ApiResponse(200, true, "Profile updated successfully", user));
+  },
+);
+
 export {
   userRegister,
   userLogin,
@@ -529,4 +685,7 @@ export {
   changeAvatar,
   deleteUserAccount,
   uploadUserDocument,
+  deleteUserDocument,
+  getAllUsers,
+  updateUserProfile,
 };

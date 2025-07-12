@@ -59,6 +59,8 @@ export default function VerifyContent() {
       }
     };
 
+    window.scrollTo({ top: 0, behavior: "smooth" });
+
     handleVerification();
   }, [searchParams, verifyEmail, isAuthenticated, router]);
 

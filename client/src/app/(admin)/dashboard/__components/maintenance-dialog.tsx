@@ -6,19 +6,17 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { getStatusColor } from "../filters";
 
-
 interface MaintenanceDialogProps {
   open: boolean;
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
   logs: MotorcycleLog[];
-  selectedMotorcycle: Motorcycle;
+  selectedMotorcycle: Motorcycle | null;
 }
 
 function MaintenanceDialog({

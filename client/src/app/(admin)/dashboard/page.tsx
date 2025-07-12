@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -29,8 +30,26 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Label } from "@/components/ui/label";
 import { useAuthStore } from "@/store/auth-store";
 import { useMotorcycleStore } from "@/store/motorcycle-store";
 import { useCouponStore } from "@/store/coupon-store";
@@ -58,60 +77,45 @@ import {
   CalendarIcon,
   PlusIcon,
   EyeIcon,
+  SearchIcon,
+  CheckCircleIcon,
   FileTextIcon,
+  InfoIcon,
+  Trash2Icon,
+  UserCogIcon,
+  XCircleIcon,
+  EditIcon,
   PowerOffIcon,
   PowerIcon,
-  EditIcon,
-  Trash2Icon,
-  SearchIcon,
 } from "lucide-react";
 import { format } from "date-fns";
 import {
   AvailableMotorcycleCategories,
   AvailableMotorcycleMakes,
-  Motorcycle,
-  MotorcycleCategory,
-  MotorcycleMake,
+  type MotorcycleCategory,
+  type MotorcycleMake,
   UserRolesEnum,
+  UserRoles,
+  User,
 } from "@/types";
 import {
-  CouponFormData,
+  type CouponFormData,
   couponSchema,
-  UpdateCouponFormData,
+  type UpdateCouponFormData,
   updateCouponSchema,
 } from "@/schemas/coupons.schema";
-import {
-  UpdateMotorcycleFormData,
-  updateMotorcycleSchema,
-} from "@/schemas/motorcycles.schema";
-import { AxiosError } from "axios";
-import Image from "next/image";
+import type { AxiosError } from "axios";
 import Link from "next/link";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { useMotorcycleLogStore } from "@/store/motorcycle-log-store";
 import { useDebounceValue } from "usehooks-ts";
-import MaintenanceDialog from "./__components/maintenance-dialog";
-import UpdateMotorcycleDialog from "./__components/update-motorcycle-dialog";
 import AddCouponDialog from "./__components/add-coupon-dialog";
 import CouponsTable from "./__components/coupons-table";
 import { getStatusColor } from "./filters";
-import { Label } from "@/components/ui/label";
+import { AssignRoleFormData } from "@/schemas/users.schema";
+import UserInfoDialog from "./__components/users/user-info-dialog";
+import ChangeRoleDialog from "./__components/users/change-role-dialog";
+import UserDocumentsDialog from "./__components/users/user-documents-dialog";
+import Image from "next/image";
 
 // Sample data for charts
 const salesData = [
@@ -131,13 +135,29 @@ const bikesSalesData = [
   { name: "Scooter", value: 5, color: "#00ff00" },
 ];
 
+export const getInitials = (fullname: string) => {
+  const names = fullname?.split(" ");
+  return names?.length > 1
+    ? `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase()
+    : names?.[0][0].toUpperCase();
+};
+
 export default function DashboardPage() {
-  const { user, isAuthenticated } = useAuthStore();
+  const {
+    user,
+    isAuthenticated,
+    users,
+    metadata: userMetadata,
+    setUsers,
+    assignRole,
+    getAllUsers,
+    deleteUserAccount,
+    deleteUserDocument,
+  } = useAuthStore();
   const {
     motorcycles,
-    metadata,
+    metadata: motorcycleMetadata,
     getAllMotorcycles,
-    updateMotorcycleDetails,
     updateMotorcycleAvailability,
     deleteMotorcycle,
   } = useMotorcycleStore();
@@ -154,15 +174,30 @@ export default function DashboardPage() {
   const router = useRouter();
 
   const [selectedPeriod, setSelectedPeriod] = useState("monthly");
-  const [selectedMotorcycle, setSelectedMotorcycle] = useState<any>(null);
   const [selectedCoupon, setSelectedCoupon] = useState<any>(null);
-  const [showMaintenanceDialog, setShowMaintenanceDialog] = useState(false);
   const [showAddCouponDialog, setShowAddCouponDialog] = useState(false);
-  const [showUpdateMotorcycleDialog, setShowUpdateMotorcycleDialog] =
-    useState(false);
   const [showUpdateCouponDialog, setShowUpdateCouponDialog] = useState(false);
 
-  const [currentPage, setCurrentPage] = useState(1);
+  // Users management state
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [showUserInfoDialog, setShowUserInfoDialog] = useState(false);
+  const [showChangeRoleDialog, setShowChangeRoleDialog] = useState(false);
+  const [showUserDocumentsDialog, setShowUserDocumentsDialog] = useState(false);
+  const [newRole, setNewRole] = useState<UserRoles>(UserRolesEnum.CUSTOMER);
+
+  // Users filters
+  const [userSearchTerm, setUserSearchTerm] = useState("");
+  const [userVerificationFilter, setUserVerificationFilter] = useState<
+    "all" | "verified" | "unverified"
+  >("all");
+  const [userRoleFilter, setUserRoleFilter] = useState<"all" | UserRoles>(
+    "all"
+  );
+  const [debouncedUserSearch] = useDebounceValue(userSearchTerm, 500);
+
+  const [motorcyclesCurrentPage, setMotorcyclesCurrentPage] = useState(1);
+  const [usersCurrentPage, setUsersCurrentPage] = useState(1);
+  const [logsCurrentPage, setLogsCurrentPage] = useState(1);
   const itemsPerPage = 9;
   const [selectedMake, setSelectedMake] = useState<
     MotorcycleMake | "All Makes"
@@ -194,10 +229,6 @@ export default function DashboardPage() {
     resolver: zodResolver(updateCouponSchema),
   });
 
-  const updateMotorcycleForm = useForm<UpdateMotorcycleFormData>({
-    resolver: zodResolver(updateMotorcycleSchema),
-  });
-
   useEffect(() => {
     if (!isAuthenticated) return;
 
@@ -208,7 +239,7 @@ export default function DashboardPage() {
     }
 
     const filters: Record<string, any> = {
-      page: currentPage,
+      page: motorcyclesCurrentPage,
       offset: itemsPerPage,
     };
 
@@ -231,11 +262,14 @@ export default function DashboardPage() {
 
     if (isAvailable !== "all") filters.isAvailable = isAvailable;
 
+    window.scrollTo({ top: 0, behavior: "smooth" });
+
     // Fetch data
+
     getAllMotorcycles(filters);
     getAllCoupons();
     getAllBookings();
-    getAllMotorcycleLogs({ page: 1, offset: 10 });
+    getAllMotorcycleLogs({ page: logsCurrentPage, offset: 10 });
   }, [
     user,
     getAllMotorcycles,
@@ -247,7 +281,30 @@ export default function DashboardPage() {
     selectedMake,
     isAvailable,
     debouncedSearchTerm,
-    currentPage,
+    motorcyclesCurrentPage,
+  ]);
+
+  useEffect(() => {
+    const filters: Record<string, any> = {
+      page: usersCurrentPage,
+      offset: 10,
+    };
+
+    if (debouncedUserSearch?.trim())
+      filters.searchTerm = debouncedUserSearch.trim();
+
+    if (userVerificationFilter === "verified") filters.verification = true;
+    if (userVerificationFilter === "unverified") filters.verification = false;
+
+    if (userRoleFilter !== "all") filters.role = userRoleFilter.toUpperCase();
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    getAllUsers(filters);
+  }, [
+    usersCurrentPage,
+    debouncedUserSearch,
+    userVerificationFilter,
+    userRoleFilter,
   ]);
 
   const handleToggleCoupon = async (couponId: string, isActive: boolean) => {
@@ -280,6 +337,64 @@ export default function DashboardPage() {
       toast.error(
         error?.response?.data?.message ?? "Failed to delete motorcycle."
       );
+    }
+  };
+
+  const handleChangeUserRole = async (
+    data: AssignRoleFormData,
+    userId: string
+  ) => {
+    try {
+      // API call to change user role would go here
+
+      await assignRole(userId, data);
+      setUsers(
+        users.map((u) =>
+          u._id === selectedUser?._id ? { ...u, role: newRole } : u
+        )
+      );
+
+      toast.success(`User role changed to ${newRole} successfully!`);
+      setShowChangeRoleDialog(false);
+      setSelectedUser(null);
+    } catch (error: AxiosError | any) {
+      toast.error("Failed to change user role");
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      // API call to delete user would go here
+      await deleteUserAccount(userId);
+      setUsers(users.filter((u) => u._id !== userId));
+      toast.success("User deleted successfully!");
+    } catch (error: AxiosError | any) {
+      toast.error("Failed to delete user");
+    }
+  };
+
+  const handleDeleteUserDocument = async (
+    userId: string,
+    documentId: string
+  ) => {
+    try {
+      // API call to delete document would go here
+      await deleteUserDocument(documentId);
+      setUsers(
+        users.map((u) =>
+          u._id === userId
+            ? {
+                ...u,
+                documents:
+                  u.documents?.filter((d) => d._id !== documentId) || [],
+              }
+            : u
+        )
+      );
+      setShowUserDocumentsDialog(false);
+      toast.success("Document deleted successfully!");
+    } catch (error: AxiosError | any) {
+      toast.error("Failed to delete document");
     }
   };
 
@@ -332,27 +447,6 @@ export default function DashboardPage() {
     }
   };
 
-  const handleUpdateMotorcycle = (motorcycle: Motorcycle) => {
-    setSelectedMotorcycle(motorcycle);
-    updateMotorcycleForm.reset({
-      make: motorcycle.make,
-      vehicleModel: motorcycle.vehicleModel,
-      year: motorcycle.year,
-      rentPerDay: motorcycle.rentPerDay,
-      description: motorcycle.description,
-      category: motorcycle.category,
-      variant: motorcycle.variant,
-      color: motorcycle.color,
-      securityDeposit: motorcycle.securityDeposit,
-      kmsLimitPerDay: motorcycle.kmsLimitPerDay,
-      extraKmsCharges: motorcycle.extraKmsCharges,
-      availableQuantity: motorcycle.availableQuantity,
-      specs: motorcycle.specs,
-      isAvailable: motorcycle.isAvailable,
-    });
-    setShowUpdateMotorcycleDialog(true);
-  };
-
   const handleUpdateCoupon = (coupon: CouponFormData) => {
     setSelectedCoupon(coupon);
     updateCouponForm.reset({
@@ -368,32 +462,6 @@ export default function DashboardPage() {
     setShowUpdateCouponDialog(true);
   };
 
-  const onUpdateMotorcycle = async (data: UpdateMotorcycleFormData) => {
-    if (!selectedMotorcycle) return;
-
-    try {
-      const formData = new FormData();
-      Object.entries(data).forEach(([key, value]) => {
-        if (value !== undefined && value !== null) {
-          if (key === "specs" && typeof value === "object") {
-            formData.append(key, JSON.stringify(value));
-          } else {
-            formData.append(key, value.toString());
-          }
-        }
-      });
-
-      await updateMotorcycleDetails(selectedMotorcycle._id, formData);
-      toast.success("Motorcycle Updated Successfully !!");
-      setShowUpdateMotorcycleDialog(false);
-      setSelectedMotorcycle(null);
-    } catch (error: AxiosError | any) {
-      toast.error(
-        error?.response?.data?.message || "Motorcycle Update Failed !!"
-      );
-    }
-  };
-
   if (!user || user.role !== UserRolesEnum.ADMIN) {
     return null;
   }
@@ -407,7 +475,10 @@ export default function DashboardPage() {
   const totalCustomers = new Set(bookings.map((b) => b.customerId)).size;
   const totalMotorcycles = motorcycles.length;
 
-  const totalPages = Math.ceil(metadata?.total / itemsPerPage) || 1;
+  const totalMotorcyclesPages =
+    Math.ceil(motorcycleMetadata?.total / itemsPerPage) || 1;
+  const totalUsersPages = Math.ceil(userMetadata?.total / itemsPerPage) || 1;
+
   const makes = AvailableMotorcycleMakes;
   const categories = AvailableMotorcycleCategories;
 
@@ -422,6 +493,9 @@ export default function DashboardPage() {
         <TabsList className="flex items-center justify-start flex-wrap h-auto space-y-1">
           <TabsTrigger value="overview" className="cursor-pointer">
             Overview
+          </TabsTrigger>
+          <TabsTrigger value="users" className="cursor-pointer">
+            Users
           </TabsTrigger>
           <TabsTrigger value="motorcycles" className="cursor-pointer">
             Motorcycles
@@ -564,6 +638,343 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
           </div>
+        </TabsContent>
+
+        {/* Users Tab */}
+        <TabsContent value="users">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold">User Management</h2>
+            <div className="text-sm text-gray-600">
+              Total Users: {userMetadata.total}
+            </div>
+          </div>
+
+          {/* Search and Filters */}
+          <div className="flex flex-col lg:flex-row gap-4 mb-6">
+            <div className="w-full lg:w-3/5">
+              <Label className="block text-sm font-medium text-gray-700 mb-1">
+                Search Users
+              </Label>
+              <div className="relative">
+                <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  className="pl-10"
+                  placeholder="Search by name, email, or username..."
+                  value={userSearchTerm}
+                  onChange={(e) => setUserSearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="w-full lg:w-2/5 flex justify-between gap-4">
+              <div className="lg:w-1/2 flex flex-col justify-center items-center">
+                <Label className="block text-sm font-medium text-gray-700 mb-1">
+                  Verification Status
+                </Label>
+                <Select
+                  value={userVerificationFilter}
+                  onValueChange={(value: "all" | "verified" | "unverified") =>
+                    setUserVerificationFilter(value)
+                  }
+                >
+                  <SelectTrigger className="mx-auto">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="verified">Verified</SelectItem>
+                    <SelectItem value="unverified">Unverified</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="lg:w-1/2 flex flex-col justify-center items-center">
+                <Label className="block text-sm font-medium text-gray-700 mb-1">
+                  Role
+                </Label>
+                <Select
+                  value={userRoleFilter}
+                  onValueChange={(value: "all" | UserRoles) =>
+                    setUserRoleFilter(value)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value={UserRolesEnum.ADMIN}>Admin</SelectItem>
+                    <SelectItem value={UserRolesEnum.CUSTOMER}>
+                      Customer
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          {/* Users Table */}
+          <Card className="border-yellow-primary/20 mb-4">
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Verified</TableHead>
+                    <TableHead>Joined</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {users.length > 0 &&
+                    users.map((user) => (
+                      <TableRow key={user._id}>
+                        <TableCell>
+                          <div className="flex items-center space-x-3">
+                            <Avatar className="h-10 w-10">
+                              <AvatarImage
+                                src={user.avatar?.url || "/placeholder.svg"}
+                                alt={user.fullname}
+                              />
+                              <AvatarFallback>
+                                {getInitials(user.fullname)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <div className="font-medium">{user.fullname}</div>
+                              <div className="text-sm text-gray-500">
+                                @{user.username}
+                              </div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>{user.email}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              user.role === UserRolesEnum.ADMIN
+                                ? "default"
+                                : "secondary"
+                            }
+                          >
+                            {user.role}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          {user.isEmailVerified ? (
+                            <Badge className="bg-green-100 text-green-800">
+                              <CheckCircleIcon className="h-3 w-3 mr-1" />
+                              Verified
+                            </Badge>
+                          ) : (
+                            <Badge className="bg-red-100 text-red-800">
+                              <XCircleIcon className="h-3 w-3 mr-1" />
+                              Unverified
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          {format(new Date(user.createdAt), "MMM dd, yyyy")}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex flex-wrap gap-1">
+                            {/* Info Button */}
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedUser(user);
+                                      setShowUserInfoDialog(true);
+                                    }}
+                                    className="h-8 w-8 p-0"
+                                  >
+                                    <InfoIcon className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>View Details</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+
+                            {/* Change Role Button */}
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedUser(user);
+                                      setNewRole(
+                                        user.role === UserRolesEnum.ADMIN
+                                          ? UserRolesEnum.CUSTOMER
+                                          : UserRolesEnum.ADMIN
+                                      );
+                                      setShowChangeRoleDialog(true);
+                                    }}
+                                    className="h-8 w-8 p-0"
+                                  >
+                                    <UserCogIcon className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Change Role</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+
+                            {/* Documents Button */}
+                            {user.documents && user.documents.length > 0 && (
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => {
+                                        setSelectedUser(user);
+                                        setShowUserDocumentsDialog(true);
+                                      }}
+                                      className="h-8 w-8 p-0"
+                                    >
+                                      <FileTextIcon className="h-4 w-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>
+                                    <p>View Documents</p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            )}
+
+                            {/* Delete Button */}
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-8 w-8 p-0 text-red-600 hover:text-red-700 bg-transparent"
+                                      >
+                                        <Trash2Icon className="h-4 w-4" />
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle>
+                                          Delete User
+                                        </AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Are you sure you want to delete{" "}
+                                          {user.fullname}? This action cannot be
+                                          undone.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>
+                                          Cancel
+                                        </AlertDialogCancel>
+                                        <AlertDialogAction
+                                          onClick={() =>
+                                            handleDeleteUser(user._id)
+                                          }
+                                          className="bg-red-600 hover:bg-red-700"
+                                        >
+                                          Delete User
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Delete User</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+
+          {totalUsersPages > 1 && (
+            <Pagination>
+              <PaginationContent>
+                <PaginationItem>
+                  <PaginationPrevious
+                    onClick={() =>
+                      setUsersCurrentPage((p) => Math.max(p - 1, 1))
+                    }
+                    className={
+                      usersCurrentPage === 1
+                        ? "pointer-events-none opacity-50"
+                        : ""
+                    }
+                  />
+                </PaginationItem>
+                {Array.from({ length: totalUsersPages }, (_, i) => (
+                  <PaginationItem key={i + 1}>
+                    <PaginationLink
+                      onClick={() => setUsersCurrentPage(i + 1)}
+                      isActive={usersCurrentPage === i + 1}
+                    >
+                      {i + 1}
+                    </PaginationLink>
+                  </PaginationItem>
+                ))}
+                <PaginationItem>
+                  <PaginationNext
+                    onClick={() =>
+                      setUsersCurrentPage((p) =>
+                        Math.min(p + 1, totalUsersPages)
+                      )
+                    }
+                    className={
+                      usersCurrentPage === totalUsersPages
+                        ? "pointer-events-none opacity-50"
+                        : ""
+                    }
+                  />
+                </PaginationItem>
+              </PaginationContent>
+            </Pagination>
+          )}
+
+          {/* User Info Dialog */}
+          <UserInfoDialog
+            selectedUser={selectedUser}
+            showUserInfoDialog={showUserInfoDialog}
+            setShowUserInfoDialog={setShowUserInfoDialog}
+          />
+
+          {/* Change Role Dialog */}
+          <ChangeRoleDialog
+            selectedUser={selectedUser}
+            newRole={newRole}
+            setNewRole={setNewRole}
+            showChangeRoleDialog={showChangeRoleDialog}
+            setShowChangeRoleDialog={setShowChangeRoleDialog}
+            handleChangeUserRole={handleChangeUserRole}
+          />
+
+          {/* User Documents Dialog */}
+          <UserDocumentsDialog
+            showUserDocumentsDialog={showUserDocumentsDialog}
+            setShowUserDocumentsDialog={setShowUserDocumentsDialog}
+            selectedUser={selectedUser}
+            handleDeleteUserDocument={handleDeleteUserDocument}
+          />
         </TabsContent>
 
         {/* Motorcycles Tab */}
@@ -713,7 +1124,8 @@ export default function DashboardPage() {
                             <Image
                               src={
                                 motorcycle?.images[0]?.url ||
-                                "/placeholder.svg?height=48&width=48"
+                                "/placeholder.svg?height=48&width=48" ||
+                                "/placeholder.svg"
                               }
                               alt={`${motorcycle.make} ${motorcycle.vehicleModel}`}
                               fill
@@ -907,22 +1319,26 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
 
-          {totalPages > 1 && (
+          {totalMotorcyclesPages > 1 && (
             <Pagination>
               <PaginationContent>
                 <PaginationItem>
                   <PaginationPrevious
-                    onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                    onClick={() =>
+                      setMotorcyclesCurrentPage((p) => Math.max(p - 1, 1))
+                    }
                     className={
-                      currentPage === 1 ? "pointer-events-none opacity-50" : ""
+                      motorcyclesCurrentPage === 1
+                        ? "pointer-events-none opacity-50"
+                        : ""
                     }
                   />
                 </PaginationItem>
-                {Array.from({ length: totalPages }, (_, i) => (
+                {Array.from({ length: totalMotorcyclesPages }, (_, i) => (
                   <PaginationItem key={i + 1}>
                     <PaginationLink
-                      onClick={() => setCurrentPage(i + 1)}
-                      isActive={currentPage === i + 1}
+                      onClick={() => setMotorcyclesCurrentPage(i + 1)}
+                      isActive={motorcyclesCurrentPage === i + 1}
                     >
                       {i + 1}
                     </PaginationLink>
@@ -931,10 +1347,12 @@ export default function DashboardPage() {
                 <PaginationItem>
                   <PaginationNext
                     onClick={() =>
-                      setCurrentPage((p) => Math.min(p + 1, totalPages))
+                      setMotorcyclesCurrentPage((p) =>
+                        Math.min(p + 1, totalMotorcyclesPages)
+                      )
                     }
                     className={
-                      currentPage === totalPages
+                      motorcyclesCurrentPage === totalMotorcyclesPages
                         ? "pointer-events-none opacity-50"
                         : ""
                     }
@@ -943,14 +1361,6 @@ export default function DashboardPage() {
               </PaginationContent>
             </Pagination>
           )}
-
-          {/* Update Motorcycle Dialog */}
-          <UpdateMotorcycleDialog
-            open={showUpdateMotorcycleDialog}
-            setOpen={setShowUpdateMotorcycleDialog}
-            updateMotorcycleForm={updateMotorcycleForm}
-            onUpdateMotorcycle={onUpdateMotorcycle}
-          />
         </TabsContent>
 
         {/* Coupons Tab */}
@@ -1008,11 +1418,6 @@ export default function DashboardPage() {
                         <TableCell>
                           {log?.dateOut && format(log.dateIn, "MMM dd, yyyy")}
                         </TableCell>
-                        {/* <TableCell>
-                          <div className="max-w-xs truncate">
-                            {log.reportMessage}
-                          </div>
-                        </TableCell> */}
                         <TableCell>
                           <Badge className={getStatusColor(log.status)}>
                             {log.status}
@@ -1118,14 +1523,6 @@ export default function DashboardPage() {
           </div>
         </TabsContent>
       </Tabs>
-
-      {/* Maintenance Dialog */}
-      <MaintenanceDialog
-        open={showMaintenanceDialog}
-        setOpen={setShowMaintenanceDialog}
-        logs={logs}
-        selectedMotorcycle={selectedMotorcycle}
-      />
     </div>
   );
 }

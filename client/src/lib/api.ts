@@ -3,6 +3,7 @@ import {
   ChangeCurrentPasswordFormData,
   LoginFormData,
   SignupFormData,
+  UpdateProfileFormData,
 } from "@/schemas/users.schema";
 import {
   ForgotPasswordFormData,
@@ -51,6 +52,11 @@ export const authAPI = {
   deleteUserAccount: (userId: string) => api.delete(`/users/${userId}`),
   assignRole: (userId: string, data: AssignRoleFormData) =>
     api.post(`/users/profile/assign-role/${userId}`, data),
+  getAllUsers: (params: any) => api.get("/users/all-users", { params }),
+  updateUserProfile: (data: UpdateProfileFormData) =>
+    api.post("/users/profile/update-profile", data),
+  deleteUserDocument: (documentId: string) =>
+    api.delete(`/users/profile/delete-document/${documentId}`),
 };
 
 export const motorcycleAPI = {

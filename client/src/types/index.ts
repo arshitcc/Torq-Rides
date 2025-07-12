@@ -4,6 +4,13 @@ export const UserRolesEnum = {
   SUPPORT: "SUPPORT",
 } as const;
 
+export const DocumentTypes = {
+  E_KYC: "E-KYC",
+  PAN_CARD: "PAN-CARD",
+  AADHAR_CARD: "AADHAR-CARD",
+  DRIVING_LICENSE: "DRIVING-LICENSE",
+}
+
 export const DocumentTypesEnum = {
   E_KYC: "E-KYC",
   PAN_CARD: "PAN-CARD",
@@ -34,8 +41,9 @@ export interface File {
 }
 
 export interface IDocument {
+  _id: string;
   type: DocumentTypes;
-  name: string;
+  name?: string;
   file: File;
 }
 
@@ -44,6 +52,8 @@ export type User = {
   fullname: string;
   email: string;
   username: string;
+  phone: string;
+  address: string;
   password: string;
   loginType: string;
   avatar: File;

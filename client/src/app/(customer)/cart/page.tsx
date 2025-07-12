@@ -1,7 +1,6 @@
 "use client";
 
 import type React from "react";
-
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -105,6 +104,7 @@ export default function CartPage() {
     }
 
     // Fetch user's cart
+    window.scrollTo({ top: 0, behavior: "smooth" });
     getUserCart();
   }, [user, router, getUserCart, isAuthenticated]);
 

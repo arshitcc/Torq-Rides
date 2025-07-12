@@ -382,10 +382,11 @@ const deleteMotorcycle = asyncHandler(
       throw new ApiError(404, "Motorcycle not found");
     }
 
+    for (const image of motorcycle.images) {
+      await deleteFile(image.public_id, image.resource_type);
+    }
+
     await Motorcycle.findByIdAndDelete(motorcycleId);
-    motorcycle.images.forEach((image) => {
-      deleteFile(image.public_id, image.resource_type);
-    });
 
     return res
       .status(200)
