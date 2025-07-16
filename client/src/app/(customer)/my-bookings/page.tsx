@@ -111,7 +111,7 @@ export default function MyBookingsPage() {
               >
                 <Image
                   src={item.motorcycle?.images[0]?.url || "/placeholder.svg"}
-                  alt={`${item.motorcycle.make} ${item.motorcycle.vehicleModel}`}
+                  alt={`${item.motorcycle?.make} ${item.motorcycle?.vehicleModel}`}
                   fill
                   className="object-cover"
                 />
@@ -127,8 +127,8 @@ export default function MyBookingsPage() {
           </div>
           <div>
             <p className="font-medium">
-              {booking.items[0]?.motorcycle.make}{" "}
-              {booking.items[0]?.motorcycle.vehicleModel}
+              {booking.items[0]?.motorcycle?.make}{" "}
+              {booking.items[0]?.motorcycle?.vehicleModel}
             </p>
             {booking.items.length > 1 && (
               <p className="text-sm text-gray-500">
@@ -294,7 +294,7 @@ export default function MyBookingsPage() {
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
-                  <TableBody>{bookings.map(renderBookingRow)}</TableBody>
+                  <TableBody>{bookings && bookings.map(renderBookingRow)}</TableBody>
                 </Table>
               </CardContent>
             </Card>

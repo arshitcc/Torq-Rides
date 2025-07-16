@@ -6,9 +6,8 @@ import {
 import { UserRolesEnum } from "../constants/constants";
 import { upload } from "../middlewares/multer.middleware";
 import {
-  addMotorcycleValidators,
-  getAllMotorcyclesValidtors,
-  updateMotorcycleByIdValidators,
+  addOrUpdateMotorcycleValidators,
+  getAllMotorcyclesValidators,
 } from "../validators/motorcycles.validator";
 import { validate } from "../middlewares/validator.middleware";
 import {
@@ -17,8 +16,8 @@ import {
   addMotorcycle,
   updateMotorcycleDetails,
   deleteMotorcycle,
-  updateMotorcycleAvailability,
   deleteMotorcycleImage,
+  getAllFilters,
 } from "../controllers/motorcycles.controller";
 import logsRouter from "./motorcycle-logs.route";
 import { mongoIdPathVariableValidator } from "../validators/common/mongodb/mongodb.validators";
@@ -27,15 +26,16 @@ const router = Router();
 
 router
   .route("/")
-  .get(getAllMotorcyclesValidtors(), validate, getAllMotorcycles)
+  .get(getAllMotorcyclesValidators(), validate, getAllMotorcycles)
   .post(
     authenticateUser,
     verifyPermission([UserRolesEnum.ADMIN]),
     upload.array("images", 5),
-    addMotorcycleValidators(),
+    addOrUpdateMotorcycleValidators(),
     validate,
     addMotorcycle,
   );
+router.route("/filters").get(getAllFilters);
 
 router.use("/logs", logsRouter);
 
@@ -45,13 +45,6 @@ router
     mongoIdPathVariableValidator("motorcycleId"),
     validate,
     getMotorcycleById,
-  )
-  .post(
-    authenticateUser,
-    verifyPermission([UserRolesEnum.ADMIN]),
-    mongoIdPathVariableValidator("motorcycleId"),
-    validate,
-    updateMotorcycleAvailability,
   )
   .patch(
     authenticateUser,
@@ -63,9 +56,9 @@ router
   .put(
     authenticateUser,
     verifyPermission([UserRolesEnum.ADMIN]),
-    mongoIdPathVariableValidator("motorcycleId"),
     upload.array("images", 5),
-    updateMotorcycleByIdValidators(),
+    mongoIdPathVariableValidator("motorcycleId"),
+    addOrUpdateMotorcycleValidators(),
     validate,
     updateMotorcycleDetails,
   )

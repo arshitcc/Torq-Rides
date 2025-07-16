@@ -37,6 +37,7 @@ export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
+    setError(null);
     if (isAuthenticated) {
       router.push("/");
     }

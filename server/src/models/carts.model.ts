@@ -1,9 +1,11 @@
 import mongoose from "mongoose";
-import { IMotorcycle } from "./motorcycles.model";
+import { AvailableInCities, IMotorcycle } from "./motorcycles.model";
 
 export interface ICartItem {
   motorcycleId: mongoose.Types.ObjectId;
   quantity: number;
+  pickupLocation: AvailableInCities;
+  dropoffLocation: AvailableInCities;
   pickupDate: Date;
   dropoffDate: Date;
   pickupTime: string;
@@ -50,6 +52,16 @@ const cartSchema = new mongoose.Schema<ICart>(
           },
           dropoffTime: {
             type: String,
+            required: true,
+          },
+          pickupLocation: {
+            type: String,
+            enum: AvailableInCities,
+            required: true,
+          },
+          dropoffLocation: {
+            type: String,
+            enum: AvailableInCities,
             required: true,
           },
         },

@@ -49,74 +49,33 @@ import {
   SelectTrigger,
   SelectValue,
 } from "./ui/select";
-
-const bikeCategories = [
-  { name: "Royal Enfield Rentals", href: "/motorcycles?make=Royal Enfield" },
-  { name: "KTM Rentals", href: "/motorcycles?make=KTM" },
-  { name: "BMW Rentals", href: "/motorcycles?make=BMW" },
-  { name: "Triumph Rentals", href: "/motorcycles?make=Triumph" },
-  { name: "Superbike Rentals", href: "/motorcycles?category=SPORTS" },
-  { name: "Adventure Motorcycles", href: "/motorcycles?category=ADVENTURE" },
-];
-
-const carCategories = [
-  { name: "Budget", href: "/cars/budget" },
-  { name: "Premium", href: "/cars/premium" },
-  { name: "Luxury", href: "/cars/luxury" },
-  { name: "SUVs", href: "/cars/suvs" },
-  { name: "Off-roaders", href: "/cars/off-road" },
-  { name: "Vans", href: "/cars/vans" },
-];
-
-const tourCategories = [
-  { name: "Guided Tours", href: "/tours?category=guided-tours" },
-  { name: "Self-Riding Tours", href: "/tours?category=self-riding" },
-  { name: "Corporate Tours", href: "/tours?category=corporate-tours" },
-];
-
-const offRoadCategories = [
-  { name: "Aravali Trail Rides", href: "/off-roads/aravali-trail-rides" },
-  { name: "Off-Road Adventure Park", href: "/off-roads/adventure-park" },
-];
-
-const locations = [
-  { name: "Gurgaon", href: "/locations/gurgaon" },
-  { name: "Delhi", href: "/locations/delhi" },
-];
+import {
+  bikeCategories,
+  carCategories,
+  tourCategories,
+  offRoadCategories,
+} from "@/data";
+import { useMotorcycleStore } from "@/store/motorcycle-store";
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
   const { user, logout } = useAuthStore();
-  const { cart } = useCartStore();
-
-  const [isSticky, setIsSticky] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      if (currentScrollY < lastScrollY) {
-        setIsSticky(true);
-      } else {
-        setIsSticky(false);
-      }
-
-      setLastScrollY(currentScrollY);
-    };
-
-    window.addEventListener("scroll", handleScroll);
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
-  }, [lastScrollY]);
+  const { getAllFilters } = useMotorcycleStore();
+  const { cart, pickupLocation } = useCartStore();
+  const { filters } = useMotorcycleStore();
 
   const handleLogout = async () => {
     await logout();
     window.localStorage.clear();
     router.push("/");
   };
+
+  const branches = filters.distinctCities;
+
+  useEffect(() => {
+    getAllFilters();
+  }, []);
 
   const getInitials = (fullname: string) => {
     const names = fullname?.split(" ");
@@ -148,11 +107,7 @@ export function Navbar() {
   const cartItemsCount = cart?.items?.length || 0;
 
   return (
-    <nav
-      className={`bg-background/95 backdrop-blur supports-[backdrop-filter]:dark:bg-background/60 ${
-        isSticky ? "sticky top-0 z-60" : ""
-      }`}
-    >
+    <nav className="bg-background/95 backdrop-blur supports-[backdrop-filter]:dark:bg-background/60 sticky top-0 z-50">
       <div className="container mx-auto px-6">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center">
@@ -168,8 +123,14 @@ export function Navbar() {
                 {/* Bikes Menu */}
                 <NavigationMenuItem>
                   <NavigationMenuTrigger className="text-sm font-medium hover:text-yellow-primary">
-                    Bikes
+                    <NavigationMenuLink
+                      href="/motorcycles"
+                      className="hover:text-yellow-primary"
+                    >
+                      Bikes
+                    </NavigationMenuLink>
                   </NavigationMenuTrigger>
+
                   <NavigationMenuContent>
                     <div className="grid grid-cols-2 w-[500px] gap-3 p-4">
                       {bikeCategories.map((category) => (
@@ -192,7 +153,12 @@ export function Navbar() {
                 {/* Cars Menu */}
                 <NavigationMenuItem>
                   <NavigationMenuTrigger className="text-sm font-medium hover:text-yellow-primary">
-                    Cars
+                    <NavigationMenuLink
+                      href="/cars"
+                      className="hover:text-yellow-primary"
+                    >
+                      Cars
+                    </NavigationMenuLink>
                   </NavigationMenuTrigger>
                   <NavigationMenuContent>
                     <div className="grid grid-cols-2 w-[300px] gap-3 p-4">
@@ -216,7 +182,12 @@ export function Navbar() {
                 {/* Tours Menu */}
                 <NavigationMenuItem>
                   <NavigationMenuTrigger className="text-sm font-medium hover:text-yellow-primary">
-                    Tours
+                    <NavigationMenuLink
+                      href="/tours"
+                      className="hover:text-yellow-primary"
+                    >
+                      Tours
+                    </NavigationMenuLink>
                   </NavigationMenuTrigger>
                   <NavigationMenuContent>
                     <div className="grid w-[300px] gap-3 p-4">
@@ -240,7 +211,12 @@ export function Navbar() {
                 {/* Off-road Menu */}
                 <NavigationMenuItem>
                   <NavigationMenuTrigger className="text-sm font-medium hover:text-yellow-primary">
-                    Off-road
+                    <NavigationMenuLink
+                      href="/off-roads"
+                      className="hover:text-yellow-primary"
+                    >
+                      Off-Road
+                    </NavigationMenuLink>
                   </NavigationMenuTrigger>
                   <NavigationMenuContent>
                     <div className="grid w-[300px] gap-3 p-4">
@@ -276,17 +252,18 @@ export function Navbar() {
           <div className="hidden lg:flex items-center space-x-4">
             {/* Location */}
             <div className="flex items-center space-x-1 text-sm text-muted-foreground">
-              <Select>
-                <SelectTrigger className="w-[180px] text-black dark:text-white">
+              <Select defaultValue={pickupLocation}>
+                <SelectTrigger className="w-[200px] text-black dark:text-white">
                   <MapPinIcon className="h-4 w-4 text-yellow-primary" />
                   <SelectValue placeholder="Select Location" />
                 </SelectTrigger>
                 <SelectContent className="z-60">
-                  {locations.map((location) => (
-                    <SelectItem key={location.href} value={location.href}>
-                      {location.name}
-                    </SelectItem>
-                  ))}
+                  {branches &&
+                    branches.map((location) => (
+                      <SelectItem key={location} value={location}>
+                        {location}
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>

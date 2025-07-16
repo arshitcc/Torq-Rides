@@ -58,8 +58,11 @@ interface BookingDetails {
   motorcycles: Array<{
     make: string;
     model: string;
-    pickupDate: string;
-    dropoffDate: string;
+    quantity: number;
+    pickupDate: Date;
+    dropoffDate: Date;
+    pickupLocation: string;
+    dropoffLocation: string;
   }>;
 }
 
@@ -211,11 +214,11 @@ export default function CartPage() {
                 motorcycles: cart.items.map((item) => ({
                   make: item.motorcycle.make,
                   model: item.motorcycle.vehicleModel,
-                  pickupDate: format(new Date(item.pickupDate), "MMM dd, yyyy"),
-                  dropoffDate: format(
-                    new Date(item.dropoffDate),
-                    "MMM dd, yyyy"
-                  ),
+                  pickupDate: item.pickupDate,
+                  dropoffDate: item.dropoffDate,
+                  quantity: item.quantity,
+                  pickupLocation: item.pickupLocation,
+                  dropoffLocation: item.dropoffLocation,
                 })),
               });
 
@@ -395,7 +398,10 @@ export default function CartPage() {
                               {motorcycle.make} {motorcycle.model}
                             </p>
                             <p className="text-sm text-gray-600 dark:text-gray-300">
-                              {motorcycle.pickupDate} - {motorcycle.dropoffDate}
+                              {differenceInDays(
+                                motorcycle.dropoffDate,
+                                motorcycle.pickupDate
+                              )}
                             </p>
                           </div>
                           <Badge variant="secondary">Confirmed</Badge>
@@ -621,7 +627,7 @@ export default function CartPage() {
                               {item.motorcycle.vehicleModel}
                             </h3>
                             <Badge variant="secondary" className="mt-1">
-                              {item.motorcycle.category}
+                              {item.motorcycle.categories[0]}
                             </Badge>
                           </Link>
                           <Button
@@ -957,6 +963,7 @@ export default function CartPage() {
                 {/* Terms and Conditions */}
                 <div className="flex items-center space-x-2">
                   <Checkbox
+                    className="border-1 border-yellow-400 data-[state=checked]:border-transparent data-[state=checked]:bg-yellow-500"
                     id="terms"
                     checked={agreeToTerms}
                     onCheckedChange={() => setAgreeToTerms((prev) => !prev)}

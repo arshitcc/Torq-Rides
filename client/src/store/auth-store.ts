@@ -294,7 +294,6 @@ export const useAuthStore = create<AuthState>()(
         set({ loading: true, error: null });
         try {
           const res = await authAPI.updateUserProfile(data);
-          console.log(res);
           set({ user: res.data.data });
         } catch (error: AxiosError | any) {
           set({

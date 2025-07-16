@@ -76,6 +76,10 @@ export const motorcycleAPI = {
   deleteMotorcycle: (motorcycleId: string) =>
     api.delete(`/motorcycles/${motorcycleId}`),
 
+  deleteMotorcycleImage: (motorcycleId: string, imageId: string) =>
+    api.patch(`/motorcycles/${motorcycleId}`, { imageId }),
+
+  getAllFilters: () => api.get("/motorcycles/filters"),
   // Motorcycle-Logs API
 
   getAllMotorcycleLogs: (params?: any) =>
@@ -97,15 +101,10 @@ export const motorcycleAPI = {
 
   deleteMotorcycleLog: (motorcycleId: string, logId: string) =>
     api.delete(`/motorcycles/logs/${motorcycleId}/${logId}`),
-
-  deleteMotorcycleImage: (motorcycleId: string, imageId: string) =>
-    api.patch(`/motorcycles/${motorcycleId}`, { imageId }),
 };
 
 export const bookingAPI = {
   getAllBookings: (params?: any) => api.get("/bookings", { params }),
-
-  createBooking: (data: any) => api.post("/bookings", data),
 
   modifyBooking: (bookingId: string, data: any) =>
     api.put(`/bookings/${bookingId}`, data),

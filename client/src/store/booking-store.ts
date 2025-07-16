@@ -18,7 +18,6 @@ interface BookingState {
   setMetadata: (metadata: any) => void;
   // API functions
   getAllBookings: (params?: any) => Promise<void>;
-  createBooking: (data: any) => Promise<boolean>;
   modifyBooking: (bookingId: string, data: any) => Promise<void>;
   cancelBooking: (bookingId: string) => Promise<void>;
 
@@ -56,28 +55,6 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       set({
         loading: false,
         error: error.response?.data?.message || "Failed to fetch bookings",
-      });
-      throw error;
-    }
-  },
-
-  createBooking: async (data) => {
-    set({ loading: true, error: null });
-    try {
-      const response = await bookingAPI.createBooking(data);
-      const newBooking = response.data;
-      if (response.data.success) {
-        set((state) => ({
-          bookings: [...state.bookings, newBooking],
-          loading: false,
-        }));
-        return true;
-      }
-      return false;
-    } catch (error: AxiosError | any) {
-      set({
-        loading: false,
-        error: error.response?.data?.message || "Failed to create booking",
       });
       throw error;
     }

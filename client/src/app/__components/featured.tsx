@@ -8,9 +8,10 @@ import {
   CarouselContent,
   CarouselItem,
 } from "@/components/ui/carousel";
+import Link from "next/link";
 
 export default function FeaturedBrands() {
-  const [logos, setLogos] = useState<string[]>([]);
+  const [logos, setLogos] = useState<{ brand: string; img: string }[]>([]);
   const autoplay = Autoplay({ delay: 1500, stopOnInteraction: false });
 
   useEffect(() => {
@@ -19,9 +20,11 @@ export default function FeaturedBrands() {
         if (!res.ok) throw new Error("Network response was not ok");
         return res.json();
       })
-      .then((data: { featuredBikesImages: string[] }) => {
-        setLogos(data.featuredBikesImages);
-      })
+      .then(
+        (data: { featuredBikesImages: { brand: string; img: string }[] }) => {
+          setLogos(data.featuredBikesImages);
+        }
+      )
       .catch((err) => {
         console.error("Error fetching logo data:", err);
       });
@@ -36,7 +39,7 @@ export default function FeaturedBrands() {
           Featured Brands
         </h2>
         <p className="text-gray-600 dark:text-gray-400">
-          Check out our top motorcycle brands
+          Choose motorcycles from your loved manufacturer
         </p>
       </div>
 
@@ -49,18 +52,20 @@ export default function FeaturedBrands() {
       >
         <CarouselContent className="overflow-visible space-x-4">
           {logos?.length > 0 &&
-            logos.map((src, idx) => (
+            logos.map((logo, idx) => (
               <CarouselItem
                 key={idx}
                 className="basis-1/3 sm:basis-1/5 flex items-center justify-center p-4"
               >
-                <Image
-                  src={src}
-                  alt={`Brand logo ${idx + 1}`}
-                  width={160}
-                  height={240}
-                  className="object-contain mix-blend-color"
-                />
+                <Link href={`/motorcycles?make=${logo.brand}`}>
+                  <Image
+                    src={logo.img}
+                    alt={`Brand logo ${idx + 1}`}
+                    width={160}
+                    height={240}
+                    className="object-contain mix-blend-color"
+                  />
+                </Link>
               </CarouselItem>
             ))}
         </CarouselContent>

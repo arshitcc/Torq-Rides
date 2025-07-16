@@ -153,6 +153,7 @@ export default function DashboardPage() {
     getAllMotorcycles,
     updateMotorcycleAvailability,
     deleteMotorcycle,
+    filters,
   } = useMotorcycleStore();
   const {
     coupons,
@@ -472,8 +473,9 @@ export default function DashboardPage() {
     Math.ceil(motorcycleMetadata?.total / itemsPerPage) || 1;
   const totalUsersPages = Math.ceil(userMetadata?.total / itemsPerPage) || 1;
 
-  const makes = AvailableMotorcycleMakes;
-  const categories = AvailableMotorcycleCategories;
+  const makes = filters.makes;
+  const categories = filters.categories;
+  const branches = filters.distinctCities;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -1034,7 +1036,7 @@ export default function DashboardPage() {
 
               <div>
                 <Label className="block text-sm font-medium text-gray-700 mb-1">
-                  Avaialability
+                  Branch
                 </Label>
 
                 <Select
@@ -1047,25 +1049,24 @@ export default function DashboardPage() {
                     <SelectValue placeholder="Select Avalability" />
                   </SelectTrigger>
                   <SelectContent className="rounded-lg shadow-lg">
-                    <SelectItem value="all">All</SelectItem>
-                    <SelectItem key={"Available"} value={"true"}>
-                      Avaialable
-                    </SelectItem>
-                    <SelectItem key={"Not Available"} value={"false"}>
-                      Not Available
-                    </SelectItem>
+                    <SelectItem value="all">All Branches</SelectItem>
+                    {branches.map((l) => (
+                      <SelectItem key={l} value={l}>
+                        {l}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
 
               {/* Category Select */}
               <div>
-                <label
+                <Label
                   htmlFor="category-select"
                   className="block text-sm font-medium text-gray-700 mb-1"
                 >
                   Category
-                </label>
+                </Label>
                 <Select
                   value={selectedCategory}
                   onValueChange={(value) =>
@@ -1101,9 +1102,7 @@ export default function DashboardPage() {
                 <TableHeader className="text-md py-2 font-semibold hover:bg-white dark:hover:bg-[#18181B]">
                   <TableRow className="hover:bg-white dark:hover:bg-[#18181B]">
                     <TableHead>Motorcycle</TableHead>
-                    <TableHead>Category</TableHead>
                     <TableHead>Rent/Day</TableHead>
-                    <TableHead>Status</TableHead>
                     <TableHead>Available Quantity</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -1129,34 +1128,15 @@ export default function DashboardPage() {
                             <div className="font-medium">
                               {motorcycle.make} {motorcycle.vehicleModel}
                             </div>
-                            <div className="text-sm text-gray-500">
-                              {motorcycle.year} • {motorcycle.variant}
-                            </div>
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="secondary"
-                          className="bg-yellow-primary/10 text-yellow-primary"
-                        >
-                          {motorcycle.category}
-                        </Badge>
-                      </TableCell>
                       <TableCell>₹{motorcycle.rentPerDay}</TableCell>
-                      <TableCell>
-                        <Badge
-                          className={
-                            motorcycle.isAvailable
-                              ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                              : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-                          }
-                        >
-                          {motorcycle.isAvailable ? "Available" : "Unavailable"}
-                        </Badge>
-                      </TableCell>
                       <TableCell className="text-center">
-                        {motorcycle.availableQuantity}
+                        {motorcycle.availableInCities.reduce(
+                          (acc, prev) => prev.quantity + acc,
+                          0
+                        )}
                       </TableCell>
                       <TableCell>
                         <div className="flex space-x-2">
@@ -1198,62 +1178,6 @@ export default function DashboardPage() {
                               </TooltipTrigger>
                               <TooltipContent>
                                 <p>Show Logs</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      className="cursor-pointer border-yellow-primary/30 hover:bg-yellow-primary/10 bg-transparent"
-                                    >
-                                      {motorcycle.isAvailable ? (
-                                        <PowerOffIcon className="h-4 w-4" />
-                                      ) : (
-                                        <PowerIcon className="h-4 w-4" />
-                                      )}
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>
-                                        Change Availability
-                                      </AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Are you sure you want to mark this
-                                        motorcycle as{" "}
-                                        {motorcycle.isAvailable
-                                          ? "unavailable"
-                                          : "available"}
-                                        ?
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>
-                                        Cancel
-                                      </AlertDialogCancel>
-                                      <AlertDialogAction
-                                        onClick={() =>
-                                          handleToggleAvailability(
-                                            motorcycle._id,
-                                            !motorcycle.isAvailable
-                                          )
-                                        }
-                                        className="bg-yellow-primary hover:bg-yellow-600 text-black"
-                                      >
-                                        Confirm
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Change Availability</p>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>

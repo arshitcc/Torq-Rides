@@ -27,16 +27,17 @@
     }
   ],
   "featuredBikesImages": [
-    "/home/featured/bmw-seeklogo.png",
-    "/home/featured/hero-seeklogo.png",
-    "/home/featured/honda-seeklogo.png",
-    "/home/featured/kawasaki-seeklogo.png",
-    "/home/featured/ktm-seeklogo.png",
-    "/home/featured/suzuki-seeklogo.png",
-    "/home/featured/triumph-motorcycles-seeklogo.png",
-    "/home/featured/yamaha-seeklogo.png",
-    "/home/featured/aprilia-seeklogo.png",
-    "/home/featured/bajaj-motorcycle-seeklogo.png",
-    "/home/featured/tvs-seeklogo.png"
+    {"brand" : "BMW", "img" : "/home/featured/bmw-seeklogo.png"},
+    {"brand" : "Hero", "img" : "/home/featured/hero-seeklogo.png"},
+    {"brand" : "Honda", "img" : "/home/featured/honda-seeklogo.png"},
+    {"brand" : "Kawasaki", "img" : "/home/featured/kawasaki-seeklogo.png"},
+    {"brand" : "KTM", "img" : "/home/featured/ktm-seeklogo.png"},
+    {"brand" : "Royal Enfield", "img" : "/home/featured/royal-enfield-seeklogo.png"},
+    {"brand" : "Suzuki", "img" : "/home/featured/suzuki-seeklogo.png"},
+    {"brand" : "Triumph", "img" : "/home/featured/triumph-motorcycles-seeklogo.png"},
+    {"brand" : "Yamaha", "img" : "/home/featured/yamaha-seeklogo.png"},
+    {"brand" : "Aprilia", "img" : "/home/featured/aprilia-seeklogo.png"},
+    {"brand" : "Bajaj", "img" : "/home/featured/bajaj-motorcycle-seeklogo.png"},
+    {"brand" : "TVS", "img" : "/home/featured/tvs-seeklogo.png"}
   ]
 }

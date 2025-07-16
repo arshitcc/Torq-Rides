@@ -13,15 +13,12 @@ export const MotorcycleCategoryEnum = {
   CRUISER: "CRUISER",
   ADVENTURE: "ADVENTURE",
   SCOOTER: "SCOOTER",
+  SUPERBIKE: "SUPERBIKE",
 } as const;
 
 export const AvailableInCitiesEnum = {
-  JANAKPURI: "JANAKPURI",
-  GURUGRAM_MGROAD: "GURUGRAM-MGROAD",
-  GURUGRAM_FARIDABAD: "GURUGRAM-FARIDABAD",
-  DELHI: "DELHI",
-  NOIDA: "NOIDA",
-  NEW_DELHI: "NEW DELHI",
+  JANAKPURI: "Janak Puri, Delhi",
+  MGROAD: "MG Road, Gurgaon",
 } as const;
 
 export const AvailableMotorcycleStatus = Object.values(MotorcycleStatusEnum);
@@ -44,19 +41,16 @@ export interface File {
 export interface IMotorcycle extends mongoose.Document {
   make: string;
   vehicleModel: string;
-  registrationNumber: string;
-  year: number;
   rentPerDay: number;
   description: string;
-  category: MotorcycleCategory;
-  availableInCities: AvailableInCities[];
+  categories: MotorcycleCategory[];
+  availableInCities: { branch: AvailableInCities; quantity: number }[];
   specs: {
-    engine: string;
-    power: string;
-    weight: string;
+    engine: number;
+    power: number;
+    weight: number;
+    seatHeight: number;
   };
-  isAvailable: boolean;
-  availableQuantity: number;
   variant: string;
   color: string;
   securityDeposit: number;
@@ -76,14 +70,6 @@ const motorcycleSchema = new mongoose.Schema<IMotorcycle>(
       type: String,
       required: true,
     },
-    registrationNumber: {
-      type: String,
-      required: true,
-    },
-    year: {
-      type: Number,
-      required: true,
-    },
     rentPerDay: {
       type: Number,
       required: true,
@@ -92,38 +78,52 @@ const motorcycleSchema = new mongoose.Schema<IMotorcycle>(
       type: String,
       required: true,
     },
-    category: {
-      type: String,
-      enum: AvailableMotorcycleCategories,
-      required: true,
-    },
+    categories: [
+      {
+        type: String,
+        enum: AvailableMotorcycleCategories,
+        required: true,
+      },
+    ],
     specs: {
       engine: {
-        type: String,
+        type: Number,
         required: true,
+        min: 0,
+        default: 0,
       },
       power: {
-        type: String,
+        type: Number,
         required: true,
+        min: 0,
+        default: 0,
       },
       weight: {
-        type: String,
+        type: Number,
         required: true,
+        min: 0,
+        default: 0,
       },
-    },
-    isAvailable: {
-      type: Boolean,
-      default: true,
-    },
-    availableQuantity: {
-      type: Number,
-      default: 0,
+      seatHeight: {
+        type: Number,
+        required: true,
+        min: 0,
+        default: 0,
+      },
     },
     availableInCities: [
       {
-        type: String,
-        enum: AvailableInCities,
-        required: true,
+        branch: {
+          type: String,
+          enum: AvailableInCities,
+          required: true,
+        },
+        quantity: {
+          type: Number,
+          required: true,
+          min: 0,
+          default: 0,
+        },
       },
     ],
     variant: {

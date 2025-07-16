@@ -9,14 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Form,
   FormControl,
@@ -31,20 +23,29 @@ import { toast } from "sonner";
 import {
   addMotorcycleSchema,
   UpdateMotorcycleFormData,
+  updateMotorcycleSchema,
   type AddMotorcycleFormData,
 } from "@/schemas/motorcycles.schema";
 import { useRouter, useParams } from "next/navigation";
-import { ArrowLeftIcon, PlusIcon, XIcon, Loader2Icon } from "lucide-react";
+import {
+  ArrowLeftIcon,
+  PlusIcon,
+  XIcon,
+  Loader2Icon,
+  Trash2Icon,
+} from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import { File as IFile, UserRolesEnum } from "@/types";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export default function EditMotorcyclePage() {
   const { user, isAuthenticated } = useAuthStore();
   const {
     motorcycle,
     updateMotorcycleDetails,
-    updateMotorcycleAvailability,
+    filters,
     deleteMotorcycleImage,
     getMotorcycleById,
     loading,
@@ -57,29 +58,31 @@ export default function EditMotorcyclePage() {
   const [newImages, setNewImages] = useState<File[]>([]);
   const [mainImage, setMainImage] = useState<IFile | null>(null);
   const [deletingImage, setDeletingImage] = useState<string | null>(null);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [branchQuantities, setBranchQuantities] = useState<
+    { branch: string; quantity: number }[]
+  >([]);
 
   const form = useForm<AddMotorcycleFormData>({
     resolver: zodResolver(addMotorcycleSchema),
     defaultValues: {
       make: motorcycle?.make || "",
       vehicleModel: motorcycle?.vehicleModel || "",
-      year: motorcycle?.year || new Date().getFullYear(),
-      registrationNumber: motorcycle?.registrationNumber || "",
+      availableInCities: motorcycle?.availableInCities || [],
       rentPerDay: motorcycle?.rentPerDay || 0,
       description: motorcycle?.description || "",
-      category: motorcycle?.category || "TOURING",
+      categories: motorcycle?.categories || [],
       variant: motorcycle?.variant || "",
       color: motorcycle?.color || "",
       securityDeposit: motorcycle?.securityDeposit || 0,
       kmsLimitPerDay: motorcycle?.kmsLimitPerDay || 0,
       extraKmsCharges: motorcycle?.extraKmsCharges || 0,
-      availableQuantity: motorcycle?.availableQuantity || 1,
       specs: {
-        engine: motorcycle?.specs.engine || "",
-        power: motorcycle?.specs.power || "",
-        weight: motorcycle?.specs.weight || "",
+        engine: motorcycle?.specs.engine || 0,
+        power: motorcycle?.specs.power || 0,
+        weight: motorcycle?.specs.weight || 0,
+        seatHeight: motorcycle?.specs.seatHeight || 0,
       },
-      isAvailable: motorcycle?.isAvailable || true,
     },
   });
 
@@ -103,29 +106,28 @@ export default function EditMotorcyclePage() {
     form.reset({
       make: motorcycle.make,
       vehicleModel: motorcycle.vehicleModel,
-      year: motorcycle.year,
+      categories: motorcycle.categories,
       rentPerDay: motorcycle.rentPerDay,
-      registrationNumber: motorcycle.registrationNumber,
       description: motorcycle.description,
-      category: motorcycle.category,
       variant: motorcycle.variant,
       color: motorcycle.color,
       securityDeposit: motorcycle.securityDeposit,
       kmsLimitPerDay: motorcycle.kmsLimitPerDay,
       extraKmsCharges: motorcycle.extraKmsCharges,
-      availableQuantity: motorcycle.availableQuantity,
       specs: {
         engine: motorcycle.specs.engine,
         power: motorcycle.specs.power,
         weight: motorcycle.specs.weight,
+        seatHeight: motorcycle.specs.seatHeight,
       },
-      isAvailable: motorcycle.isAvailable,
     });
 
     // populate your image state
+
+    setBranchQuantities(motorcycle.availableInCities);
+    setSelectedCategories(motorcycle.categories);
     if (motorcycle?.images?.length) {
       setSelectedImages(motorcycle?.images);
-      setMainImage(motorcycle?.images[0]);
     } else {
       setSelectedImages([]);
       setMainImage(null);
@@ -170,20 +172,43 @@ export default function EditMotorcyclePage() {
     }
   };
 
-  const handleAvailabilityChange = async (isAvailable: boolean) => {
-    try {
-      await updateMotorcycleAvailability(motorcycleId, { isAvailable });
-      form.setValue("isAvailable", isAvailable);
-      toast.success(
-        `Motorcycle ${isAvailable ? "enabled" : "disabled"} successfully`
-      );
-    } catch (error) {
-      toast.error("Failed to update availability");
+  const handleCategoryChange = (category: string, checked: boolean) => {
+    if (checked) {
+      setSelectedCategories((prev) => [...prev, category]);
+    } else {
+      setSelectedCategories((prev) => prev.filter((c) => c !== category));
     }
+  };
+
+  const handleBranchQuantityChange = (branch: string, quantity: number) => {
+    setBranchQuantities((prev) =>
+      prev.map((item) =>
+        item.branch === branch ? { ...item, quantity } : item
+      )
+    );
+  };
+
+  const removeBranch = (branch: string) => {
+    setBranchQuantities((prev) =>
+      prev.filter((item) => item.branch !== branch)
+    );
   };
 
   const onSubmit = async (data: UpdateMotorcycleFormData) => {
     try {
+      const res = updateMotorcycleSchema.safeParse(data);
+      if (!res.success) {
+        toast.error(res.error.issues[0].message);
+        return;
+      }
+
+      const validBranches = branchQuantities.filter(
+        (item) => item.quantity > 0
+      );
+      if (validBranches.length === 0) {
+        toast.error("Please set quantity for at least one branch.");
+        return;
+      }
       const formData = new FormData();
 
       // Add new images if any
@@ -191,12 +216,18 @@ export default function EditMotorcyclePage() {
         formData.append(`images`, image);
       });
 
-      // Add form data
-      Object.entries(data).forEach(([key, value]) => {
+      const submitData = {
+        ...data,
+        categories: selectedCategories,
+        availableInCities: validBranches,
+      };
+
+      Object.entries(submitData).forEach(([key, value]) => {
         if (key === "specs" && typeof value === "object") {
           formData.append(key, JSON.stringify(value));
-        } else if (key !== "isAvailable") {
-          // Handle availability separately
+        } else if (key === "categories" || key === "availableInCities") {
+          formData.append(key, JSON.stringify(value));
+        } else {
           formData.append(key, value.toString());
         }
       });
@@ -222,6 +253,8 @@ export default function EditMotorcyclePage() {
   if (!user || user.role !== UserRolesEnum.ADMIN) {
     return null;
   }
+
+  const availableCategories = filters.categories;
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
@@ -295,30 +328,7 @@ export default function EditMotorcyclePage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="year"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Year *</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            onChange={(e) => {
-                              if (e.target.value.length > 4) return;
-                              const val = Number(e.target.value);
-                              if (isNaN(val)) field.onChange(1);
-                              if (!isNaN(val) && val >= 0) field.onChange(val);
-                              else field.onChange(0);
-                            }}
-                            className="border-yellow-primary/30 focus:border-yellow-primary"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="variant"
@@ -355,74 +365,54 @@ export default function EditMotorcyclePage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="registrationNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Registration Number *</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="e.g., UP12AB1234"
-                            {...field}
-                            className="border-yellow-primary/30 focus:border-yellow-primary"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="category"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Category *</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">
+                    Categories *
+                  </Label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {availableCategories.map((category) => (
+                      <div
+                        key={category}
+                        className="flex items-center space-x-2"
+                      >
+                        <Checkbox
+                          id={`category-${category}`}
+                          checked={selectedCategories.includes(category)}
+                          onCheckedChange={(checked) =>
+                            handleCategoryChange(category, checked as boolean)
+                          }
+                          className="data-[state=checked]:border-transparent data-[state=checked]:bg-yellow-500"
+                        />
+                        <Label
+                          htmlFor={`category-${category}`}
+                          className="text-sm"
                         >
-                          <FormControl className="w-full">
-                            <SelectTrigger className="border-yellow-primary/30 focus:border-yellow-primary">
-                              <SelectValue placeholder="Select category" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="TOURING">Touring</SelectItem>
-                            <SelectItem value="SPORTS">Sports</SelectItem>
-                            <SelectItem value="CRUISER">Cruiser</SelectItem>
-                            <SelectItem value="ADVENTURE">Adventure</SelectItem>
-                            <SelectItem value="SCOOTER">Scooter</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="availableQuantity"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Available Quantity *</FormLabel>
-                        <FormControl>
-                          <Input
-                            min="1"
-                            {...field}
-                            onChange={(e) => {
-                              const val = Number(e.target.value);
-                              if (isNaN(val)) field.onChange(1);
-                              if (!isNaN(val) && val >= 0) field.onChange(val);
-                              else field.onChange(0);
-                            }}
-                            className="border-yellow-primary/30 focus:border-yellow-primary"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                          {category}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                  {selectedCategories.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {selectedCategories.map((category) => (
+                        <span
+                          key={category}
+                          className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-800"
+                        >
+                          {category}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleCategoryChange(category, false)
+                            }
+                            className="ml-1 text-yellow-600 hover:text-yellow-800"
+                          >
+                            <XIcon className="h-3 w-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <FormField
@@ -609,6 +599,45 @@ export default function EditMotorcyclePage() {
                 </div>
               </div>
 
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-yellow-primary">
+                    Branch Availability
+                  </h3>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {branchQuantities.map((item) => (
+                    <div
+                      key={item.branch}
+                      className="flex items-center space-x-3"
+                    >
+                      <Label className="w-1/2">{item.branch}</Label>
+                      <Input
+                        min="0"
+                        placeholder="0"
+                        value={item.quantity}
+                        onChange={(e) =>
+                          handleBranchQuantityChange(
+                            item.branch,
+                            Number(e.target.value)
+                          )
+                        }
+                        className="border-yellow-primary/30 focus:border-yellow-primary"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeBranch(item.branch)}
+                        className="text-red-600 hover:text-red-700 border-red-300 hover:bg-red-50"
+                      >
+                        <Trash2Icon className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               {/* Images Management */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-yellow-primary">
@@ -622,35 +651,11 @@ export default function EditMotorcyclePage() {
                       Current Images
                     </label>
 
-                    {/* Main Image */}
-                    {mainImage && (
-                      <div className="mb-4">
-                        <p className="text-sm text-gray-600 mb-2">
-                          Main Image:
-                        </p>
-                        <div className="relative inline-block">
-                          <Image
-                            src={mainImage.url || "/placeholder.svg"}
-                            alt="Main motorcycle image"
-                            width={200}
-                            height={150}
-                            className="rounded-lg object-cover border-2 border-yellow-primary/50"
-                          />
-                          <div className="absolute top-2 left-2 bg-yellow-primary text-black px-2 py-1 rounded text-xs font-medium">
-                            Main
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
                     {/* Other Images */}
-                    {selectedImages.length > 1 && (
+                    {selectedImages.length > 0 && (
                       <div>
-                        <p className="text-sm text-gray-600 mb-2">
-                          Other Images:
-                        </p>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                          {selectedImages.slice(1).map((image, index) => (
+                          {selectedImages.map((image, index) => (
                             <div
                               key={image.public_id}
                               className="relative group"
@@ -732,33 +737,6 @@ export default function EditMotorcyclePage() {
                   )}
                 </div>
               </div>
-
-              {/* Availability */}
-              <FormField
-                control={form.control}
-                name="isAvailable"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border border-yellow-primary/20 p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-base">
-                        Available for Rent
-                      </FormLabel>
-                      <div className="text-sm text-muted-foreground">
-                        Make this motorcycle available for customers to book
-                      </div>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={(checked) => {
-                          field.onChange(checked);
-                          handleAvailabilityChange(checked);
-                        }}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
 
               <div className="flex gap-4 pt-6">
                 <Link href="/dashboard">

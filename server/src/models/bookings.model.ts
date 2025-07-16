@@ -43,7 +43,6 @@ export interface IBooking extends mongoose.Document {
   customer?: IUser;
   couponId: mongoose.Types.ObjectId | null;
   items: ICartItem[];
-  location: AvailableInCities;
   paymentProvider: AvailablePaymentProviders;
   paymentId: string;
   paymentStatus: PaymentStatus;
@@ -114,14 +113,25 @@ const bookingSchema = new mongoose.Schema<IBooking>(
             type: Date,
             required: true,
           },
+          pickupTime: {
+            type: String,
+            required: true,
+          },
+          dropoffTime: {
+            type: String,
+            required: true,
+          },
+          pickupLocation: {
+            type: String,
+            enum: AvailableInCities,
+            required: true,
+          },
+          motorcycle: {
+            make: String,
+            vehicleModel: String,
+          },
         },
       ],
-    },
-    location: {
-      type: String,
-      enum: AvailableInCities,
-      default: AvailableInCitiesEnum.GURUGRAM_MGROAD,
-      required: true,
     },
     paymentProvider: {
       type: String,
@@ -137,6 +147,10 @@ const bookingSchema = new mongoose.Schema<IBooking>(
       type: String,
       enum: AvailablePaymentStatus,
       default: PaymentStatusEnum.UNPAID,
+    },
+    customer: {
+      fullname: String,
+      email: String,
     },
   },
   { timestamps: true },

@@ -24,11 +24,7 @@ export const getCart = async (customerId: string) => {
       $lookup: {
         from: "motorcycles",
         let: { mid: "$items.motorcycleId" },
-        pipeline: [
-          { $match: { $expr: { $eq: ["$_id", "$$mid"] } } },
-          // strip out maintenanceLogs
-          { $project: { maintenanceLogs: 0 } },
-        ],
+        pipeline: [{ $match: { $expr: { $eq: ["$_id", "$$mid"] } } }],
         as: "motorcycle",
       },
     },
@@ -122,19 +118,7 @@ export const getCart = async (customerId: string) => {
       },
     },
 
-    // 8) Apply coupon discount if present
-    // {
-    //   $addFields: {
-    //     discountedTotal: {
-    //       $ifNull: [
-    //         { $subtract: ["$cartTotal", "$coupon.discountValue"] },
-    //         "$cartTotal",
-    //       ],
-    //     },
-    //   },
-    // },
-
-    // 9) Final projection
+    // 8) Final projection
     {
       $project: {
         _id: 1,
@@ -150,6 +134,15 @@ export const getCart = async (customerId: string) => {
     },
   ]);
 
+  if (!cartAggregation.length) {
+    return {
+      _id: null,
+      items: [],
+      cartTotal: 0,
+      discountedTotal: 0,
+    };
+  }
+
   const ct = cartAggregation[0];
 
   if (!ct.couponId) {
@@ -163,14 +156,9 @@ export const getCart = async (customerId: string) => {
     }
   }
 
-  return (
-    ct ?? {
-      _id: null,
-      items: [],
-      cartTotal: 0,
-      discountedTotal: 0,
-    }
-  );
+  await Cart.updateOne({_id : ct._id}, {$set : {discountedTotal : ct.discountedTotal}});
+
+  return ct;
 };
 
 const getUserCart = asyncHandler(async (req: CustomRequest, res: Response) => {
@@ -189,11 +177,13 @@ const addOrUpdateMotorcycleToCart = asyncHandler(
       dropoffDate,
       pickupTime,
       dropoffTime,
+      pickupLocation,
+      dropoffLocation,
     }: ICartItem = req.body;
 
-    const { motorcycleId } = req.params;
-
     const cart = await Cart.findOne({ customerId: req.user._id });
+
+    const { motorcycleId } = req.params;
 
     const motorcycle = await Motorcycle.findById(motorcycleId);
 
@@ -201,11 +191,16 @@ const addOrUpdateMotorcycleToCart = asyncHandler(
       throw new ApiError(404, "Motorcycle not found");
     }
 
-    if (motorcycle.availableQuantity < Number(quantity)) {
+    const availableQuantity =
+      motorcycle.availableInCities.find(
+        (location) => location.branch === pickupLocation,
+      )?.quantity ?? 0;
+
+    if (availableQuantity < Number(quantity)) {
       throw new ApiError(
         400,
-        motorcycle.availableQuantity > 0
-          ? `Only ${motorcycle.availableQuantity} motorcycles available`
+        availableQuantity > 0
+          ? `Only ${availableQuantity} motorcycles available`
           : `Motorcycle is Out of Stock`,
       );
     }
@@ -221,6 +216,8 @@ const addOrUpdateMotorcycleToCart = asyncHandler(
             dropoffDate,
             pickupTime,
             dropoffTime,
+            pickupLocation,
+            dropoffLocation,
           },
         ],
       });
@@ -242,6 +239,8 @@ const addOrUpdateMotorcycleToCart = asyncHandler(
       if (dropoffDate) exisitngMotorcycle.dropoffDate = dropoffDate;
       if (pickupTime) exisitngMotorcycle.pickupTime = pickupTime;
       if (dropoffTime) exisitngMotorcycle.dropoffTime = dropoffTime;
+      if (pickupLocation) exisitngMotorcycle.pickupLocation = pickupLocation;
+      if (dropoffLocation) exisitngMotorcycle.dropoffLocation = dropoffLocation;
       if (cart.couponId) cart.couponId = null;
     } else {
       cart.items.push({
@@ -251,6 +250,8 @@ const addOrUpdateMotorcycleToCart = asyncHandler(
         dropoffDate,
         pickupTime,
         dropoffTime,
+        pickupLocation,
+        dropoffLocation,
       });
     }
 

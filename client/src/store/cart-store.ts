@@ -7,10 +7,12 @@ import { cartAPI } from "@/lib/api";
 import { AddToCartFormData } from "@/schemas/cart.schema";
 
 interface CartState {
+  pickupLocation: string;
+  dropoffLocation: string;
   pickupDate: Date;
-  dropoffDate: Date | undefined;
-  pickupTime: string;
-  dropoffTime: string;
+  dropoffDate: Date;
+  pickupTime: string | undefined;
+  dropoffTime: string | undefined;
   cart: Cart | null;
   loading: boolean;
   error: string | null;
@@ -23,8 +25,10 @@ interface CartState {
   setError: (error: string | null) => void;
   setPickupDate: (pickupDate: Date) => void;
   setDropoffDate: (dropoffDate: Date) => void;
-  setPickupTime: (pickupTime: string) => void;
-  setDropoffTime: (dropoffTime: string) => void;
+  setPickupTime: (pickupTime: string | undefined) => void;
+  setDropoffTime: (dropoffTime: string | undefined) => void;
+  setPickupLocation: (pickupLocation: string) => void;
+  setDropoffLocation: (dropoffLocation: string) => void;
   // API functions
   getUserCart: () => Promise<void>;
   addOrUpdateMotorcycleToCart: (
@@ -42,10 +46,12 @@ export const initialCartState = {
   cart: null,
   loading: false,
   error: null,
-  pickupDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
-  dropoffDate: undefined,
-  pickupTime: "",
-  dropoffTime: "",
+  pickupLocation: "",
+  dropoffLocation: "",
+  pickupDate: new Date(),
+  dropoffDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+  pickupTime: "9:00 AM",
+  dropoffTime: "6:00 PM",
 };
 
 export const useCartStore = create<CartState>()(
@@ -60,6 +66,8 @@ export const useCartStore = create<CartState>()(
       setDropoffDate: (dropoffDate) => set({ dropoffDate }),
       setPickupTime: (pickupTime) => set({ pickupTime }),
       setDropoffTime: (dropoffTime) => set({ dropoffTime }),
+      setPickupLocation: (pickupLocation) => set({ pickupLocation }),
+      setDropoffLocation: (dropoffLocation) => set({ dropoffLocation }),
 
       // API functions
       getUserCart: async () => {

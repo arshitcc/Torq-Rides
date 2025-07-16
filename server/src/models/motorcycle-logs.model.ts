@@ -4,10 +4,13 @@ import {
   Motorcycle,
   MotorcycleStatus,
   File,
+  AvailableInCities,
 } from "./motorcycles.model";
 
 export interface IMotorcycleLog extends mongoose.Document {
   motorcycleId: mongoose.Types.ObjectId;
+  registrationNumber: string;
+  branch: AvailableInCities;
   dateIn: Date;
   serviceCentreName: string;
   thingsToDo: {
@@ -34,6 +37,18 @@ const motorcycleLogSchema = new mongoose.Schema<IMotorcycleLog>(
     motorcycleId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: Motorcycle.modelName,
+      required: true,
+    },
+
+    registrationNumber: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    branch: {
+      type: String,
+      enum: AvailableInCities,
       required: true,
     },
 

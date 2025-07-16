@@ -1,160 +1,169 @@
-import { query, body } from "express-validator";
+import { body, query } from "express-validator";
 import {
+  AvailableInCities,
   AvailableMotorcycleCategories,
 } from "../models/motorcycles.model";
 
-const getAllMotorcyclesValidtors = () => {
-  return [
-    query("make").optional().isString(),
-    query("model").optional().isString(),
-    query("minPrice").optional().isFloat({ min: 0 }),
-    query("maxPrice").optional().isFloat({ min: 0 }),
-    query("available").optional().isBoolean(),
-  ];
-};
+const getAllMotorcyclesValidators = () => [
+  query("make").optional().isString().withMessage("Make must be a valid data"),
+  query("model")
+    .optional()
+    .isString()
+    .withMessage("Model must be a valid data"),
+  query("minPrice")
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage("minPrice must be a positive number"),
+  query("maxPrice")
+    .optional()
+    .isFloat({ min: 0 })
+    .withMessage("maxPrice must be a positive number"),
+  query("availableInCities")
+    .optional()
+    .isString()
+    .withMessage("Invalid cities"),
+];
 
-const addMotorcycleValidators = () => {
+const addOrUpdateMotorcycleValidators = () => {
   return [
     body("make")
       .exists({ checkNull: true })
       .withMessage("Make is required")
-      .notEmpty()
-      .withMessage("Make cannot be empty"),
+      .isString()
+      .withMessage("Make must be a valid data"),
 
     body("vehicleModel")
       .exists({ checkNull: true })
       .withMessage("Model is required")
-      .notEmpty()
-      .withMessage("Model cannot be empty"),
+      .isString()
+      .withMessage("Model must be a valid data"),
 
     body("rentPerDay")
       .exists({ checkNull: true })
-      .withMessage("Price is required")
+      .withMessage("rentPerDay is required")
       .isFloat({ min: 0 })
-      .withMessage("Price must be a positive number"),
+      .withMessage("rentPerDay must be a positive number"),
 
     body("description")
       .exists({ checkNull: true })
       .withMessage("Description is required")
-      .notEmpty()
-      .withMessage("Description cannot be empty"),
+      .isString()
+      .withMessage("Description must be a valid data"),
 
-    body("category")
+    body("categories")
       .exists({ checkNull: true })
       .withMessage("Category is required")
-      .toUpperCase()
-      .isIn(AvailableMotorcycleCategories)
+      .customSanitizer((val) => {
+        try {
+          if (!val) return {};
+          return JSON.parse(val);
+        } catch (err) {
+          throw new Error("Categories must be valid data");
+        }
+      })
+      .isArray({ min: 1 })
+      .withMessage("Mark this motorcycle in at least one category")
+      .custom((arr: any[]) =>
+        arr.every((v) => AvailableMotorcycleCategories.includes(v)),
+      )
       .withMessage(
-        `Category must be one of: ${AvailableMotorcycleCategories.join(", ")}`,
+        `Each category must be one of: ${AvailableMotorcycleCategories.join(", ")}`,
+      ),
+
+    body("availableInCities")
+      .exists({ checkNull: true })
+      .withMessage("availableInCities is required")
+      .customSanitizer((val) => {
+        try {
+          if (!val) return {};
+          return JSON.parse(val);
+        } catch (err) {
+          throw new Error("Branches must be valid data");
+        }
+      })
+      .isArray({ min: 1 })
+      .withMessage("Mark this motorcycle in at least one branch")
+      .custom((arr: any[]) =>
+        arr.every(
+          (o: { branch: AvailableInCities; quantity: number }) =>
+            o.branch &&
+            AvailableInCities.includes(o.branch) &&
+            Number.isInteger(o.quantity) &&
+            o.quantity >= 0,
+        ),
+      )
+      .withMessage(
+        `Each entry must have branch one of: ${AvailableInCities.join(", ")} and quantity as a non-negative integer`,
       ),
 
     body("specs")
       .exists({ checkNull: true })
       .withMessage("Specifications is required")
       .custom((val) => !Array.isArray(val))
-      .withMessage("Specifications cannot be an array")
+      .withMessage("Provide Valid Specifications")
       .customSanitizer((val) => {
         try {
-          if(!val) return {};
+          if (!val) return {};
           return JSON.parse(val);
         } catch (err) {
-          throw new Error("Specifications must be valid JSON");
+          throw new Error("Specifications must be valid data");
         }
       }),
 
     body("specs.engine")
-      .optional({ checkFalsy: true })
-      .isString()
-      .withMessage("engine must be a string"),
+      .exists({ checkNull: true })
+      .withMessage("specs.engine is required")
+      .isFloat({ min: 0 })
+      .withMessage("specs.engine must be a non-negative number"),
+
     body("specs.power")
-      .optional({ checkFalsy: true })
-      .isString()
-      .withMessage("power must be a string"),
+      .exists({ checkNull: true })
+      .withMessage("specs.power is required")
+      .isFloat({ min: 0 })
+      .withMessage("specs.power must be a non-negative number"),
+
     body("specs.weight")
-      .optional({ checkFalsy: true })
+      .exists({ checkNull: true })
+      .withMessage("specs.weight is required")
+      .isFloat({ min: 0 })
+      .withMessage("specs.weight must be a non-negative number"),
+
+    body("specs.seatHeight")
+      .exists({ checkNull: true })
+      .withMessage("specs.seatHeight is required")
+      .isFloat({ min: 0 })
+      .withMessage("specs.seatHeight must be a non-negative number"),
+
+    body("variant")
+      .exists({ checkNull: true })
+      .withMessage("variant is required")
       .isString()
-      .withMessage("weight must be a string"),
+      .withMessage("variant must be a valid data"),
 
-    body("availableQuantity")
-      .isInt({ min: 1 })
-      .withMessage("Vehicle quantity must be an integer"),
-
-    body("color").isString().withMessage("Color must be a string"),
-
-    body("extraKmsCharges")
-      .isInt({ min: 1 })
-      .withMessage("Extra kms charges must be a number"),
+    body("color")
+      .exists({ checkNull: true })
+      .withMessage("color is required")
+      .isString()
+      .withMessage("color must be a valid data"),
 
     body("securityDeposit")
-      .isInt({ min: 1 })
-      .withMessage("Security Deposit must be a number"),
-  ];
-};
-
-const updateMotorcycleByIdValidators = () => {
-  return [
-    body("make")
-      .optional({ checkFalsy: true })
-      .isString()
-      .withMessage("Make must be a string"),
-
-    body("vehicleModel")
-      .optional({ checkFalsy: true })
-      .isString()
-      .withMessage("Model must be a string"),
-
-    body("rentPerDay")
-      .optional()
+      .exists({ checkNull: true })
+      .withMessage("securityDeposit is required")
       .isFloat({ min: 0 })
-      .withMessage("Price must be a positive number"),
+      .withMessage("securityDeposit must be a non-negative number"),
 
-    body("description")
-      .optional({ checkFalsy: true })
-      .isString()
-      .withMessage("Description must be a string"),
+    body("kmsLimitPerDay")
+      .exists({ checkNull: true })
+      .withMessage("kmsLimitPerDay is required")
+      .isFloat({ min: 0 })
+      .withMessage("kmsLimitPerDay must be a non-negative number"),
 
-    body("category")
-      .optional()
-      .toUpperCase()
-      .isIn(AvailableMotorcycleCategories)
-      .withMessage(
-        `Category must be one of: ${AvailableMotorcycleCategories.join(", ")}`,
-      ),
-
-    body("specs")
-      .optional()
-      .customSanitizer((val) => {
-        try {
-          if (typeof val === "string") return JSON.parse(val);
-          else return val;
-        } catch (err) {
-          throw new Error("Specifications must be valid JSON");
-        }
-      })
-      .isObject()
-      .withMessage("Specifications must be an object")
-      .custom((val) => !Array.isArray(val))
-      .withMessage("Specifications cannot be an array"),
-
-    body("specs.engine")
-      .optional({ checkFalsy: true })
-      .isString()
-      .withMessage("engine must be a string"),
-
-    body("specs.power")
-      .optional({ checkFalsy: true })
-      .isString()
-      .withMessage("power must be a string"),
-
-    body("specs.weight")
-      .optional({ checkFalsy: true })
-      .isString()
-      .withMessage("weight must be a string"),
+    body("extraKmsCharges")
+      .exists({ checkNull: true })
+      .withMessage("extraKmsCharges is required")
+      .isFloat({ min: 0 })
+      .withMessage("extraKmsCharges must be a non-negative number"),
   ];
 };
 
-export {
-  getAllMotorcyclesValidtors,
-  addMotorcycleValidators,
-  updateMotorcycleByIdValidators,
-};
+export { addOrUpdateMotorcycleValidators, getAllMotorcyclesValidators };

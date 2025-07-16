@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import type React from "react";
+
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -31,41 +32,45 @@ import {
   type AddMotorcycleFormData,
 } from "@/schemas/motorcycles.schema";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Upload, Plus, Loader2Icon } from "lucide-react";
+import { ArrowLeft, Upload, Loader2, X, Loader2Icon } from "lucide-react";
 import Link from "next/link";
-import { useEffect } from "react";
 import { UserRolesEnum } from "@/types";
-import { AxiosError } from "axios";
+import type { AxiosError } from "axios";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 export default function NewMotorcyclePage() {
   const { user, isAuthenticated } = useAuthStore();
-  const { addMotorcycle, loading } = useMotorcycleStore();
+  const { addMotorcycle, loading, filters } = useMotorcycleStore();
   const router = useRouter();
   const [selectedImages, setSelectedImages] = useState<File[]>([]);
-  const [mainImage, setMainImage] = useState<File | null>(null);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [branchQuantities, setBranchQuantities] = useState<
+    { branch: string; quantity: number }[]
+  >([]);
+
+  const [adding, setAdding] = useState(false);
 
   const form = useForm<AddMotorcycleFormData>({
     resolver: zodResolver(addMotorcycleSchema),
     defaultValues: {
       make: "",
       vehicleModel: "",
-      year: new Date().getFullYear(),
-      registrationNumber: "",
       rentPerDay: 0,
       description: "",
-      category: "TOURING",
+      categories: [],
       variant: "",
       color: "",
       securityDeposit: 0,
-      kmsLimitPerDay: 0,
-      extraKmsCharges: 0,
-      availableQuantity: 0,
+      kmsLimitPerDay: 100,
+      extraKmsCharges: 5,
+      availableInCities: [],
       specs: {
-        engine: "",
-        power: "",
-        weight: "",
+        engine: 0,
+        power: 0,
+        weight: 0,
+        seatHeight: 0,
       },
-      isAvailable: true,
     },
   });
 
@@ -77,14 +82,14 @@ export default function NewMotorcyclePage() {
       router.push("/");
       return;
     }
-  }, [user, router, toast]);
 
-  const handleMainImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setMainImage(file);
+    // Initialize branch quantities with available cities
+    if (filters.distinctCities?.length > 0) {
+      setBranchQuantities(
+        filters.distinctCities.map((city) => ({ branch: city, quantity: 0 }))
+      );
     }
-  };
+  }, [user, router, toast, filters.distinctCities]);
 
   const handleImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -95,26 +100,59 @@ export default function NewMotorcyclePage() {
     setSelectedImages((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const handleCategoryChange = (category: string, checked: boolean) => {
+    if (checked) {
+      setSelectedCategories((prev) => [...prev, category]);
+    } else {
+      setSelectedCategories((prev) => prev.filter((c) => c !== category));
+    }
+  };
+
+  const handleBranchQuantityChange = (branch: string, quantity: number) => {
+    setBranchQuantities((prev) =>
+      prev.map((item) =>
+        item.branch === branch ? { ...item, quantity } : item
+      )
+    );
+  };
+
   const onSubmit = async (data: AddMotorcycleFormData) => {
-    if (!mainImage) {
-      toast.error("Please select a main image for the motorcycle.");
+    if (selectedImages.length === 0) {
+      toast.error("Please select at least one image for the motorcycle.");
+      return;
+    }
+
+    if (selectedCategories.length === 0) {
+      toast.error("Please select at least one category.");
+      return;
+    }
+
+    const validBranches = branchQuantities.filter((item) => item.quantity > 0);
+    if (validBranches.length === 0) {
+      toast.error("Please set quantity for at least one branch.");
       return;
     }
 
     try {
+      setAdding(true);
       const formData = new FormData();
 
-      // Add main image
-      formData.append("images", mainImage);
-
-      // Add additional images
+      // Add images
       selectedImages.forEach((image) => {
-        formData.append(`images`, image);
+        formData.append("images", image);
       });
 
       // Add form data
-      Object.entries(data).forEach(([key, value]) => {
+      const submitData = {
+        ...data,
+        categories: selectedCategories,
+        availableInCities: validBranches,
+      };
+
+      Object.entries(submitData).forEach(([key, value]) => {
         if (key === "specs" && typeof value === "object") {
+          formData.append(key, JSON.stringify(value));
+        } else if (key === "categories" || key === "availableInCities") {
           formData.append(key, JSON.stringify(value));
         } else {
           formData.append(key, value.toString());
@@ -122,13 +160,15 @@ export default function NewMotorcyclePage() {
       });
 
       await addMotorcycle(formData);
-      toast.success("Motorcycle Listing Completed Successfully 1!");
-      router.push("/dashboard");
+      toast.success("Motorcycle added successfully!");
+      router.push("/dashboard?tab=motorcycles");
     } catch (error: AxiosError | any) {
       toast.error(
-        error?.response?.data?.message ??
-          "Failed to add motorcycle !! Please try again."
+        error.response?.data?.message ??
+          "Failed to add motorcycle. Please try again."
       );
+    } finally {
+      setAdding(false);
     }
   };
 
@@ -136,7 +176,7 @@ export default function NewMotorcyclePage() {
     return (
       <div className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="flex items-center justify-center h-64">
-          <Loader2Icon className="h-8 w-8 animate-spin text-yellow-primary" />
+          <Loader2 className="h-8 w-8 animate-spin text-yellow-primary" />
         </div>
       </div>
     );
@@ -146,10 +186,13 @@ export default function NewMotorcyclePage() {
     return null;
   }
 
+  const availableCategories = filters.categories;
+  const availableMakes = filters.makes;
+
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       <div className="mb-8">
-        <Link href="/dashboard">
+        <Link href="/dashboard?tab=motorcycles">
           <Button variant="outline" className="mb-4 bg-transparent">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Dashboard
@@ -169,13 +212,7 @@ export default function NewMotorcyclePage() {
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                onSubmit(form.getValues());
-              }}
-              className="space-y-6"
-            >
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               {/* Basic Information */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-yellow-primary">
@@ -187,10 +224,12 @@ export default function NewMotorcyclePage() {
                     name="make"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Make *</FormLabel>
+                        <FormLabel>
+                          Make * (Enter The Correct Brand Name)
+                        </FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="e.g., Harley Davidson"
+                            placeholder="e.g., Royal Enfield"
                             {...field}
                             className="border-yellow-primary/30 focus:border-yellow-primary"
                           />
@@ -199,6 +238,7 @@ export default function NewMotorcyclePage() {
                       </FormItem>
                     )}
                   />
+
                   <FormField
                     control={form.control}
                     name="vehicleModel"
@@ -218,30 +258,7 @@ export default function NewMotorcyclePage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="year"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Year *</FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            onChange={(e) => {
-                              if (e.target.value.length > 4) return;
-                              const val = Number(e.target.value);
-                              if (isNaN(val)) field.onChange(1);
-                              if (!isNaN(val) && val >= 0) field.onChange(val);
-                              else field.onChange(0);
-                            }}
-                            className="border-yellow-primary/30 focus:border-yellow-primary"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="variant"
@@ -278,74 +295,55 @@ export default function NewMotorcyclePage() {
                   />
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="registrationNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Registration Number *</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="e.g., Street 750"
-                            {...field}
-                            className="border-yellow-primary/30 focus:border-yellow-primary"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="category"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Category *</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          value={field.value}
+                {/* Categories */}
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">
+                    Categories *
+                  </Label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {availableCategories.map((category) => (
+                      <div
+                        key={category}
+                        className="flex items-center space-x-2"
+                      >
+                        <Checkbox
+                          id={`category-${category}`}
+                          checked={selectedCategories.includes(category)}
+                          onCheckedChange={(checked) =>
+                            handleCategoryChange(category, checked as boolean)
+                          }
+                          className="data-[state=checked]:border-transparent data-[state=checked]:bg-yellow-500"
+                        />
+                        <Label
+                          htmlFor={`category-${category}`}
+                          className="text-sm"
                         >
-                          <FormControl className="w-full">
-                            <SelectTrigger className="border-yellow-primary/30 focus:border-yellow-primary">
-                              <SelectValue placeholder="Select category" />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="TOURING">Touring</SelectItem>
-                            <SelectItem value="SPORTS">Sports</SelectItem>
-                            <SelectItem value="CRUISER">Cruiser</SelectItem>
-                            <SelectItem value="ADVENTURE">Adventure</SelectItem>
-                            <SelectItem value="SCOOTER">Scooter</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="availableQuantity"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Available Quantity *</FormLabel>
-                        <FormControl>
-                          <Input
-                            min="1"
-                            {...field}
-                            onChange={(e) => {
-                              const val = Number(e.target.value);
-                              if (isNaN(val)) field.onChange(1);
-                              if (!isNaN(val) && val >= 0) field.onChange(val);
-                              else field.onChange(0);
-                            }}
-                            className="border-yellow-primary/30 focus:border-yellow-primary"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                          {category}
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                  {selectedCategories.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {selectedCategories.map((category) => (
+                        <span
+                          key={category}
+                          className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-yellow-100 text-yellow-800"
+                        >
+                          {category}
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleCategoryChange(category, false)
+                            }
+                            className="ml-1 text-yellow-600 hover:text-yellow-800"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <FormField
@@ -381,7 +379,6 @@ export default function NewMotorcyclePage() {
                         <FormLabel>Rent per Day (₹) *</FormLabel>
                         <FormControl>
                           <Input
-                            min="0"
                             {...field}
                             onChange={(e) => {
                               const val = Number(e.target.value);
@@ -404,7 +401,6 @@ export default function NewMotorcyclePage() {
                         <FormLabel>Security Deposit (₹) *</FormLabel>
                         <FormControl>
                           <Input
-                            min="0"
                             {...field}
                             onChange={(e) => {
                               const val = Number(e.target.value);
@@ -430,7 +426,6 @@ export default function NewMotorcyclePage() {
                         <FormLabel>KMS Limit per Day *</FormLabel>
                         <FormControl>
                           <Input
-                            min="1"
                             {...field}
                             onChange={(e) => {
                               const val = Number(e.target.value);
@@ -453,7 +448,6 @@ export default function NewMotorcyclePage() {
                         <FormLabel>Extra KMS Charges (₹/km) *</FormLabel>
                         <FormControl>
                           <Input
-                            min="0"
                             step="0.01"
                             {...field}
                             onChange={(e) => {
@@ -477,17 +471,23 @@ export default function NewMotorcyclePage() {
                 <h3 className="text-lg font-semibold text-yellow-primary">
                   Specifications
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <FormField
                     control={form.control}
                     name="specs.engine"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Engine *</FormLabel>
+                        <FormLabel>Engine (cc) *</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="e.g., 749cc"
+                            placeholder="749"
                             {...field}
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              if (isNaN(val)) field.onChange(1);
+                              if (!isNaN(val) && val >= 0) field.onChange(val);
+                              else field.onChange(0);
+                            }}
                             className="border-yellow-primary/30 focus:border-yellow-primary"
                           />
                         </FormControl>
@@ -500,11 +500,17 @@ export default function NewMotorcyclePage() {
                     name="specs.power"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Power *</FormLabel>
+                        <FormLabel>Power (ps) *</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="e.g., 53 HP"
+                            placeholder="53"
                             {...field}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value);
+                              if (isNaN(val)) field.onChange(1);
+                              if (!isNaN(val) && val >= 0) field.onChange(val);
+                              else field.onChange(0);
+                            }}
                             className="border-yellow-primary/30 focus:border-yellow-primary"
                           />
                         </FormControl>
@@ -517,11 +523,40 @@ export default function NewMotorcyclePage() {
                     name="specs.weight"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Weight *</FormLabel>
+                        <FormLabel>Weight (kg) *</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder="e.g., 233 kg"
+                            placeholder="233"
                             {...field}
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              if (isNaN(val)) field.onChange(1);
+                              if (!isNaN(val) && val >= 0) field.onChange(val);
+                              else field.onChange(0);
+                            }}
+                            className="border-yellow-primary/30 focus:border-yellow-primary"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="specs.seatHeight"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Seat Height (mm) *</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="765"
+                            {...field}
+                            onChange={(e) => {
+                              const val = Number(e.target.value);
+                              if (isNaN(val)) field.onChange(1);
+                              if (!isNaN(val) && val >= 0) field.onChange(val);
+                              else field.onChange(0);
+                            }}
                             className="border-yellow-primary/30 focus:border-yellow-primary"
                           />
                         </FormControl>
@@ -532,124 +567,102 @@ export default function NewMotorcyclePage() {
                 </div>
               </div>
 
-              {/* Images */}
+              {/* Branch Quantities */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-yellow-primary">
-                  Images
+                  Branch Availability
                 </h3>
-
-                {/* Main Image */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Main Image *
-                  </label>
-                  <div className="border-2 border-dashed border-yellow-primary/30 rounded-lg p-6 text-center">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleMainImageChange}
-                      className="hidden"
-                      id="main-image"
-                    />
-                    <label htmlFor="main-image" className="cursor-pointer">
-                      <Upload className="h-8 w-8 text-yellow-primary mx-auto mb-2" />
-                      <p className="text-sm text-gray-600">
-                        {mainImage
-                          ? mainImage.name
-                          : "Click to upload main image"}
-                      </p>
-                    </label>
-                  </div>
-                </div>
-
-                {/* Additional Images */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Additional Images
-                  </label>
-                  <div className="border-2 border-dashed border-yellow-primary/30 rounded-lg p-6 text-center">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      onChange={handleImagesChange}
-                      className="hidden"
-                      id="additional-images"
-                    />
-                    <label
-                      htmlFor="additional-images"
-                      className="cursor-pointer"
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {branchQuantities.map((item) => (
+                    <div
+                      key={item.branch}
+                      className="flex items-center space-x-3"
                     >
-                      <Plus className="h-8 w-8 text-yellow-primary mx-auto mb-2" />
-                      <p className="text-sm text-gray-600">
-                        Click to add more images
-                      </p>
-                    </label>
-                  </div>
-
-                  {selectedImages.length > 0 && (
-                    <div className="mt-4">
-                      <p className="text-sm font-medium mb-2">
-                        Selected Images:
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedImages.map((image, index) => (
-                          <div
-                            key={index}
-                            className="relative bg-gray-100 rounded-lg p-2 text-xs"
-                          >
-                            <span>{image.name}</span>
-                            <button
-                              type="button"
-                              onClick={() => removeImage(index)}
-                              className="ml-2 text-red-500 hover:text-red-700"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ))}
-                      </div>
+                      <Label className="w-1/2">{item.branch}</Label>
+                      <Input
+                        placeholder="0"
+                        value={item.quantity}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          if (isNaN(val)) return;
+                          handleBranchQuantityChange(
+                            item.branch,
+                            Number(e.target.value)
+                          );
+                        }}
+                        className="w-1/2 border-yellow-primary/30 focus:border-yellow-primary"
+                      />
                     </div>
-                  )}
+                  ))}
                 </div>
               </div>
 
-              {/* Availability */}
-              <FormField
-                control={form.control}
-                name="isAvailable"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border border-yellow-primary/20 p-4">
-                    <div className="space-y-0.5">
-                      <FormLabel className="text-base">
-                        Available for Rent
-                      </FormLabel>
-                      <div className="text-sm text-muted-foreground">
-                        Make this motorcycle available for customers to book
-                      </div>
+              {/* Images */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-yellow-primary">
+                  Images *
+                </h3>
+                <div className="border-2 border-dashed border-yellow-primary/30 rounded-lg p-6 text-center">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={handleImagesChange}
+                    className="hidden"
+                    id="images"
+                  />
+                  <label htmlFor="images" className="cursor-pointer">
+                    <Upload className="h-8 w-8 text-yellow-primary mx-auto mb-2" />
+                    <p className="text-sm text-gray-600">
+                      Click to upload motorcycle images
+                    </p>
+                  </label>
+                </div>
+
+                {selectedImages.length > 0 && (
+                  <div className="mt-4">
+                    <p className="text-sm font-medium mb-2">Selected Images:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedImages.map((image, index) => (
+                        <div
+                          key={index}
+                          className="relative dark:bg-[#18181B] rounded-lg p-2 text-xs flex items-center border-2 border-yellow-800"
+                        >
+                          <span className="mr-2">{image.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeImage(index)}
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </div>
+                      ))}
                     </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
+                  </div>
                 )}
-              />
+              </div>
 
               <div className="flex gap-4 pt-6">
-                <Link href="/dashboard" className="w-1/2">
+                <Link href="/dashboard?tab=motorcycles" className="flex-1">
                   <Button
                     type="button"
                     variant="outline"
-                    className="w-full flex-1 bg-transparent"
+                    className="w-full bg-transparent"
                   >
                     Cancel
                   </Button>
                 </Link>
-                <Button className="flex-1 cursor-pointer bg-yellow-primary hover:bg-yellow-600 text-white">
-                  {loading ? "Adding..." : "Add Motorcycle"}
+                <Button
+                  type="submit"
+                  disabled={adding}
+                  className="flex-1 bg-yellow-primary hover:bg-yellow-600 text-white"
+                >
+                  {adding ? (
+                    <Loader2Icon className="animate-spin h-4 w-4" />
+                  ) : (
+                    "Add Motorcycle"
+                  )}
                 </Button>
               </div>
             </form>

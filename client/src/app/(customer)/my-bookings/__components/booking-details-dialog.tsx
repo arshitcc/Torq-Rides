@@ -137,14 +137,14 @@ export function BookingDetailsDialog({
                             item.motorcycle?.images[0]?.url ||
                             "/placeholder.svg"
                           }
-                          alt={`${item.motorcycle.make} ${item.motorcycle.vehicleModel}`}
+                          alt={`${item.motorcycle?.make} ${item.motorcycle?.vehicleModel}`}
                           fill
                           className="object-fit"
                         />
                       </div>
                       <div className="flex-1">
                         <h4 className="font-semibold text-lg">
-                          {item.motorcycle.make} {item.motorcycle.vehicleModel}
+                          {item.motorcycle?.make} {item.motorcycle?.vehicleModel}
                         </h4>
                       </div>
                     </div>
@@ -235,7 +235,7 @@ export function BookingDetailsDialog({
                 </div>
                 {booking.discountedTotal !== booking.cartTotal && (
                   <div className="flex justify-between items-center text-green-600">
-                    <span>Discount Applied</span>
+                    <span>Discount Applied ({booking.coupon.promoCode})</span>
                     <span className="font-medium">
                       -₹
                       {(

@@ -13,6 +13,7 @@ import {
   FormField,
   FormItem,
   FormLabel,
+  FormMessage,
 } from "@/components/ui/form";
 import {
   Popover,
@@ -31,50 +32,50 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useCartStore } from "@/store/cart-store";
 import { useRouter } from "next/navigation";
-
-interface HeroFormValues {
-  pickupLocation: string;
-  dropoffLocation: string;
-  pickupDate: Date;
-  pickupTime: string;
-  dropoffDate: Date;
-  dropoffTime: string;
-}
+import { SearchRidesFormData, searchRidesSchema } from "@/schemas";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMotorcycleStore } from "@/store/motorcycle-store";
 
 function SearchRides() {
-  const locations = [
-    "Gurgaon - MG Road",
-    "Gurgaon - Cyber City",
-    "Delhi - Janakpuri",
-    "Delhi - Connaught Place",
-    "Noida - Sector 18",
-    "Faridabad - NIT",
-  ];
-
-  const form = useForm<HeroFormValues>({
-    defaultValues: {
-      pickupDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      pickupTime: "9:00 AM",
-      dropoffTime: "6:00 PM",
-    },
-  });
-
   const HOURS = Array.from({ length: 12 }, (_, i) => i + 1);
   const MINUTES = ["00", "15", "30", "45"];
   const PERIODS = ["AM", "PM"];
 
-  const { setPickupDate, setDropoffDate, setPickupTime, setDropoffTime } =
-    useCartStore();
+  const {
+    setPickupDate,
+    setDropoffDate,
+    setPickupTime,
+    setDropoffTime,
+    setPickupLocation,
+    setDropoffLocation,
+    pickupLocation,
+  } = useCartStore();
+
+  const form = useForm<SearchRidesFormData>({
+    resolver: zodResolver(searchRidesSchema),
+    defaultValues: {
+      pickupDate: new Date(),
+      dropoffDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      pickupTime: "9:00 AM",
+      dropoffTime: "6:00 PM",
+      pickupLocation: pickupLocation || "",
+      dropoffLocation: pickupLocation,
+    },
+  });
+
+  const { filters } = useMotorcycleStore();
+  const branches = filters.distinctCities;
 
   const router = useRouter();
 
-  const onSubmit = (data: HeroFormValues) => {
+  const onSubmit = (data: SearchRidesFormData) => {
     setPickupDate(data.pickupDate);
     setDropoffDate(data.dropoffDate);
     setPickupTime(data.pickupTime);
     setDropoffTime(data.dropoffTime);
-
-    router.push("/motorcycles");
+    setPickupLocation(data?.pickupLocation || "");
+    setDropoffLocation(data?.dropoffLocation || "");
+    router.push(`/motorcycles?location=${data?.pickupLocation}`);
   };
 
   return (
@@ -95,18 +96,25 @@ function SearchRides() {
                         <MapPinIcon className="inline h-4 w-4 mr-1 text-yellow-primary" />
                         Pick Up Location
                       </FormLabel>
-                      <Select {...field} onValueChange={field.onChange}>
+                      <Select
+                        {...field}
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          form.setValue("dropoffLocation", value);
+                        }}
+                      >
                         <SelectTrigger className="w-full bg-white text-muted-foreground border-yellow-primary/30 focus:border-yellow-primary focus:ring-yellow-primary/20">
                           <SelectValue placeholder="Select Pickup location" />
                         </SelectTrigger>
                         <SelectContent>
-                          {locations.map((loc) => (
+                          {branches.map((loc) => (
                             <SelectItem key={loc} value={loc}>
                               {loc}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
+                      <FormMessage/>
                     </FormItem>
                   )}
                 />
@@ -306,7 +314,7 @@ function SearchRides() {
                           <SelectValue placeholder="Same as Pickup location" />
                         </SelectTrigger>
                         <SelectContent>
-                          {locations.map((loc) => (
+                          {branches.map((loc) => (
                             <SelectItem key={loc} value={loc}>
                               {loc}
                             </SelectItem>

@@ -187,7 +187,7 @@ export default function AboutPage() {
               <div className="text-lg opacity-90">Happy Customers</div>
             </div>
             <div>
-              <div className="text-4xl font-bold mb-2">150+</div>
+              <div className="text-4xl font-bold mb-2">100+</div>
               <div className="text-lg opacity-90">Motorcycles</div>
             </div>
             <div>

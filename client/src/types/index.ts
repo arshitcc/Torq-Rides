@@ -9,7 +9,7 @@ export const DocumentTypes = {
   PAN_CARD: "PAN-CARD",
   AADHAR_CARD: "AADHAR-CARD",
   DRIVING_LICENSE: "DRIVING-LICENSE",
-}
+};
 
 export const DocumentTypesEnum = {
   E_KYC: "E-KYC",
@@ -113,6 +113,7 @@ export const AvailableMotorcycleMakesEnum = {
   SUZUKI: "Suzuki",
   KAWASAKI: "Kawasaki",
   TVS: "TVS",
+  HERO: "Hero",
 } as const;
 
 export const AvailableMotorcycleStatus = Object.values(MotorcycleStatusEnum);
@@ -137,19 +138,16 @@ export type Motorcycle = {
   _id: string;
   make: string;
   vehicleModel: string;
-  registrationNumber: string;
-  year: number;
   rentPerDay: number;
   description: string;
-  category: MotorcycleCategory;
-  availableInCities: AvailableInCities[];
+  categories: MotorcycleCategory[];
+  availableInCities: { branch: AvailableInCities; quantity: number }[];
   specs: {
-    engine: string;
-    power: string;
-    weight: string;
+    engine: number;
+    power: number;
+    weight: number;
+    seatHeight: number;
   };
-  isAvailable: boolean;
-  availableQuantity: number;
   variant: string;
   color: string;
   securityDeposit: number;
@@ -182,6 +180,8 @@ export type Booking = {
   paymentProvider: PaymentProviders;
   paymentId: string;
   paymentStatus: PaymentStatus;
+  couponId: string;
+  coupon: PromoCode;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -220,6 +220,8 @@ export type CartItem = {
   dropoffDate: Date;
   pickupTime: string;
   dropoffTime: string;
+  pickupLocation: string;
+  dropoffLocation: string;
   motorcycle: Motorcycle;
 };
 
@@ -238,6 +240,8 @@ export type Cart = {
 export type MotorcycleLog = {
   _id: string;
   motorcycleId: string;
+  registrationNumber: string;
+  branch: AvailableInCities;
   dateIn: Date;
   serviceCentreName: string;
   thingsToDo: {

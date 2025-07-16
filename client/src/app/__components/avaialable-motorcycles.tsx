@@ -31,10 +31,10 @@ export function AvailableMotorcycles() {
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
           <h2 className="text-4xl font-bold mb-4 dark:text-white">
-            Available Motorcycles
+            Riding Styles
           </h2>
           <p className="text-xl text-gray-600">
-            Choose from our premium collection
+            Choose the one that suits you best
           </p>
         </div>
 

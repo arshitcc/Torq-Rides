@@ -14,7 +14,6 @@ import {
 import { validate } from "../middlewares/validator.middleware";
 import {
   getAllBookings,
-  createBooking,
   modifyBooking,
   cancelBooking,
   generateRazorpayOrder,
@@ -41,12 +40,6 @@ router
     validate,
     getAllBookings,
   )
-  .post(
-    verifyPermission([UserRolesEnum.CUSTOMER]),
-    createBookingValidators(),
-    validate,
-    createBooking,
-  );
 
 router
   .route("/analytics")

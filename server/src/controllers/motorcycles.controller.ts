@@ -2,13 +2,10 @@ import asyncHandler from "../utils/async-handler";
 import { ApiResponse } from "../utils/api-response";
 import { ApiError } from "../utils/api-error";
 import { CustomRequest, IUser } from "../models/users.model";
-import { Response } from "express";
+import { NextFunction, Response } from "express";
 import mongoose from "mongoose";
 import { Motorcycle } from "../models/motorcycles.model";
 import { deleteFile, uploadFile } from "../utils/cloudinary";
-import { UserRolesEnum } from "../constants/constants";
-import jwt from "jsonwebtoken";
-import { ACCESS_TOKEN_SECRET } from "../utils/env";
 
 const getAllMotorcycles = asyncHandler(
   async (req: CustomRequest, res: Response) => {
@@ -17,30 +14,21 @@ const getAllMotorcycles = asyncHandler(
       make,
       vehicleModel,
       searchTerm,
-      year,
       minPrice,
       maxPrice,
-      isAvailable,
       page,
       offset,
-      category,
-      availableInCities: cities,
+      categories,
+      cities,
       sort,
     } = req.query;
 
-    const token =
-      req.cookies?.accessToken ||
-      req.headers.authorization?.replace("Bearer ", "");
-
-    let user: IUser | undefined;
-    if (token?.trim()) {
-      user = jwt.verify(token, ACCESS_TOKEN_SECRET!) as IUser;
-    }
-
     if (make) matchState.make = make;
     if (vehicleModel) matchState.vehicleModel = vehicleModel;
-    if (category) matchState.category = category;
-    if (year) matchState.year = Number(year);
+    if (categories)
+      matchState.categories = {
+        $in: categories?.toString().split(","),
+      };
     if (minPrice && maxPrice)
       matchState.rentPerDay = {
         $gte: Number(minPrice),
@@ -52,10 +40,11 @@ const getAllMotorcycles = asyncHandler(
       if (maxPrice) matchState.rentPerDay.$lte = Number(maxPrice);
     }
 
-    const availableInCities = cities?.toString().split(",");
+    const availableInCities = cities?.toString().split("$");
     if (availableInCities?.length) {
-      matchState.availableInCities = { $in: availableInCities };
+      matchState["availableInCities.branch"] = { $in: availableInCities };
     }
+    matchState["availableInCities.quantity"] = { $gt: 0 };
 
     if (searchTerm?.toString().trim()) {
       matchState.$or = [
@@ -63,21 +52,6 @@ const getAllMotorcycles = asyncHandler(
         { vehicleModel: { $regex: searchTerm, $options: "i" } },
         { description: { $regex: searchTerm, $options: "i" } },
       ];
-
-      if (user && user?.role === UserRolesEnum.ADMIN) {
-        matchState.$or.push({
-          registrationNumber: { $regex: searchTerm, $options: "i" },
-        });
-      }
-    }
-
-    if (user && user?.role !== UserRolesEnum.CUSTOMER) {
-      if (isAvailable) {
-        matchState.isAvailable = isAvailable === "true" ? true : false;
-      }
-    } else {
-      matchState.isAvailable = true;
-      matchState.availableQuantity = { $gt: 0 };
     }
 
     const pageNum = Number.isNaN(Number(page)) ? 1 : Math.max(Number(page), 1);
@@ -130,39 +104,34 @@ const addMotorcycle = asyncHandler(
     const {
       make,
       vehicleModel,
-      registrationNumber,
-      year,
+      rentPerDay,
+      description,
+      categories,
+      specs,
+      availableInCities,
       variant,
       color,
-      category,
-      availableQuantity,
-      description,
-      rentPerDay,
       securityDeposit,
       kmsLimitPerDay,
       extraKmsCharges,
-      specs,
-      isAvailable,
-      availableInCities,
     } = req.body;
 
     const bike = await Motorcycle.findOne({
-      registrationNumber,
+      make,
+      vehicleModel,
     });
 
     if (bike) {
       throw new ApiError(
         400,
-        "Motorcycle with this registration number already exists",
+        `Motorcycle of ${make} with ${vehicleModel} already exists`,
       );
     }
 
     const files = req.files as Express.Multer.File[];
 
-    const file = files[0].path;
-
-    if (!file) {
-      throw new ApiError(400, "Main Image is required");
+    if (!files?.length) {
+      throw new ApiError(400, "Please upload at least one image");
     }
 
     const images = await Promise.all(
@@ -180,17 +149,13 @@ const addMotorcycle = asyncHandler(
     const motorcycle = await Motorcycle.create({
       make,
       vehicleModel,
-      year: Number(year),
       rentPerDay: Number(rentPerDay),
-      registrationNumber,
       description,
       color,
       variant,
-      category,
+      categories,
       images,
       specs,
-      isAvailable: Boolean(isAvailable),
-      availableQuantity: Number(availableQuantity),
       extraKmsCharges: Number(extraKmsCharges),
       kmsLimitPerDay: Number(kmsLimitPerDay),
       securityDeposit: Number(securityDeposit),
@@ -302,19 +267,15 @@ const updateMotorcycleDetails = asyncHandler(
     const {
       make,
       vehicleModel,
-      registrationNumber,
-      year,
       variant,
       color,
-      category,
-      availableQuantity,
+      categories,
       description,
       rentPerDay,
       securityDeposit,
       kmsLimitPerDay,
       extraKmsCharges,
       specs,
-      isAvailable,
       availableInCities,
     } = req.body;
 
@@ -334,19 +295,15 @@ const updateMotorcycleDetails = asyncHandler(
 
     motorcycle.make = make;
     motorcycle.vehicleModel = vehicleModel;
-    motorcycle.registrationNumber = registrationNumber;
-    motorcycle.year = Number(year);
     motorcycle.variant = variant;
     motorcycle.color = color;
-    motorcycle.category = category;
-    motorcycle.availableQuantity = Number(availableQuantity);
+    motorcycle.categories = categories;
     motorcycle.description = description;
     motorcycle.rentPerDay = Number(rentPerDay);
     motorcycle.securityDeposit = Number(securityDeposit);
     motorcycle.kmsLimitPerDay = Number(kmsLimitPerDay);
     motorcycle.extraKmsCharges = Number(extraKmsCharges);
     motorcycle.specs = specs;
-    motorcycle.isAvailable = Boolean(isAvailable);
     motorcycle.availableInCities = availableInCities;
     motorcycle.images.push(
       ...images.map((img) => ({
@@ -394,35 +351,6 @@ const deleteMotorcycle = asyncHandler(
   },
 );
 
-const updateMotorcycleAvailability = asyncHandler(
-  async (req: CustomRequest, res: Response) => {
-    const { motorcycleId } = req.params;
-
-    const motorcycle = await Motorcycle.findById(motorcycleId);
-
-    if (!motorcycle) {
-      throw new ApiError(404, "Motorcycle not found");
-    }
-
-    const { isAvailable } = req.body; // Assuming isAvailable is present in the request body
-
-    motorcycle.isAvailable = isAvailable;
-
-    await motorcycle.save({ validateBeforeSave: false });
-
-    return res
-      .status(200)
-      .json(
-        new ApiResponse(
-          200,
-          true,
-          "Motorcycle Updated Successfully",
-          motorcycle,
-        ),
-      );
-  },
-);
-
 const deleteMotorcycleImage = asyncHandler(
   async (req: CustomRequest, res: Response) => {
     const { motorcycleId } = req.params;
@@ -448,12 +376,54 @@ const deleteMotorcycleImage = asyncHandler(
   },
 );
 
+const getAllFilters = asyncHandler(
+  async (req: CustomRequest, res: Response, next: NextFunction) => {
+    const [result] = await Motorcycle.aggregate([
+      {
+        $facet: {
+          makes: [
+            { $group: { _id: null, makes: { $addToSet: "$make" } } },
+            { $project: { _id: 0, makes: 1 } },
+          ],
+          categories: [
+            { $unwind: "$categories" },
+            { $group: { _id: null, categories: { $addToSet: "$categories" } } },
+            { $project: { _id: 0, categories: 1 } },
+          ],
+          cities: [
+            { $unwind: "$availableInCities" },
+            {
+              $group: {
+                _id: null,
+                distinctCities: { $addToSet: "$availableInCities.branch" },
+              },
+            },
+            { $project: { _id: 0, distinctCities: 1 } },
+          ],
+        },
+      },
+    ]);
+
+    const makes = result.makes?.[0]?.makes ?? [];
+    const categories = result.categories?.[0]?.categories ?? [];
+    const distinctCities = result.cities?.[0]?.distinctCities ?? [];
+
+    return res.status(200).json(
+      new ApiResponse(200, true, "Filters fetched successfully", {
+        makes,
+        categories,
+        distinctCities,
+      }),
+    );
+  },
+);
+
 export {
   getAllMotorcycles,
   getMotorcycleById,
   addMotorcycle,
   updateMotorcycleDetails,
   deleteMotorcycle,
-  updateMotorcycleAvailability,
   deleteMotorcycleImage,
+  getAllFilters,
 };

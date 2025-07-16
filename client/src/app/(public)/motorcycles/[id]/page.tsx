@@ -53,10 +53,16 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { PopoverClose } from "@radix-ui/react-popover";
 import { AxiosError } from "axios";
 import { UserRolesEnum } from "@/types";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function MotorcycleDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const { id } = params;
 
   const { motorcycle, loading, getMotorcycleById, error } =
@@ -71,6 +77,7 @@ export default function MotorcycleDetailPage() {
     pickupDate,
     dropoffTime,
     dropoffDate,
+    pickupLocation,
   } = useCartStore();
 
   const { user, isAuthenticated } = useAuthStore();
@@ -83,11 +90,17 @@ export default function MotorcycleDetailPage() {
   const cartForm = useForm<AddToCartFormData>({
     resolver: zodResolver(addToCartSchema),
     defaultValues: {
-      quantity: inCart?.quantity || 1,
-      pickupTime: inCart?.pickupTime || pickupTime || "9:00 AM",
-      pickupDate: inCart?.pickupDate || pickupDate || new Date(),
-      dropoffTime: inCart?.dropoffTime || dropoffTime || "6:00 PM",
-      dropoffDate: inCart?.dropoffDate || dropoffDate,
+      quantity: 1,
+      pickupTime: pickupTime || "9:00 AM",
+      pickupDate: pickupDate || new Date(),
+      dropoffTime: dropoffTime || "6:00 PM",
+      dropoffDate: dropoffDate,
+      pickupLocation: motorcycle?.availableInCities.find(
+        (loc) => loc.branch === pickupLocation
+      )?.branch,
+      dropoffLocation: motorcycle?.availableInCities.find(
+        (loc) => loc.branch === pickupLocation
+      )?.branch,
     },
   });
 
@@ -96,13 +109,26 @@ export default function MotorcycleDetailPage() {
   const PERIODS = ["AM", "PM"];
 
   useEffect(() => {
-    if(loading) return;
+    if (loading) return;
     if (id) {
       window.scrollTo({ top: 0, behavior: "smooth" });
       getMotorcycleById(id.toString());
       getAllReviewsOfMotorcycleById(id.toString());
     }
   }, [id]);
+
+  useEffect(() => {
+    if (!inCart) return;
+    cartForm.reset({
+      quantity: inCart.quantity,
+      pickupTime: inCart.pickupTime,
+      pickupDate: new Date(inCart.pickupDate),
+      dropoffTime: inCart.dropoffTime,
+      dropoffDate: new Date(inCart.dropoffDate),
+      pickupLocation: inCart.pickupLocation,
+      dropoffLocation: inCart.dropoffLocation,
+    });
+  }, [inCart, cartForm]);
 
   const calculateTotalCost = () => {
     if (!motorcycle) {
@@ -175,12 +201,16 @@ export default function MotorcycleDetailPage() {
                   fill
                   className="object-fit transform transition-transform duration-500 group-hover:scale-110"
                 />
-                <Badge className="absolute top-4 right-20" variant="secondary">
-                  {motorcycle?.category}
-                </Badge>
-                <Badge className="absolute top-4 right-4" variant="secondary">
-                  {motorcycle?.year}
-                </Badge>
+                <div className="absolute top-4 right-4 space-x-3">
+                  {[motorcycle?.categories].map(
+                    (category, i) =>
+                      i < 2 && (
+                        <Badge key={i} variant="secondary">
+                          {category}
+                        </Badge>
+                      )
+                  )}
+                </div>
               </div>
               {motorcycle && motorcycle?.images.length > 1 && (
                 <div className="p-4">
@@ -189,7 +219,7 @@ export default function MotorcycleDetailPage() {
                       <Button
                         key={index}
                         onClick={() => setSelectedImageIndex(index)}
-                        className={`cursor-pointer relative h-16 w-20 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-colors ${
+                        className={`cursor-pointer bg-transparent dark:bg-transparent hover:bg-transparent relative h-16 w-20 flex-shrink-0 rounded-lg overflow-hidden border-2 transition-colors ${
                           selectedImageIndex === index
                             ? "border-primary"
                             : "border-gray-200 hover:border-gray-300"
@@ -201,7 +231,7 @@ export default function MotorcycleDetailPage() {
                             motorcycle.vehicleModel
                           } view ${index + 1}`}
                           fill
-                          className="object-cover"
+                          className="object-fit"
                         />
                       </Button>
                     ))}
@@ -223,13 +253,13 @@ export default function MotorcycleDetailPage() {
                   ₹{motorcycle?.rentPerDay}/day
                 </div>
                 <div className="flex flex-col sm:grid grid-cols-3 gap-4 text-sm dark:text-white">
-                  <div className="bg-gray-100 dark:bg-[#18181B] border-2 p-4 rounded-xl flex flex-row justify-between">
+                  <div className="bg-gray-100 dark:bg-[#18181B] border-2 p-4 rounded-xl flex flex-col justify-between text-center">
                     <div className="dark:text-white">Deposit</div>
                     <div className="font-medium">
                       ₹ {motorcycle?.securityDeposit}
                     </div>
                   </div>
-                  <div className="bg-gray-100 dark:bg-[#18181B] border-2 p-4 rounded-xl flex flex-row justify-between">
+                  <div className="bg-gray-100 dark:bg-[#18181B] border-2 p-4 rounded-xl flex flex-col justify-between text-center">
                     <div className="dark:text-white text-muted-foreground">
                       Trip Limit
                     </div>
@@ -237,7 +267,7 @@ export default function MotorcycleDetailPage() {
                       {motorcycle?.kmsLimitPerDay} kms
                     </div>
                   </div>
-                  <div className="bg-gray-100 dark:bg-[#18181B] border-2 p-4 rounded-xl flex flex-row justify-between">
+                  <div className="bg-gray-100 dark:bg-[#18181B] border-2 p-4 rounded-xl flex flex-col justify-between text-center">
                     <div className="dark:text-white text-muted-foreground">
                       Extra Km Charge
                     </div>
@@ -269,19 +299,20 @@ export default function MotorcycleDetailPage() {
                           {key[0].toUpperCase() + key.slice(1)}
                         </span>
                       </div>
-                      <span>{value}</span>
+                      <span>
+                        {value}{" "}
+                        {key === "engine"
+                          ? "cc"
+                          : key === "power"
+                          ? "bhp"
+                          : key === "weight"
+                          ? "kg"
+                          : key === "seatHeight"
+                          ? "mm"
+                          : ""}
+                      </span>
                     </div>
                   ))}
-                  <div
-                    key={"seater"}
-                    className="flex items-center justify-between p-2 border-l-0 sm:border-l border-primary-200 dark:border-primary-700"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <CheckCircleIcon className="w-5 h-5 text-yellow-500" />
-                      <span className="font-medium ">Seats</span>
-                    </div>
-                    <span className="font-bold">2 Seater</span>
-                  </div>
                 </div>
               )}
             </CardContent>
@@ -310,7 +341,7 @@ export default function MotorcycleDetailPage() {
                         ))}
                       </div>
                       <span className="ml-2 font-medium">
-                        {reviews[currentReviewIndex].customer.fullname}
+                        {reviews[currentReviewIndex].customer?.fullname}
                       </span>
                       <span className="ml-auto text-sm text-gray-500">
                         {format(
@@ -752,70 +783,131 @@ export default function MotorcycleDetailPage() {
                         );
                       }}
                     />
+
+                    <FormField
+                      control={cartForm.control}
+                      name="pickupLocation"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Pickup Location</FormLabel>
+                          <Select
+                            {...field}
+                            onValueChange={(value) => {
+                              field.onChange(value);
+                              cartForm.setValue("pickupLocation", value);
+                              cartForm.setValue("dropoffLocation", value);
+                            }}
+                          >
+                            <SelectTrigger className="w-full bg-white text-muted-foreground border-yellow-primary/30 focus:border-yellow-primary focus:ring-yellow-primary/20">
+                              <SelectValue placeholder="Select Pickup location" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {motorcycle?.availableInCities.map((loc) => (
+                                <SelectItem key={loc.branch} value={loc.branch}>
+                                  {loc.branch} ({loc.quantity} left)
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={cartForm.control}
+                      name="dropoffLocation"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Dropoff Location</FormLabel>
+                          <Select
+                            {...field}
+                            onValueChange={(value) => {
+                              field.onChange(value);
+                              cartForm.setValue("dropoffLocation", value);
+                            }}
+                            disabled
+                          >
+                            <SelectTrigger className="w-full bg-white text-muted-foreground border-yellow-primary/30 focus:border-yellow-primary focus:ring-yellow-primary/20">
+                              <SelectValue placeholder="Select Dropoff location" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {motorcycle?.availableInCities.map((loc) => (
+                                <SelectItem key={loc.branch} value={loc.branch}>
+                                  {loc.branch}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </FormItem>
+                      )}
+                    />
                   </div>
 
-                  <FormField
-                    control={cartForm.control}
-                    name="quantity"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Quantity</FormLabel>
-                        <FormControl>
-                          <div className="flex items-center space-x-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              className="cursor-pointer"
-                              size="icon"
-                              onClick={() =>
-                                field.onChange(Math.max(1, field.value - 1))
-                              }
-                              disabled={field.value <= 1}
-                            >
-                              <MinusIcon className="h-4 w-4" />
-                            </Button>
-                            <Input
-                              min="1"
-                              max={motorcycle?.availableQuantity}
-                              className="text-center"
-                              {...field}
-                              onChange={(e) => {
-                                const val = Number(e.target.value);
-                                if (
-                                  !isNaN(val) &&
-                                  val >= 0 &&
-                                  val <= motorcycle?.availableQuantity!
-                                )
-                                  field.onChange(val);
-                                else field.onChange(1);
-                              }}
-                            />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              className="cursor-pointer"
-                              size="icon"
-                              onClick={() =>
-                                field.onChange(
-                                  Math.min(
-                                    motorcycle?.availableQuantity ?? 0,
-                                    field.value + 1
-                                  )
-                                )
-                              }
-                              disabled={
-                                field.value >=
-                                (motorcycle?.availableQuantity ?? 0)
-                              }
-                            >
-                              <PlusIcon className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {cartForm.watch("pickupLocation") && (
+                    <FormField
+                      control={cartForm.control}
+                      name="quantity"
+                      render={({ field }) => {
+                        const pickupBranch = cartForm.watch("pickupLocation");
+                        const branchQty =
+                          motorcycle?.availableInCities.find(
+                            (loc) => loc.branch === pickupBranch
+                          )?.quantity ?? 0;
+
+                        return (
+                          <FormItem>
+                            <FormLabel>Quantity (Max: {branchQty})</FormLabel>
+                            <FormControl>
+                              <div className="flex items-center space-x-2">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  className="cursor-pointer"
+                                  size="icon"
+                                  onClick={() =>
+                                    field.onChange(Math.max(1, field.value - 1))
+                                  }
+                                  disabled={field.value <= 1}
+                                >
+                                  <MinusIcon className="h-4 w-4" />
+                                </Button>
+                                <Input
+                                  min="1"
+                                  max={branchQty}
+                                  className="text-center"
+                                  {...field}
+                                  onChange={(e) => {
+                                    const val = Number(e.target.value);
+                                    if (
+                                      !isNaN(val) &&
+                                      val >= 1 &&
+                                      val <= branchQty
+                                    )
+                                      field.onChange(val);
+                                  }}
+                                />
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  className="cursor-pointer"
+                                  size="icon"
+                                  onClick={() =>
+                                    field.onChange(
+                                      Math.min(branchQty, field.value + 1)
+                                    )
+                                  }
+                                  disabled={field.value >= branchQty}
+                                >
+                                  <PlusIcon className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        );
+                      }}
+                    />
+                  )}
 
                   {calculateTotalCost() > 0 && (
                     <div className="p-4 dark:bg-transparent border-2 rounded-xl">

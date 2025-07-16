@@ -96,6 +96,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
+import { Label } from "@/components/ui/label";
 
 export default function MotorcycleLogsPage() {
   const params = useParams();
@@ -122,6 +123,8 @@ export default function MotorcycleLogsPage() {
   const addLogForm = useForm<CreateMotorcycleLogFormData>({
     resolver: zodResolver(createMotorcycleLogSchema),
     defaultValues: {
+      registrationNumber: "",
+      branch: "",
       dateIn: undefined,
       serviceCentreName: "",
       thingsToDo: {
@@ -257,7 +260,6 @@ export default function MotorcycleLogsPage() {
 
   const totalPages = Math.ceil((metadata?.total || 0) / itemsPerPage);
 
-
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-[#121212]">
@@ -313,12 +315,8 @@ export default function MotorcycleLogsPage() {
                 </h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2 text-sm">
                   <div>
-                    <span className="text-gray-500">Year:</span>
-                    <span className="ml-1 font-medium">{motorcycle.year}</span>
-                  </div>
-                  <div>
                     <span className="text-gray-500">Status:</span>
-                    <Badge
+                    {/* <Badge
                       className={`ml-1 ${
                         motorcycle.isAvailable
                           ? "bg-green-100 text-green-800"
@@ -326,12 +324,12 @@ export default function MotorcycleLogsPage() {
                       }`}
                     >
                       {motorcycle.isAvailable ? "Available" : "Unavailable"}
-                    </Badge>
+                    </Badge> */}
                   </div>
                   <div>
                     <span className="text-gray-500">Category:</span>
                     <span className="ml-1 font-medium">
-                      {motorcycle.category}
+                      {motorcycle.categories.join(", ")}
                     </span>
                   </div>
                   <div>
@@ -370,6 +368,56 @@ export default function MotorcycleLogsPage() {
                 className="space-y-6"
               >
                 <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={addLogForm.control}
+                    name="registrationNumber"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Service Centre Name</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="e.g., Royal Enfield Service Center"
+                            {...field}
+                            className="border-yellow-primary/30 focus:border-yellow-primary"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  {/* <FormField
+                    control={addLogForm.control}
+                    name="branch"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Service Centre Name</FormLabel>
+                        <FormControl>
+                          <Input
+                            placeholder="e.g., Royal Enfield Service Center"
+                            {...field}
+                            className="border-yellow-primary/30 focus:border-yellow-primary"
+                          />
+                          
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  /> */}
+                  <div className="flex flex-col gap-2">
+                    <Label>Branch</Label>
+                    <Select>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select Branch" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {motorcycle?.availableInCities.map((city) => (
+                          <SelectItem key={city.branch} value={city.branch}>
+                            {city.branch}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                   <FormField
                     control={addLogForm.control}
                     name="dateIn"
@@ -549,6 +597,7 @@ export default function MotorcycleLogsPage() {
                         <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border border-yellow-primary/20 p-4">
                           <FormControl>
                             <Checkbox
+                              className="border-1 border-yellow-400 data-[state=checked]:border-transparent data-[state=checked]:bg-yellow-500"
                               checked={field.value}
                               onCheckedChange={field.onChange}
                             />
@@ -566,6 +615,7 @@ export default function MotorcycleLogsPage() {
                         <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border border-yellow-primary/20 p-4">
                           <FormControl>
                             <Checkbox
+                              className="border-1 border-yellow-400 data-[state=checked]:border-transparent data-[state=checked]:bg-yellow-500"
                               checked={field.value}
                               onCheckedChange={field.onChange}
                             />
@@ -583,6 +633,7 @@ export default function MotorcycleLogsPage() {
                         <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border border-yellow-primary/20 p-4">
                           <FormControl>
                             <Checkbox
+                              className="border-1 border-yellow-400 data-[state=checked]:border-transparent data-[state=checked]:bg-yellow-500"
                               checked={field.value}
                               onCheckedChange={field.onChange}
                             />
@@ -600,6 +651,7 @@ export default function MotorcycleLogsPage() {
                         <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border border-yellow-primary/20 p-4">
                           <FormControl>
                             <Checkbox
+                              className="border-1 border-yellow-400 data-[state=checked]:border-transparent data-[state=checked]:bg-yellow-500"
                               checked={field.value}
                               onCheckedChange={field.onChange}
                             />
@@ -620,6 +672,7 @@ export default function MotorcycleLogsPage() {
                         <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border border-yellow-primary/20 p-4">
                           <FormControl>
                             <Checkbox
+                              className="border-1 border-yellow-400 data-[state=checked]:border-transparent data-[state=checked]:bg-yellow-500"
                               checked={field.value}
                               onCheckedChange={field.onChange}
                             />
@@ -657,6 +710,7 @@ export default function MotorcycleLogsPage() {
                         <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border border-yellow-primary/20 p-4">
                           <FormControl>
                             <Checkbox
+                              className="border-1 border-yellow-400 data-[state=checked]:border-transparent data-[state=checked]:bg-yellow-500"
                               checked={field.value}
                               onCheckedChange={field.onChange}
                             />
@@ -1119,6 +1173,7 @@ export default function MotorcycleLogsPage() {
                       <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border border-yellow-primary/20 p-4">
                         <FormControl>
                           <Checkbox
+                            className="border-1 border-yellow-400 data-[state=checked]:border-transparent data-[state=checked]:bg-yellow-500"
                             checked={field.value}
                             onCheckedChange={field.onChange}
                           />
@@ -1136,6 +1191,7 @@ export default function MotorcycleLogsPage() {
                       <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border border-yellow-primary/20 p-4">
                         <FormControl>
                           <Checkbox
+                            className="border-1 border-yellow-400 data-[state=checked]:border-transparent data-[state=checked]:bg-yellow-500"
                             checked={field.value}
                             onCheckedChange={field.onChange}
                           />
@@ -1153,6 +1209,7 @@ export default function MotorcycleLogsPage() {
                       <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border border-yellow-primary/20 p-4">
                         <FormControl>
                           <Checkbox
+                            className="border-1 border-yellow-400 data-[state=checked]:border-transparent data-[state=checked]:bg-yellow-500"
                             checked={field.value}
                             onCheckedChange={field.onChange}
                           />
@@ -1170,6 +1227,7 @@ export default function MotorcycleLogsPage() {
                       <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border border-yellow-primary/20 p-4">
                         <FormControl>
                           <Checkbox
+                            className="border-1 border-yellow-400 data-[state=checked]:border-transparent data-[state=checked]:bg-yellow-500"
                             checked={field.value}
                             onCheckedChange={field.onChange}
                           />
@@ -1190,6 +1248,7 @@ export default function MotorcycleLogsPage() {
                       <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border border-yellow-primary/20 p-4">
                         <FormControl>
                           <Checkbox
+                            className="border-1 border-yellow-400 data-[state=checked]:border-transparent data-[state=checked]:bg-yellow-500"
                             checked={field.value}
                             onCheckedChange={field.onChange}
                           />
@@ -1227,6 +1286,7 @@ export default function MotorcycleLogsPage() {
                       <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border border-yellow-primary/20 p-4">
                         <FormControl>
                           <Checkbox
+                            className="border-1 border-yellow-400 data-[state=checked]:border-transparent data-[state=checked]:bg-yellow-500"
                             checked={field.value}
                             onCheckedChange={field.onChange}
                           />

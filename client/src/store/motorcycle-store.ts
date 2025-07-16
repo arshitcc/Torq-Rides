@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { motorcycleAPI } from "@/lib/api";
-import { Motorcycle, MotorcycleLog } from "@/types";
+import { Motorcycle, MotorcycleCategory, MotorcycleLog } from "@/types";
 import {
   CreateMotorcycleLogFormData,
   UpdateMotorcycleLogFormData,
@@ -8,6 +8,14 @@ import {
 import { AxiosError } from "axios";
 
 interface MotorcycleState {
+  filters: {
+    makes: string[];
+    categories: string[];
+    distinctCities: string[];
+    selectedCities: string[];
+    selectedMake: string;
+    selectedCategory: MotorcycleCategory | "All Categories";
+  };
   motorcycles: Motorcycle[];
   motorcycle: Motorcycle | null;
   logs: MotorcycleLog[];
@@ -22,6 +30,7 @@ interface MotorcycleState {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   setMetadata: (metadata: any) => void;
+  setFilters: (filters: any) => void;
 
   // API functions
   getAllMotorcycles: (params?: any) => Promise<void>;
@@ -33,6 +42,11 @@ interface MotorcycleState {
     data: { isAvailable: boolean }
   ) => Promise<void>;
   deleteMotorcycle: (motorcycleId: string) => Promise<void>;
+  deleteMotorcycleImage: (
+    motorcycleId: string,
+    imageId: string
+  ) => Promise<void>;
+  getAllFilters: () => Promise<void>;
 
   // MotorcycleLogs API Functions
   getAllMotorcycleLogs: () => Promise<void>;
@@ -47,13 +61,17 @@ interface MotorcycleState {
     data: UpdateMotorcycleLogFormData
   ) => Promise<void>;
   deleteMotorcycleLog: (motorcycleId: string, logId: string) => Promise<void>;
-  deleteMotorcycleImage: (
-    motorcycleId: string,
-    imageId: string
-  ) => Promise<void>;
 }
 
 export const useMotorcycleStore = create<MotorcycleState>((set, get) => ({
+  filters: {
+    makes: [],
+    categories: [],
+    distinctCities: [],
+    selectedCities: [],
+    selectedMake: "",
+    selectedCategory: "All Categories",
+  },
   motorcycles: [],
   motorcycle: null,
   logs: [],
@@ -68,6 +86,7 @@ export const useMotorcycleStore = create<MotorcycleState>((set, get) => ({
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
   setMetadata: (metadata) => set({ metadata }),
+  setFilters: (filters) => set({ filters }),
 
   // Mortorcycle API functions
   getAllMotorcycles: async (params) => {
@@ -91,7 +110,7 @@ export const useMotorcycleStore = create<MotorcycleState>((set, get) => ({
       const response = await motorcycleAPI.addMotorcycle(data);
       const newMotorcycle = response.data;
       set((state) => ({
-        motorcycles: [...state.motorcycles, newMotorcycle],
+        motorcycles: [newMotorcycle, ...state.motorcycles],
         loading: false,
       }));
     } catch (error: AxiosError | any) {
@@ -176,6 +195,42 @@ export const useMotorcycleStore = create<MotorcycleState>((set, get) => ({
       set({
         loading: false,
         error: error.response?.data?.message || "Failed to delete motorcycle",
+      });
+      throw error;
+    }
+  },
+
+  deleteMotorcycleImage: async (motorcycleId, imageId) => {
+    set({ loading: true, error: null });
+    try {
+      await motorcycleAPI.deleteMotorcycleImage(motorcycleId, imageId);
+      set((state) => ({
+        "motorcycle?.images": state.motorcycle?.images.filter(
+          (img) => img.public_id !== imageId
+        ),
+        loading: false,
+      }));
+    } catch (error: AxiosError | any) {
+      set({
+        loading: false,
+        error:
+          error.response?.data?.message || "Failed to delete motorcycle log",
+      });
+      throw error;
+    }
+  },
+
+  getAllFilters: async () => {
+    set({ loading: true, error: null });
+    try {
+      const response = await motorcycleAPI.getAllFilters();
+      const filters = response.data.data;
+      set({ filters, loading: false });
+    } catch (error: AxiosError | any) {
+      set({
+        loading: false,
+        error:
+          error.response?.data?.message || "Failed to fetch motorcycle logs",
       });
       throw error;
     }
@@ -269,26 +324,6 @@ export const useMotorcycleStore = create<MotorcycleState>((set, get) => ({
       await motorcycleAPI.deleteMotorcycleLog(motorcycleId, logId);
       set((state) => ({
         logs: state.logs.filter((log) => log._id !== logId),
-        loading: false,
-      }));
-    } catch (error: AxiosError | any) {
-      set({
-        loading: false,
-        error:
-          error.response?.data?.message || "Failed to delete motorcycle log",
-      });
-      throw error;
-    }
-  },
-
-  deleteMotorcycleImage: async (motorcycleId, imageId) => {
-    set({ loading: true, error: null });
-    try {
-      await motorcycleAPI.deleteMotorcycleImage(motorcycleId, imageId);
-      set((state) => ({
-        "motorcycle?.images": state.motorcycle?.images.filter(
-          (img) => img.public_id !== imageId
-        ),
         loading: false,
       }));
     } catch (error: AxiosError | any) {

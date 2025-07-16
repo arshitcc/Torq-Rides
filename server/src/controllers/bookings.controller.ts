@@ -4,18 +4,15 @@ import { ApiError } from "../utils/api-error";
 import { CustomRequest, User } from "../models/users.model";
 import { Response } from "express";
 import {
+  AvailableBookingStatus,
   Booking,
+  BookingStatus,
   BookingStatusEnum,
   PaymentStatusEnum,
 } from "../models/bookings.model";
 import { Motorcycle } from "../models/motorcycles.model";
-import { PromoCode } from "../models/promo-codes.model";
 import mongoose from "mongoose";
-import {
-  PaymentProviderEnum,
-  PromoCodeTypeEnum,
-  UserRolesEnum,
-} from "../constants/constants";
+import { PaymentProviderEnum, UserRolesEnum } from "../constants/constants";
 import { paypalAPI } from "../utils/paypal";
 import { Cart, ICartItem } from "../models/carts.model";
 import { getCart } from "./carts.controller";
@@ -56,14 +53,17 @@ const handleBooking = async (
 
   const userCart = await getCart(req.user._id as string);
 
-  let bulkStockUpdates = userCart.items.map((item: ICartItem) => {
-    return {
-      updateOne: {
-        filter: { _id: item.motorcycleId },
-        update: { $inc: { availableQuantity: -item.quantity } },
+  const bulkStockUpdates = userCart.items.map((item: ICartItem) => ({
+    updateOne: {
+      filter: {
+        _id: item.motorcycleId,
+        "availableInCities.branch": item.pickupLocation,
       },
-    };
-  });
+      update: {
+        $inc: { "availableInCities.$.quantity": -item.quantity },
+      },
+    },
+  }));
 
   /* 
     (bulkWrite()) is faster than sending multiple independent operations (e.g. if you use create()) 
@@ -180,96 +180,6 @@ export const getbooking = async (
     },
     { $addFields: { coupon: { $arrayElemAt: ["$coupon", 0] } } },
 
-    // 6) COMPUTE rentTotal & securityDepositTotal
-    {
-      $addFields: {
-        rentTotal: {
-          $sum: {
-            $map: {
-              input: "$items",
-              as: "it",
-              in: {
-                $multiply: [
-                  "$$it.motorcycle.rentPerDay",
-                  "$$it.quantity",
-                  {
-                    // days = dropoffDate − pickupDate + 1
-                    $add: [
-                      {
-                        $dateDiff: {
-                          startDate: "$$it.pickupDate",
-                          endDate: "$$it.dropoffDate",
-                          unit: "day",
-                        },
-                      },
-                      1,
-                    ],
-                  },
-                ],
-              },
-            },
-          },
-        },
-        securityDepositTotal: {
-          $sum: {
-            $map: {
-              input: "$items",
-              as: "it",
-              in: {
-                $multiply: ["$$it.motorcycle.securityDeposit", "$$it.quantity"],
-              },
-            },
-          },
-        },
-      },
-    },
-
-    // 7) COMPUTE cartTotal & discountedTotal
-    {
-      $addFields: {
-        cartTotal: { $add: ["$rentTotal", "$securityDepositTotal"] },
-      },
-    },
-
-    {
-      $addFields: {
-        discountedTotal: {
-          $ifNull: [
-            { $subtract: ["$cartTotal", "$coupon.discountValue"] },
-            "$cartTotal",
-          ],
-        },
-      },
-    },
-
-    // 8) FINAL PROJECTION
-    // {
-    //   $project: {
-    //     _id: 1,
-    //     customerId: 1,
-    //     status: 1,
-    //     rentTotal: 1,
-    //     securityDepositTotal: 1,
-    //     discountedTotal: 1,
-    //     location: 1,
-    //     paymentProvider: 1,
-    //     paymentId: 1,
-    //     bookingDate: 1,
-    //     motorcycle: "$items.motorcycle",
-    //     customer: 1,
-    //     isAvailable: 1,
-    //     items: {
-    //       motorcycleId: 1,
-    //       quantity: 1,
-    //       pickupDate: 1,
-    //       dropoffDate: 1,
-    //     },
-    //     paymentStatus: 1,
-    //     createdAt: 1,
-    //     updatedAt: 1,
-    //   },
-    // },
-
     { $sort: { bookingDate: -1 } },
     {
       $facet: {
@@ -303,10 +213,9 @@ const getAllBookings = asyncHandler(
 
     const matchStage: Record<string, any> = {};
 
-    const { status, customerId, motorcycleId, bookingDate } = req.query;
+    const { status, customerId, bookingDate } = req.query;
 
     if (status) matchStage.status = status;
-    if (motorcycleId) matchStage.motorcycleId = motorcycleId;
     if (bookingDate) matchStage.bookingDate = bookingDate;
     if (customerId) {
       if (req.user.role !== UserRolesEnum.CUSTOMER) {
@@ -326,18 +235,7 @@ const getAllBookings = asyncHandler(
 
     let pipeline = [];
 
-    pipeline.push({ $match: matchStage });
-    pipeline.push({
-      $lookup: {
-        from: "motorcycles",
-        localField: "motorcycleId",
-        foreignField: "_id",
-        as: "motorcycle",
-      },
-    });
-    pipeline.push({
-      $addFields: { motorcycle: { $arrayElemAt: ["$motorcycle", 0] } },
-    });
+    if (Object.keys(matchStage).length) pipeline.push({ $match: matchStage });
 
     if (req.user.role === UserRolesEnum.ADMIN) {
       pipeline.push({
@@ -356,7 +254,60 @@ const getAllBookings = asyncHandler(
 
     const bookings = await Booking.aggregate([
       ...pipeline,
-      { $sort: { updatedAt: -1 } },
+      { $unwind: "$items" },
+      {
+        $lookup: {
+          from: "motorcycles",
+          let: { mid: "$items.motorcycleId" },
+          pipeline: [
+            { $match: { $expr: { $eq: ["$_id", "$$mid"] } } },
+            { $project: { maintenanceLogs: 0 } },
+          ],
+          as: "items.motorcycle",
+        },
+      },
+      // flatten the lookup array
+      {
+        $addFields: {
+          "items.motorcycle": { $arrayElemAt: ["$items.motorcycle", 0] },
+        },
+      },
+
+      // 4) RE‑GROUP back to one document per booking
+      {
+        $group: {
+          _id: "$_id",
+          customerId: { $first: "$customerId" },
+          status: { $first: "$status" },
+          location: { $first: "$location" },
+          paymentProvider: { $first: "$paymentProvider" },
+          paymentId: { $first: "$paymentId" },
+          bookingDate: { $first: "$bookingDate" },
+          isAvailable: { $first: "$isAvailable" },
+          paymentStatus: { $first: "$paymentStatus" },
+          rentTotal: { $first: "$rentTotal" },
+          securityDepositTotal: { $first: "$securityDepositTotal" },
+          cartTotal: { $first: "$cartTotal" },
+          discountedTotal: { $first: "$discountedTotal" },
+          paidAmount: { $first: "$paidAmount" },
+          remainingAmount: { $first: "$remainingAmount" },
+          createdAt: { $first: "$createdAt" },
+          updatedAt: { $first: "$updatedAt" },
+          customer: { $first: "$customer" },
+          items: { $push: "$items" },
+          couponId: { $first: "$couponId" },
+        },
+      },
+      {
+        $lookup: {
+          from: "promocodes",
+          localField: "couponId",
+          foreignField: "_id",
+          as: "coupon",
+        },
+      },
+      { $addFields: { coupon: { $arrayElemAt: ["$coupon", 0] } } },
+      { $sort: { bookingDate: -1 } },
       {
         $facet: {
           metadata: [{ $count: "total" }, { $addFields: { page: pageNum } }],
@@ -365,14 +316,6 @@ const getAllBookings = asyncHandler(
       },
     ]);
 
-    const mybookings = await getbooking(
-      req.user._id?.toString() as string,
-      pageNum,
-      limit,
-      skip,
-      req.user.role,
-    );
-
     return res
       .status(200)
       .json(
@@ -380,84 +323,8 @@ const getAllBookings = asyncHandler(
           200,
           true,
           "Bookings fetched successfully",
-          mybookings || bookings[0],
+          bookings[0],
         ),
-      );
-  },
-);
-
-const createBooking = asyncHandler(
-  async (req: CustomRequest, res: Response) => {
-    const { motorcycleId } = req.body;
-
-    const motorcycle = await Motorcycle.findById(motorcycleId?.toString());
-
-    if (!motorcycle) {
-      throw new ApiError(404, "Motorcycle not found");
-    }
-
-    let totalCost = 0;
-    const { startDate, endDate, quantity } = req.body;
-
-    if (startDate > endDate) {
-      throw new ApiError(400, "Start date must be less than end date");
-    }
-
-    const totalDays =
-      startDate === endDate
-        ? 1
-        : Math.ceil(
-            (new Date(endDate).getTime() - new Date(startDate).getTime()) /
-              (1000 * 60 * 60 * 24),
-          ) + 1;
-    totalCost = motorcycle.rentPerDay * totalDays * quantity;
-
-    const { promoCode } = req.body;
-
-    if (promoCode?.trim()) {
-      const promoCodeDetails = await PromoCode.findOne({
-        promoCode: promoCode.toUpperCase(),
-      });
-
-      if (!promoCodeDetails) {
-        throw new ApiError(404, "Promo Code not found");
-      }
-
-      if (!promoCodeDetails.isActive) {
-        throw new ApiError(400, "Offer is no more active");
-      }
-      if (promoCodeDetails.minimumCartValue > totalCost) {
-        throw new ApiError(
-          400,
-          `Minimum Booking amount is ${promoCodeDetails?.minimumCartValue}`,
-        );
-      }
-
-      if (promoCodeDetails.type === PromoCodeTypeEnum.FLAT) {
-        totalCost -= promoCodeDetails.discountValue;
-      } else if (promoCodeDetails.type === PromoCodeTypeEnum.PERCENTAGE) {
-        totalCost -= totalCost * (promoCodeDetails.discountValue / 100);
-      }
-    }
-
-    const booking = await Booking.create({
-      customerId: req.user._id,
-      motorcycleId,
-      quantity,
-      startDate,
-      endDate,
-      totalCost,
-      bookingDate: new Date(),
-    });
-
-    if (!booking) {
-      throw new ApiError(500, "Something went wrong");
-    }
-
-    return res
-      .status(201)
-      .json(
-        new ApiResponse(201, true, "Booking created successfully", booking),
       );
   },
 );
@@ -582,7 +449,6 @@ const generateRazorpayOrder = asyncHandler(
       const razorpayOrder = await razorpayInstance.orders.create(orderOptions);
 
       if (!razorpayOrder) {
-        // Throwing ApiError here will not trigger the error handler middleware
         return res
           .status(500)
           .json(
@@ -614,6 +480,10 @@ const generateRazorpayOrder = asyncHandler(
         paymentProvider: PaymentProviderEnum.RAZORPAY,
         paymentId: razorpayOrder.id,
         couponId: userCart.coupon?._id,
+        customer: {
+          fullname: req.user.fullname,
+          email: req.user.email,
+        },
       });
 
       // payment successful
@@ -994,9 +864,89 @@ const getAnalytics = asyncHandler(async (req: CustomRequest, res: Response) => {
     .json(new ApiResponse(200, true, "Analytics", analytics));
 });
 
+const getMonthlyAndYearlySales = async (
+  bookingMonth: number,
+  bookingYear: number,
+) => {
+  const matchStage: Record<string, any> = {
+    stage: "COMPLETED",
+  };
+
+  await Booking.aggregate([
+    {
+      $addFields: {
+        bookingMonth: "$bookingDate",
+        bookingYear: "$bookingDate",
+      },
+    },
+    {
+      $match: {
+        bookingMonth,
+        bookingYear,
+        ...matchStage,
+      },
+    },
+  ]);
+};
+
+const getDateWiseSales = async (fromDate: Date, toDate: Date) => {
+  await Booking.aggregate([
+    {
+      $match: {
+        $gte: fromDate,
+        $lte: toDate,
+      },
+    },
+  ]);
+};
+
+const getOverview = asyncHandler(async (req: CustomRequest, res: Response) => {
+  const {
+    month,
+    year,
+    fromDate,
+    toDate,
+    onDate,
+    today,
+    weeklyOfTheMonth,
+    monthlyOfTheYear,
+    status,
+  } = req.query;
+
+  let matchStage: Record<string, any> = {};
+  let overview;
+
+  if (
+    AvailableBookingStatus.includes(
+      status?.toString().toUpperCase() as BookingStatus,
+    )
+  ) {
+    matchStage.status = status?.toString().toUpperCase();
+  }
+
+  if (fromDate && toDate) {
+    const fromBookingDate = new Date(fromDate as string);
+    const toBookingDate = new Date(toDate as string);
+    const pipeline: mongoose.PipelineStage[] = [];
+    pipeline.push({
+      $match: matchStage,
+    });
+    pipeline.push({
+      $match: {
+        bookingDate: {
+          $gte: fromBookingDate,
+          $lte: toBookingDate,
+        },
+      },
+    });
+    overview = await Booking.aggregate(pipeline);
+  }
+
+  return res.status(200).json(new ApiResponse(200, true, "Showed Bookings !!"));
+});
+
 export {
   getAllBookings,
-  createBooking,
   modifyBooking,
   cancelBooking,
   generateRazorpayOrder,

@@ -18,6 +18,11 @@ const thingsToDoSchema = z.object({
 });
 
 export const createMotorcycleLogSchema = z.object({
+  registrationNumber: z
+    .string()
+    .trim()
+    .min(1, "Registration number is required"),
+  branch: z.string().trim().min(1, "Branch is required"),
   dateIn: z.date().optional(),
   serviceCentreName: z.string().trim().min(1, "serviceCentreName is required"),
   thingsToDo: thingsToDoSchema,

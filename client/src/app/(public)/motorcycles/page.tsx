@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Card,
   CardContent,
@@ -35,6 +35,7 @@ import {
   FilterXIcon,
   SlidersHorizontalIcon,
   ArrowDownNarrowWideIcon,
+  MapPinIcon,
 } from "lucide-react";
 import { useMotorcycleStore } from "@/store/motorcycle-store";
 import { useDebounceValue } from "usehooks-ts";
@@ -42,10 +43,9 @@ import {
   AvailableMotorcycleCategories,
   AvailableMotorcycleMakes,
   MotorcycleCategory,
-  MotorcycleMake,
 } from "@/types";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { Label } from "@/components/ui/label";
 import MotorcycleCardSkeleton from "./__components/motorcycle-card-skeleton";
 import {
@@ -57,31 +57,26 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-
-const sortTypes = [
-  {
-    value: "Newest",
-    label: "Newest",
-  },
-  {
-    value: "Rating",
-    label: "Rating",
-  },
-  {
-    value: "Price: Low to High",
-    label: "LTH",
-  },
-  {
-    value: "Price: High to Low",
-    label: "HTL",
-  },
-];
+import { sortTypes } from "@/data";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useCartStore } from "@/store/cart-store";
 
 export default function MotorcyclesPage() {
+  const {
+    motorcycles,
+    loading,
+    getAllMotorcycles,
+    metadata,
+    filters: savedFilters,
+    setFilters,
+    getAllFilters,
+  } = useMotorcycleStore();
+
+  const { setPickupLocation } = useCartStore();
+
   const router = useRouter();
-  const { motorcycles, loading, getAllMotorcycles, metadata, setLoading } =
-    useMotorcycleStore();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const params = Object.fromEntries(searchParams.entries());
 
   const [sortDialogOpen, setSortDialogOpen] = useState(false);
@@ -92,20 +87,55 @@ export default function MotorcyclesPage() {
   const [minPrice, setMinPrice] = useState(0);
   const [maxPrice, setMaxPrice] = useState(0);
   const [selectedMake, setSelectedMake] = useState("All Makes");
-  const [selectedCategory, setSelectedCategory] = useState<
-    MotorcycleCategory | "All Categories"
-  >("All Categories");
+
+  const [selectedCategory, setSelectedCategory] = useState(
+    savedFilters.selectedCategory || "All Categories"
+  );
+
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useDebounceValue(
     searchTerm,
     700
   );
   const [selectedSort, setSelectedSort] = useState("Newest");
+  const [cities, setCities] = useState<string[]>(
+    savedFilters.selectedCities || []
+  );
+
+  const isInitialMount = useRef(true);
 
   useEffect(() => {
-    if (params.make) setSelectedMake(params.make);
-    if (params.category)
+    const filters: Record<string, any> = {
+      page: currentPage,
+      offset: itemsPerPage,
+    };
+
+    if (params.make?.trim()) {
+      filters.make = params.make.trim();
+      setSelectedMake(params.make);
+      setFilters({ ...savedFilters, selectedMake: params.make });
+    }
+
+    if (params.category?.trim()) {
+      filters.categories = [params.category.trim()];
       setSelectedCategory(params.category as MotorcycleCategory);
+      setFilters({ ...savedFilters, selectedCategory: params.category });
+    }
+
+    if (selectedSort?.trim()) {
+      filters.sort = selectedSort;
+    }
+
+    if (params.location?.trim()) {
+      filters.cities = [params.location.trim()].join("$");
+      setCities([params.location.trim()]);
+      setFilters({ ...savedFilters, selectedCities: [params.location.trim()] });
+    }
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    // router.replace(pathname, { scroll: false });
+    getAllFilters();
+    getAllMotorcycles(filters);
   }, []);
 
   const getMotorcycles = async () => {
@@ -116,38 +146,21 @@ export default function MotorcyclesPage() {
 
     if (debouncedSearchTerm?.trim()) {
       filters.searchTerm = debouncedSearchTerm.trim();
-    } else {
-      filters.searchTerm = undefined;
     }
 
-    if (params.make?.trim()) {
-      if (
-        AvailableMotorcycleMakes.includes(params.make as MotorcycleMake) &&
-        selectedMake === "All Makes"
-      ) {
-        filters.make = params.make;
-      }
-    } else if (selectedMake === "All Makes") {
-      filters.make = undefined;
-    } else {
+    if (selectedMake !== "All Makes") {
       filters.make = selectedMake;
+      setFilters({ ...savedFilters, selectedMake });
     }
 
-    if (params.category?.trim()) {
-      if (
-        AvailableMotorcycleCategories.includes(
-          params.category as MotorcycleCategory
-        ) &&
-        selectedCategory === "All Categories"
-      ) {
-        filters.category = params.category;
-      } else {
-        filters.category = selectedCategory;
-      }
-    } else if (selectedCategory === "All Categories") {
-      filters.category = undefined;
-    } else {
-      filters.category = selectedCategory;
+    if (selectedCategory !== "All Categories") {
+      filters.categories = [selectedCategory];
+      setFilters({ ...savedFilters, selectedCategory });
+    }
+
+    if (cities.length > 0) {
+      filters.cities = cities.join("$");
+      setFilters({ ...savedFilters, selectedCities: cities });
     }
 
     const min = Number(minPrice);
@@ -158,23 +171,13 @@ export default function MotorcyclesPage() {
 
     filters.sort = selectedSort;
 
-    const searchParams = new URLSearchParams();
-
     getAllMotorcycles(filters);
-
-    if (filters) {
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value && key !== "page" && key !== "offset")
-          searchParams.set(key === "searchTerm" ? "s" : key, value);
-      });
-    }
-
-    router.replace(`?${searchParams.toString()}`, { scroll: true });
   };
 
   const clearFilters = () => {
     setSelectedMake("All Makes");
     setSelectedCategory("All Categories");
+    setCities([]);
     setMinPrice(0);
     setMaxPrice(0);
     setDebouncedSearchTerm("");
@@ -187,13 +190,21 @@ export default function MotorcyclesPage() {
   };
 
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
     window.scrollTo({ top: 0, behavior: "smooth" });
     getMotorcycles();
-  }, [debouncedSearchTerm, currentPage, selectedSort]);
+  }, [debouncedSearchTerm, currentPage, selectedSort, cities]);
 
   const totalPages = Math.ceil(metadata?.total / itemsPerPage) || 1;
-  const makes = AvailableMotorcycleMakes;
-  const categories = AvailableMotorcycleCategories;
+  const makes = savedFilters?.makes || AvailableMotorcycleMakes;
+  const categories = savedFilters.categories || AvailableMotorcycleCategories;
+  const branches = savedFilters.distinctCities.sort((a, b) =>
+    a.localeCompare(b)
+  );
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -404,7 +415,7 @@ export default function MotorcyclesPage() {
       </section>
 
       <div className="grid grid-cols-8 gap-6">
-        <div className="hidden md:flex sm:flex-col col-span-0 sm:col-span-2 space-y-4">
+        <div className="hidden md:flex sm:flex-col col-span-0 sm:col-span-2 space-y-4 sticky top-24 self-start">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center">
@@ -424,6 +435,33 @@ export default function MotorcyclesPage() {
                   </div>
                 ))}
               </RadioGroup>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <MapPinIcon className="h-4 w-4 mr-2" />
+                Locations
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {branches &&
+                branches.map((branch) => (
+                  <div key={branch} className="flex gap-4">
+                    <Checkbox
+                      checked={cities.includes(branch)}
+                      onCheckedChange={(checked) => {
+                        if (checked) {
+                          setCities([...cities, branch]);
+                        } else {
+                          setCities(cities.filter((b) => b !== branch));
+                        }
+                      }}
+                      className="data-[state=checked]:border-transparent data-[state=checked]:bg-yellow-500"
+                    />
+                    <Label>{branch}</Label>
+                  </div>
+                ))}
             </CardContent>
           </Card>
           <Card>
@@ -591,17 +629,14 @@ export default function MotorcyclesPage() {
                       <CardHeader className="p-0">
                         <div className="relative h-56 overflow-hidden">
                           <Image
-                            src={motorcycle?.images[0].url || "/placeholder.svg"}
+                            src={
+                              motorcycle?.images[0].url || "/placeholder.svg"
+                            }
                             alt={`${motorcycle.make} ${motorcycle.vehicleModel}`}
                             fill
+                            sizes="(max-width: 768px) 100vw,"
                             className="object-fit transform transition-transform duration-500 group-hover:scale-110"
                           />
-                          <Badge
-                            variant="secondary"
-                            className="absolute top-3 left-3 px-3 py-1 text-sm"
-                          >
-                            Available Now
-                          </Badge>
                           <Badge className="absolute bottom-3 right-3 px-3 py-1 text-sm font-semibold bg-yellow-50 text-yellow-primary">
                             ₹{motorcycle.rentPerDay}/day
                           </Badge>
@@ -612,22 +647,24 @@ export default function MotorcyclesPage() {
                           {motorcycle.make} {motorcycle.vehicleModel}
                         </CardTitle>
                         <div className="grid grid-cols-2 gap-y-2 gap-x-4 justify-items-center text-sm text-gray-600">
-                          <div className="flex items-center">
-                            <span>{motorcycle.year}</span>
-                          </div>
-                          {motorcycle.specs?.power && (
-                            <div className="flex items-center">
-                              <span>{motorcycle.specs.power}</span>
-                            </div>
-                          )}
                           {motorcycle.specs?.engine && (
                             <div className="flex items-center">
-                              <span>{motorcycle.specs.engine}</span>
+                              <span>{motorcycle.specs.engine} cc</span>
+                            </div>
+                          )}
+                          {motorcycle.specs?.power && (
+                            <div className="flex items-center">
+                              <span>{motorcycle.specs.power} ps</span>
                             </div>
                           )}
                           {motorcycle.specs?.weight && (
                             <div className="flex items-center">
-                              <span>{motorcycle.specs.weight}</span>
+                              <span>{motorcycle.specs.weight} kg</span>
+                            </div>
+                          )}
+                          {motorcycle.specs?.seatHeight && (
+                            <div className="flex items-center">
+                              <span>{motorcycle.specs.seatHeight} mm</span>
                             </div>
                           )}
                         </div>

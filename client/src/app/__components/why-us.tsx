@@ -1,4 +1,4 @@
-import { Shield, Clock, Award, Users, Zap, Heart, ZapIcon } from "lucide-react";
+import { Shield, Clock, Award, Users, Zap, Heart, ZapIcon, StarIcon } from "lucide-react";
 
 const features = [
   {
@@ -10,8 +10,8 @@ const features = [
   },
   {
     icon: Clock,
-    title: "24/7 Support",
-    description: "Round-the-clock customer support for any assistance you need",
+    title: "Wide Inventory Fleet",
+    description: "Choose the motorcycle that suits you best",
     color: "text-yellow-primary",
   },
   {
@@ -40,7 +40,7 @@ export function WhyUs() {
             </span>
             <ZapIcon className="h-6 w-6 text-yellow-primary ml-2" />
           </div>
-          <h2 className="text-4xl font-bold mb-4">Why Choose TORQ Rides?</h2>
+          <h2 className="text-4xl font-bold mb-4">Why Choose Torq Rides?</h2>
           <p className="text-xl text-muted-foreground">
             Experience the difference with our premium service
           </p>
@@ -74,22 +74,22 @@ export function WhyUs() {
             </div>
             <div className="flex flex-col items-center">
               <div className="text-3xl font-bold text-yellow-primary mb-2">
-                150+
+                100+
               </div>
               <div className="text-muted-foreground">Premium Bikes</div>
             </div>
             <div className="flex flex-col items-center">
               <div className="text-3xl font-bold text-yellow-primary mb-2">
-                25+
+                99%+
               </div>
-              <div className="text-muted-foreground">Cities Covered</div>
+              <div className="text-muted-foreground">Up-Time rate</div>
             </div>
             <div className="flex flex-col items-center">
               <div className="flex items-center text-3xl font-bold text-yellow-primary mb-2">
-                99%
-                <Heart className="h-6 w-6 ml-1 fill-current" />
+                4.9
+                <StarIcon className="h-6 w-6 ml-1 fill-current" />
               </div>
-              <div className="text-muted-foreground">Satisfaction Rate</div>
+              <div className="text-muted-foreground">Google Rating</div>
             </div>
           </div>
         </div>

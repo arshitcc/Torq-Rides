@@ -49,10 +49,12 @@ import {
   UsersIcon,
   SearchIcon,
   FilterIcon,
+  InfoIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { UserRolesEnum } from "@/types";
 import { AxiosError } from "axios";
+import { BookingDetailsDialog } from "@/app/(customer)/my-bookings/__components/booking-details-dialog";
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -356,28 +358,12 @@ export default function AllBookingsPage() {
                       </TableCell>
                       <TableCell>
                         <div>
-                          {/* <div className="font-medium text-gray-900">
-                            {booking.motorcycle?.make}{" "}
-                            {booking.motorcycle?.vehicleModel}
-                          </div> */}
                           <div className="text-sm text-gray-500">
                             Qty: {booking.items.length}
                           </div>
                         </div>
                       </TableCell>
                       <TableCell>
-                        {/* <div className="text-sm">
-                          <div className="font-medium text-gray-900">
-                            {format(
-                              new Date(booking.startDate),
-                              "MMM dd, yyyy"
-                            )}
-                          </div>
-                          <div className="text-gray-500">
-                            to{" "}
-                            {format(new Date(booking.endDate), "MMM dd, yyyy")}
-                          </div>
-                        </div> */}
                         {format(new Date(booking.bookingDate), "MMM dd, yyyy")}
                       </TableCell>
                       <TableCell className="font-semibold text-yellow-700 text-lg">
@@ -394,6 +380,18 @@ export default function AllBookingsPage() {
                       </TableCell>
                       <TableCell>
                         <div className="flex space-x-2">
+                          <BookingDetailsDialog
+                            booking={booking}
+                            trigger={
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="border border-blue-200 bg-blue-50"
+                              >
+                                <InfoIcon className="h-4 w-4 fill-blue-50 text-blue-500 dark:text-blue-50 dark:fill-blue-800" />
+                              </Button>
+                            }
+                          />
                           {booking.status !== "CANCELLED" &&
                             booking.status !== "COMPLETED" && (
                               <Dialog>
