@@ -385,6 +385,10 @@ const getAllFilters = asyncHandler(
             { $group: { _id: null, makes: { $addToSet: "$make" } } },
             { $project: { _id: 0, makes: 1 } },
           ],
+          models: [
+            { $group: { _id: null, models: { $addToSet: "$vehicleModel" } } },
+            { $project: { _id: 0, models: 1 } },
+          ],
           categories: [
             { $unwind: "$categories" },
             { $group: { _id: null, categories: { $addToSet: "$categories" } } },
@@ -405,12 +409,14 @@ const getAllFilters = asyncHandler(
     ]);
 
     const makes = result.makes?.[0]?.makes ?? [];
+    const models = result.models?.[0]?.models ?? [];
     const categories = result.categories?.[0]?.categories ?? [];
     const distinctCities = result.cities?.[0]?.distinctCities ?? [];
 
     return res.status(200).json(
       new ApiResponse(200, true, "Filters fetched successfully", {
         makes,
+        models,
         categories,
         distinctCities,
       }),

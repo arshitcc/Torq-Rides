@@ -82,6 +82,8 @@ export default function MotorcycleDetailPage() {
 
   const { user, isAuthenticated } = useAuthStore();
 
+  const router = useRouter();
+
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [currentReviewIndex, setCurrentReviewIndex] = useState(0);
 
@@ -156,6 +158,7 @@ export default function MotorcycleDetailPage() {
         await addOrUpdateMotorcycleToCart(motorcycle._id, data);
         toast.success("Added to Cart!");
         cartForm.reset();
+        router.push("/cart");
       }
     } catch (error: AxiosError | any) {
       toast.error(error?.response?.data?.message || "Failed to add to cart.");

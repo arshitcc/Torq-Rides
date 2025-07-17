@@ -81,7 +81,9 @@ export const MotorcycleCategoryEnum = {
 
 export const BookingStatusEnum = {
   PENDING: "PENDING",
+  RESERVED: "RESERVED",
   CONFIRMED: "CONFIRMED",
+  STARTED: "STARTED",
   CANCELLED: "CANCELLED",
   COMPLETED: "COMPLETED",
 } as const;

@@ -129,7 +129,6 @@ export const getCart = async (customerId: string) => {
         rentTotal: 1,
         securityDepositTotal: 1,
         cartTotal: 1,
-        // discountedTotal: 1,
       },
     },
   ]);
@@ -149,14 +148,20 @@ export const getCart = async (customerId: string) => {
     ct.discountedTotal = ct.cartTotal;
   } else {
     if (ct.coupon.type === "FLAT") {
-      ct.discountedTotal = ct.cartTotal - ct.coupon.discountValue;
+      ct.discountedTotal =
+        ct.securityDepositTotal + ct.rentTotal - ct.coupon.discountValue;
     } else {
       ct.discountedTotal =
-        ct.cartTotal - ct.cartTotal * (ct.coupon.discountValue / 100);
+        ct.securityDepositTotal +
+        ct.rentTotal -
+        ct.rentTotal * (ct.coupon.discountValue / 100);
     }
   }
 
-  await Cart.updateOne({_id : ct._id}, {$set : {discountedTotal : ct.discountedTotal}});
+  await Cart.updateOne(
+    { _id: ct._id },
+    { $set: { discountedTotal: ct.discountedTotal } },
+  );
 
   return ct;
 };

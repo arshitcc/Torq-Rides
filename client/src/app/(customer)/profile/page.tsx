@@ -34,6 +34,11 @@ import {
   Trash2Icon,
   UploadIcon,
   Loader2Icon,
+  CheckIcon,
+  XIcon,
+  CheckCircleIcon,
+  UserRoundCheckIcon,
+  UserRoundXIcon,
 } from "lucide-react";
 import { format } from "date-fns";
 import {
@@ -107,6 +112,7 @@ export default function ProfilePage() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [isResending, setIsResending] = useState(false);
 
   const profileForm = useForm<UpdateProfileFormData>({
     resolver: zodResolver(updateProfileSchema),
@@ -172,6 +178,10 @@ export default function ProfilePage() {
   }, [user?.documents]);
 
   useEffect(() => {
+    getCurrentUser();
+  }, []);
+
+  useEffect(() => {
     if (!isAuthenticated) return;
     if (!user) {
       router.push("/login");
@@ -234,26 +244,24 @@ export default function ProfilePage() {
   };
 
   const onPasswordSubmit = async (data: ChangeCurrentPasswordFormData) => {
+    let loadingId;
     try {
       const { currentPassword, newPassword, confirmNewPassword } = data;
       if (currentPassword === newPassword) {
         setPasswordError("New password cannot be same as Current password");
         return;
       }
-
       if (newPassword !== confirmNewPassword) {
         setPasswordError("New password and Confirm password do not match");
         return;
       }
-
-      const loadingId = toast.loading("Changing password...");
-
+      loadingId = toast.loading("Changing password...");
       await changeCurrentPassword(data);
-
-      toast.dismiss(loadingId);
       passwordForm.reset();
     } catch (error: AxiosError | any) {
       toast.error(error.response?.data?.message || "Change password failed");
+    } finally {
+      toast.dismiss(loadingId);
     }
   };
 
@@ -332,6 +340,18 @@ export default function ProfilePage() {
     0
   );
 
+  const resendEmailVerificationLink = async () => {
+    try {
+      setIsResending(true);
+      await resendEmailVerification();
+      toast.success(`Email verification link has been sent to ${user.email}`);
+    } catch (error: AxiosError | any) {
+      toast.error(error.response?.data?.message || "Failed to resend link");
+    } finally {
+      setIsResending(false);
+    }
+  };
+
   const userDocuments = user.documents || [];
 
   return (
@@ -348,6 +368,8 @@ export default function ProfilePage() {
         <div className="lg:col-span-1">
           <Card>
             <CardContent className="p-6 text-center">
+              {/* avatar + upload… */}
+
               <div className="relative mb-4">
                 <Avatar className="w-24 h-24 mx-auto mb-4">
                   <AvatarImage
@@ -395,6 +417,8 @@ export default function ProfilePage() {
 
               <h3 className="text-xl font-semibold mb-1">{user.fullname}</h3>
               <p className="text-gray-600 mb-2">@{user.username}</p>
+
+              {/* Role badge */}
               <Badge
                 variant={
                   user.role === UserRolesEnum.ADMIN ? "default" : "secondary"
@@ -404,6 +428,44 @@ export default function ProfilePage() {
                 {user.role === UserRolesEnum.ADMIN ? "Admin" : "Customer"}
               </Badge>
 
+              {/* ← New email‑verified badge */}
+              <div className="mb-4">
+                <Badge
+                  variant="outline"
+                  className={`inline-flex items-center ${
+                    user.isEmailVerified
+                      ? "bg-green-100 text-green-800"
+                      : "bg-red-100 text-red-800"
+                  }`}
+                >
+                  {user.isEmailVerified ? (
+                    <UserRoundCheckIcon className="w-4 h-4 mr-1" />
+                  ) : (
+                    <UserRoundXIcon className="w-4 h-4 mr-1" />
+                  )}
+                  {user.isEmailVerified ? "Verified" : "Not Verified"}
+                </Badge>
+              </div>
+
+              {/* ← If not yet verified, show resend button */}
+              {!user.isEmailVerified && (
+                <div className="mb-6">
+                  <Button
+                    size="sm"
+                    className="w-full bg-green-500 hover:bg-green-600 text-white"
+                    onClick={resendEmailVerificationLink}
+                    disabled={isResending}
+                  >
+                    {isResending ? (
+                      <Loader2Icon className="animate-spin h-4 w-4 mr-2" />
+                    ) : (
+                      "Resend Verification Link"
+                    )}
+                  </Button>
+                </div>
+              )}
+
+              {/* customer stats */}
               {user.role === UserRolesEnum.CUSTOMER && (
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
@@ -761,7 +823,10 @@ export default function ProfilePage() {
                   {selectableDocuments.length > 0 && (
                     <div className="mt-8 border-t pt-6">
                       <h3 className="text-lg font-semibold mb-4">
-                        Upload New Document <span className="text-muted-foreground text-sm">( * Only PDFs &amp; Image files are allowed)</span>
+                        Upload New Document{" "}
+                        <span className="text-muted-foreground text-sm">
+                          ( * Only PDFs &amp; Image files are allowed)
+                        </span>
                       </h3>
                       <Form {...documentForm}>
                         <form

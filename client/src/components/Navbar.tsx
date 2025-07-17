@@ -67,7 +67,7 @@ export function Navbar() {
 
   const handleLogout = async () => {
     await logout();
-    window.localStorage.clear();
+    localStorage.clear();
     router.push("/");
   };
 
@@ -251,7 +251,7 @@ export function Navbar() {
           {/* Right Section */}
           <div className="hidden lg:flex items-center space-x-4">
             {/* Location */}
-            <div className="flex items-center space-x-1 text-sm text-muted-foreground">
+            {/* <div className="flex items-center space-x-1 text-sm text-muted-foreground">
               <Select defaultValue={pickupLocation}>
                 <SelectTrigger className="w-[200px] text-black dark:text-white">
                   <MapPinIcon className="h-4 w-4 text-yellow-primary" />
@@ -266,7 +266,7 @@ export function Navbar() {
                     ))}
                 </SelectContent>
               </Select>
-            </div>
+            </div> */}
 
             <ThemeToggle />
 

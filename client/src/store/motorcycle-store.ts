@@ -10,6 +10,7 @@ import { AxiosError } from "axios";
 interface MotorcycleState {
   filters: {
     makes: string[];
+    models: string[];
     categories: string[];
     distinctCities: string[];
     selectedCities: string[];
@@ -66,6 +67,7 @@ interface MotorcycleState {
 export const useMotorcycleStore = create<MotorcycleState>((set, get) => ({
   filters: {
     makes: [],
+    models: [],
     categories: [],
     distinctCities: [],
     selectedCities: [],
@@ -108,7 +110,7 @@ export const useMotorcycleStore = create<MotorcycleState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const response = await motorcycleAPI.addMotorcycle(data);
-      const newMotorcycle = response.data;
+      const newMotorcycle = response.data.data;
       set((state) => ({
         motorcycles: [newMotorcycle, ...state.motorcycles],
         loading: false,

@@ -36,9 +36,12 @@ const handleBooking = async (
     throw new ApiError(404, "Booking does not exist");
   }
 
-  order.status = BookingStatusEnum.CONFIRMED;
   order.paidAmount += amount;
   order.remainingAmount -= amount;
+  order.status =
+    order.remainingAmount === 0
+      ? BookingStatusEnum.CONFIRMED
+      : BookingStatusEnum.RESERVED;
   order.paymentStatus =
     order.remainingAmount === 0
       ? PaymentStatusEnum.FULLY_PAID
@@ -429,7 +432,7 @@ const generateRazorpayOrder = asyncHandler(
     });
 
     if (!cart || !cart.items?.length) {
-      throw new ApiError(400, "User cart is empty");
+      throw new ApiError(400, "Your cart is empty");
     }
     const orderItems = cart.items;
     const userCart = await getCart(req.user._id as string);
@@ -486,7 +489,7 @@ const generateRazorpayOrder = asyncHandler(
         },
       });
 
-      // payment successful
+      // order successful
       if (unpaidOrder) {
         return res
           .status(200)

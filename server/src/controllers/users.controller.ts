@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import crypto from "crypto";
+import crypto, { BinaryLike } from "crypto";
 import jwt from "jsonwebtoken";
 import asyncHandler from "../utils/async-handler";
 import { CustomRequest, IUser, User } from "../models/users.model";
@@ -123,13 +123,14 @@ const userLogin = asyncHandler(async (req: Request, res: Response) => {
     sameSite: "none" as const,
   };
 
+  const accessTokenOptions = { ...options, maxAge: 24 * 60 * 60 * 1000 };
+  const refreshTokenOptions = { ...options, maxAge: 7 * 24 * 60 * 60 * 1000 };
+
   return res
     .status(200)
-    .cookie("accessToken", accessToken, options)
-    .cookie("refreshToken", refreshToken, options)
-    .json(
-      new ApiResponse(200, true, "User Authenticated Successfully", currUser),
-    );
+    .cookie("accessToken", accessToken, accessTokenOptions)
+    .cookie("refreshToken", refreshToken, refreshTokenOptions)
+    .json(new ApiResponse(200, true, "Login Successful !!", currUser));
 });
 
 const userLogout = asyncHandler(async (req: CustomRequest, res: Response) => {
@@ -277,7 +278,7 @@ const forgotPasswordRequest = asyncHandler(
     const { user } = req.body;
 
     const existingUser = await User.findOne({
-      $or: [{ email: user, username: user }],
+      $or: [{ email: user }, { username: user }],
     });
 
     if (!existingUser) {
@@ -286,11 +287,12 @@ const forgotPasswordRequest = asyncHandler(
 
     const { unHashedToken, hashedToken, tokenExpiry } =
       existingUser.generateTemporaryToken();
+
     existingUser.forgotPasswordToken = hashedToken;
     existingUser.forgotPasswordExpiry = tokenExpiry;
     await existingUser.save({ validateBeforeSave: false });
 
-    await sendEmail({
+    sendEmail({
       email: existingUser.email,
       subject: "Password Reset",
       template: resetPasswordTemplate({
@@ -313,10 +315,18 @@ const forgotPasswordRequest = asyncHandler(
 
 const resetForgottenPassword = asyncHandler(
   async (req: Request, res: Response) => {
-    const token = typeof req.query.token === "string" ? req.query.token : "";
+    const { token } = req.query;
+
+    if (!token) {
+      throw new ApiError(404, "Invalid Link");
+    }
+
     const { newPassword } = req.body;
 
-    const hashedToken = crypto.createHash("sha512").update(token).digest("hex");
+    const hashedToken = crypto
+      .createHash("sha512")
+      .update(token as BinaryLike)
+      .digest("hex");
     const user = await User.findOne({
       forgotPasswordToken: hashedToken,
       forgotPasswordExpiry: { $gt: Date.now() },
@@ -602,7 +612,8 @@ const getAllUsers = asyncHandler(async (req: CustomRequest, res: Response) => {
   }
 
   if (role) matchState.role = role;
-  if (verification) matchState.isEmailVerified = (verification === "true" ? true : false);
+  if (verification)
+    matchState.isEmailVerified = verification === "true" ? true : false;
 
   const pageNum = Number.isNaN(Number(page)) ? 1 : Math.max(Number(page), 1);
   const limit = Number.isNaN(Number(offset)) ? 10 : Math.max(Number(offset), 1);

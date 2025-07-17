@@ -121,7 +121,6 @@ export const useAuthStore = create<AuthState>()(
           }
         } catch (error: AxiosError | any) {
           set({ error: error.response?.data?.message || "Login failed" });
-          toast.error(error.response?.data?.message || "Login failed");
           throw error;
         } finally {
           set({ loading: false });
@@ -163,14 +162,10 @@ export const useAuthStore = create<AuthState>()(
         set({ loading: true, error: null });
         try {
           const res = await authAPI.forgotPasswordRequest(data);
-          toast.success(res.data.message);
         } catch (error: AxiosError | any) {
           set({
             error: error.response?.data?.message || "Forgot password failed",
           });
-          toast.error(
-            error.response?.data?.message || "Forgot password failed"
-          );
         } finally {
           set({ loading: false });
         }
@@ -180,12 +175,10 @@ export const useAuthStore = create<AuthState>()(
         set({ loading: true, error: null });
         try {
           const res = await authAPI.resetForgottenPassword(token, data);
-          toast.success(res.data.message);
         } catch (error: AxiosError | any) {
           set({
             error: error.response?.data?.message || "Reset password failed",
           });
-          toast.error(error.response?.data?.message || "Reset password failed");
         } finally {
           set({ loading: false });
         }
@@ -205,7 +198,6 @@ export const useAuthStore = create<AuthState>()(
           set({
             error: error.response?.data?.message || "Change avatar failed",
           });
-          toast.error(error.response?.data?.message || "Change avatar failed");
         } finally {
           set({ loading: false });
         }
@@ -215,12 +207,10 @@ export const useAuthStore = create<AuthState>()(
         set({ loading: true, error: null });
         try {
           const res = await authAPI.resendVerificationEmail();
-          toast.success(res.data.message);
         } catch (error: AxiosError | any) {
           set({
             error: error.response?.data?.message || "Resend email failed",
           });
-          toast.error(error.response?.data?.message || "Resend email failed");
         } finally {
           set({ loading: false });
         }
@@ -235,9 +225,6 @@ export const useAuthStore = create<AuthState>()(
           set({
             error: error.response?.data?.message || "Change password failed",
           });
-          toast.error(
-            error.response?.data?.message || "Change password failed"
-          );
         } finally {
           set({ loading: false });
         }

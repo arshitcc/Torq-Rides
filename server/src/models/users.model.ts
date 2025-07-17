@@ -191,8 +191,7 @@ userSchema.methods.generateTemporaryToken = function () {
     .createHash("sha512")
     .update(unHashedToken)
     .digest("hex");
-  const tokenExpiry =
-    Date.now() + Number(eval(EMAIL_VERIFICATION_TOKEN_EXPIRY!));
+  const tokenExpiry = Date.now() + 15 * 60 * 1000;
 
   return { unHashedToken, hashedToken, tokenExpiry: new Date(tokenExpiry) };
 };

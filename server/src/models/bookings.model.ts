@@ -10,7 +10,9 @@ import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2";
 
 export const BookingStatusEnum = {
   PENDING: "PENDING",
+  RESERVED: "RESERVED",
   CONFIRMED: "CONFIRMED",
+  STARTED: "STARTED",
   CANCELLED: "CANCELLED",
   COMPLETED: "COMPLETED",
 } as const;

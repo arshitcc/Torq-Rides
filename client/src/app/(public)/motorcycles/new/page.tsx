@@ -1,21 +1,26 @@
 "use client";
 
 import type React from "react";
-
-import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useState, useEffect, useRef } from "react";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import {
   Form,
   FormControl,
@@ -24,6 +29,12 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useMotorcycleStore } from "@/store/motorcycle-store";
 import { useAuthStore } from "@/store/auth-store";
 import { toast } from "sonner";
@@ -32,73 +43,119 @@ import {
   type AddMotorcycleFormData,
 } from "@/schemas/motorcycles.schema";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Upload, Loader2, X, Loader2Icon } from "lucide-react";
+import {
+  ArrowLeft,
+  Upload,
+  X,
+  Loader2Icon,
+  ChevronsUpDown,
+  Check,
+  PlusCircle,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
 import { UserRolesEnum } from "@/types";
 import type { AxiosError } from "axios";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
+import Image from "next/image";
+
+// A more reusable and robust numeric input component 
+const NumericInput = ({
+  field,
+  isFloat = false,
+  placeholder,
+}: {
+  field: any;
+  isFloat?: boolean;
+  placeholder?: string;
+}) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    const regex = isFloat ? /^[0-9]*\.?[0-9]*$/ : /^[0-9]*$/;
+    if (regex.test(value)) {
+      // For react-hook-form, it's better to pass the coerced number or undefined
+      const numericValue = value === "" ? undefined : Number(value);
+      field.onChange(numericValue);
+    }
+  };
+
+  return (
+    <Input
+      {...field}
+      value={field.value ?? ""}
+      onChange={handleChange}
+      placeholder={placeholder}
+      className="border-yellow-primary/30 focus:border-yellow-primary"
+    />
+  );
+};
 
 export default function NewMotorcyclePage() {
   const { user, isAuthenticated } = useAuthStore();
   const { addMotorcycle, loading, filters } = useMotorcycleStore();
   const router = useRouter();
-  const [selectedImages, setSelectedImages] = useState<File[]>([]);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [branchQuantities, setBranchQuantities] = useState<
-    { branch: string; quantity: number }[]
+  const [selectedImages, setSelectedImages] = useState<
+    { file: File; preview: string }[]
   >([]);
-
+  const [largePreview, setLargePreview] = useState<string | null>(null);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [adding, setAdding] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<AddMotorcycleFormData>({
     resolver: zodResolver(addMotorcycleSchema),
+    // Set undefined for numbers to allow empty inputs
     defaultValues: {
       make: "",
       vehicleModel: "",
-      rentPerDay: 0,
+      rentPerDay: undefined,
       description: "",
       categories: [],
       variant: "",
       color: "",
-      securityDeposit: 0,
-      kmsLimitPerDay: 100,
-      extraKmsCharges: 5,
-      availableInCities: [],
+      securityDeposit: undefined,
+      kmsLimitPerDay: undefined,
+      extraKmsCharges: undefined,
+      availableInCities: [{ branch: "", quantity: undefined }], // Start with one
       specs: {
-        engine: 0,
-        power: 0,
-        weight: 0,
-        seatHeight: 0,
+        engine: undefined,
+        power: undefined,
+        weight: undefined,
+        seatHeight: undefined,
       },
     },
   });
 
-  useEffect(() => {
-    if (!isAuthenticated) return;
+  const {
+    fields: branchFields,
+    append: appendBranch,
+    remove: removeBranch,
+  } = useFieldArray({
+    control: form.control,
+    name: "availableInCities",
+  });
 
-    if (!user || user.role !== UserRolesEnum.ADMIN) {
-      toast.warning("Access Denied !!");
-      router.push("/");
+  useEffect(() => {
+    // Auth check
+    if (!user) {
       return;
     }
-
-    // Initialize branch quantities with available cities
-    if (filters.distinctCities?.length > 0) {
-      setBranchQuantities(
-        filters.distinctCities.map((city) => ({ branch: city, quantity: 0 }))
-      );
+    if (isAuthenticated === false) {
+      router.push("/login");
+    } else if (user && user.role !== UserRolesEnum.ADMIN) {
+      toast.warning("Access Denied: Admins only.");
+      router.push("/");
     }
-  }, [user, router, toast, filters.distinctCities]);
+  }, [user, isAuthenticated, router]);
 
-  const handleImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    setSelectedImages((prev) => [...prev, ...files]);
-  };
-
-  const removeImage = (index: number) => {
-    setSelectedImages((prev) => prev.filter((_, i) => i !== index));
-  };
+  useEffect(() => {
+    // Cleanup image preview URLs
+    return () => {
+      selectedImages.forEach((image) => URL.revokeObjectURL(image.preview));
+    };
+  }, [selectedImages]);
 
   const handleCategoryChange = (category: string, checked: boolean) => {
     if (checked) {
@@ -108,89 +165,99 @@ export default function NewMotorcyclePage() {
     }
   };
 
-  const handleBranchQuantityChange = (branch: string, quantity: number) => {
-    setBranchQuantities((prev) =>
-      prev.map((item) =>
-        item.branch === branch ? { ...item, quantity } : item
-      )
-    );
+  const handleImagesChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (selectedImages.length + files.length > 5) {
+      toast.error("A maximum of 5 images are allowed.");
+      return;
+    }
+    const newImages = files.map((file) => ({
+      file,
+      preview: URL.createObjectURL(file),
+    }));
+    setSelectedImages((prev) => [...prev, ...newImages]);
+  };
+
+  const removeImage = (index: number) => {
+    URL.revokeObjectURL(selectedImages[index].preview);
+    setSelectedImages((prev) => prev.filter((_, i) => i !== index));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const onSubmit = async (data: AddMotorcycleFormData) => {
     if (selectedImages.length === 0) {
-      toast.error("Please select at least one image for the motorcycle.");
+      toast.error("Please upload at least one image.");
       return;
     }
 
-    if (selectedCategories.length === 0) {
-      toast.error("Please select at least one category.");
+    // RHF + Zod already validates this, but an extra check is fine
+    if (
+      data.availableInCities.length === 0 ||
+      !data.availableInCities.some((b) => b.quantity > 0)
+    ) {
+      toast.error("Please specify availability for at least one branch.");
       return;
     }
 
-    const validBranches = branchQuantities.filter((item) => item.quantity > 0);
-    if (validBranches.length === 0) {
-      toast.error("Please set quantity for at least one branch.");
-      return;
-    }
-
+    setAdding(true);
     try {
-      setAdding(true);
       const formData = new FormData();
+      selectedImages.forEach((image) => formData.append("images", image.file));
 
-      // Add images
-      selectedImages.forEach((image) => {
-        formData.append("images", image);
-      });
-
-      // Add form data
+      // Append other data
       const submitData = {
         ...data,
         categories: selectedCategories,
-        availableInCities: validBranches,
       };
 
       Object.entries(submitData).forEach(([key, value]) => {
-        if (key === "specs" && typeof value === "object") {
-          formData.append(key, JSON.stringify(value));
-        } else if (key === "categories" || key === "availableInCities") {
-          formData.append(key, JSON.stringify(value));
-        } else {
-          formData.append(key, value.toString());
-        }
+        const valueToAppend =
+          typeof value === "object" ? JSON.stringify(value) : String(value);
+        formData.append(key, valueToAppend);
       });
 
       await addMotorcycle(formData);
       toast.success("Motorcycle added successfully!");
       router.push("/dashboard?tab=motorcycles");
     } catch (error: AxiosError | any) {
-      toast.error(
-        error.response?.data?.message ??
-          "Failed to add motorcycle. Please try again."
-      );
+      toast.error(error.response?.data?.message ?? "Failed to add motorcycle.");
     } finally {
       setAdding(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="container mx-auto px-4 py-8 max-w-4xl">
-        <div className="flex items-center justify-center h-64">
-          <Loader2 className="h-8 w-8 animate-spin text-yellow-primary" />
-        </div>
-      </div>
-    );
-  }
-
-  if (!user || user.role !== UserRolesEnum.ADMIN) {
-    return null;
-  }
-
   const availableCategories = filters.categories;
   const availableMakes = filters.makes;
+  const availableBranches = filters.distinctCities;
+  const availableModels = filters.models;
+
+  if (!user || user.role !== UserRolesEnum.ADMIN) return null;
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-4xl">
+    <div
+      className={`container mx-auto max-w-4xl px-4 py-8 ${loading} && "opacity-50" `}
+    >
+      <Dialog open={!!largePreview} onOpenChange={() => setLargePreview(null)}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Image Preview</DialogTitle>
+          </DialogHeader>
+          <div className="relative h-[70vh] w-full">
+            {largePreview && (
+              <Image
+                src={largePreview}
+                alt="Large preview"
+                layout="fill"
+                objectFit="contain"
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ... (Header and Back button as in the previous example) ... */}
       <div className="mb-8">
         <Link href="/dashboard?tab=motorcycles">
           <Button variant="outline" className="mb-4 bg-transparent">
@@ -208,57 +275,145 @@ export default function NewMotorcyclePage() {
 
       <Card className="border-yellow-primary/20">
         <CardHeader>
-          <CardTitle>Motorcycle Details</CardTitle>
+          <CardTitle>Add New Motorcycle</CardTitle>
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              {/* Basic Information */}
-              <div className="space-y-4">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+              {/* Basic Info Accordion */}
+              {/* Using collapsible sections for better UI on smaller screens */}
+              <div className="space-y-6 rounded-lg border p-4">
                 <h3 className="text-lg font-semibold text-yellow-primary">
                   Basic Information
                 </h3>
+                {/* ... (Make Combobox and other basic fields as in previous example) ... */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="make"
                     render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>
-                          Make * (Enter The Correct Brand Name)
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="e.g., Royal Enfield"
-                            {...field}
-                            className="border-yellow-primary/30 focus:border-yellow-primary"
-                          />
-                        </FormControl>
+                      <FormItem className="flex flex-col">
+                        <FormLabel>Make *</FormLabel>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                className={cn(
+                                  "w-full justify-between border-yellow-primary/30",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                              >
+                                {field.value || "Select or type a make"}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[250px] lg:w-[300px] max-h-60 p-0">
+                            <Command>
+                              <CommandInput
+                                placeholder="Search or add new make..."
+                                onValueChange={(search) => {
+                                  // Allow free text entry
+                                  field.onChange(search);
+                                }}
+                                value={field.value}
+                              />
+                              <CommandEmpty>No make found.</CommandEmpty>
+                              <CommandGroup>
+                                <CommandList>
+                                  {availableMakes.map((make) => (
+                                    <CommandItem
+                                      value={make}
+                                      key={make}
+                                      onSelect={() => {
+                                        form.setValue("make", make);
+                                      }}
+                                    >
+                                      <Check
+                                        className={cn(
+                                          "mr-2 h-4 w-4",
+                                          make === field.value
+                                            ? "opacity-100"
+                                            : "opacity-0"
+                                        )}
+                                      />
+                                      {make}
+                                    </CommandItem>
+                                  ))}
+                                </CommandList>
+                              </CommandGroup>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-
                   <FormField
                     control={form.control}
                     name="vehicleModel"
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Model *</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="e.g., Street 750"
-                            {...field}
-                            className="border-yellow-primary/30 focus:border-yellow-primary"
-                          />
-                        </FormControl>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                role="combobox"
+                                className={cn(
+                                  "w-full justify-between border-yellow-primary/30",
+                                  !field.value && "text-muted-foreground"
+                                )}
+                              >
+                                {field.value || "Select or type a model"}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-[250px] lg:w-[300px] max-h-60 p-0">
+                            <Command>
+                              <CommandInput
+                                placeholder="Search or add new model..."
+                                onValueChange={(search) => {
+                                  // Allow free text entry
+                                  field.onChange(search);
+                                }}
+                                value={field.value}
+                              />
+                              <CommandEmpty>No make found.</CommandEmpty>
+                              <CommandGroup>
+                                <CommandList>
+                                  {availableModels.map((model) => (
+                                    <CommandItem
+                                      value={model}
+                                      key={model}
+                                      onSelect={() => {
+                                        form.setValue("vehicleModel", model);
+                                      }}
+                                    >
+                                      <Check
+                                        className={cn(
+                                          "mr-2 h-4 w-4",
+                                          model === field.value
+                                            ? "opacity-100"
+                                            : "opacity-0"
+                                        )}
+                                      />
+                                      {model}
+                                    </CommandItem>
+                                  ))}
+                                </CommandList>
+                              </CommandGroup>
+                            </Command>
+                          </PopoverContent>
+                        </Popover>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="variant"
@@ -294,8 +449,6 @@ export default function NewMotorcyclePage() {
                     )}
                   />
                 </div>
-
-                {/* Categories */}
                 <div>
                   <Label className="text-sm font-medium mb-2 block">
                     Categories *
@@ -365,8 +518,8 @@ export default function NewMotorcyclePage() {
                 />
               </div>
 
-              {/* Pricing Information */}
-              <div className="space-y-4">
+              {/* Pricing & Limits Section */}
+              <div className="space-y-6 rounded-lg border p-4">
                 <h3 className="text-lg font-semibold text-yellow-primary">
                   Pricing & Limits
                 </h3>
@@ -378,21 +531,16 @@ export default function NewMotorcyclePage() {
                       <FormItem>
                         <FormLabel>Rent per Day (₹) *</FormLabel>
                         <FormControl>
-                          <Input
-                            {...field}
-                            onChange={(e) => {
-                              const val = Number(e.target.value);
-                              if (isNaN(val)) field.onChange(1);
-                              if (!isNaN(val) && val >= 0) field.onChange(val);
-                              else field.onChange(0);
-                            }}
-                            className="border-yellow-primary/30 focus:border-yellow-primary"
+                          <NumericInput
+                            field={field}
+                            placeholder="e.g., 2000"
                           />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+
                   <FormField
                     control={form.control}
                     name="securityDeposit"
@@ -400,41 +548,23 @@ export default function NewMotorcyclePage() {
                       <FormItem>
                         <FormLabel>Security Deposit (₹) *</FormLabel>
                         <FormControl>
-                          <Input
-                            {...field}
-                            onChange={(e) => {
-                              const val = Number(e.target.value);
-                              if (isNaN(val)) field.onChange(1);
-                              if (!isNaN(val) && val >= 0) field.onChange(val);
-                              else field.onChange(0);
-                            }}
-                            className="border-yellow-primary/30 focus:border-yellow-primary"
+                          <NumericInput
+                            field={field}
+                            placeholder="e.g., 12000"
                           />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
                     name="kmsLimitPerDay"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>KMS Limit per Day *</FormLabel>
+                        <FormLabel>KMS Limit per Day (kms) *</FormLabel>
                         <FormControl>
-                          <Input
-                            {...field}
-                            onChange={(e) => {
-                              const val = Number(e.target.value);
-                              if (isNaN(val)) field.onChange(1);
-                              if (!isNaN(val) && val >= 0) field.onChange(val);
-                              else field.onChange(0);
-                            }}
-                            className="border-yellow-primary/30 focus:border-yellow-primary"
-                          />
+                          <NumericInput field={field} placeholder="e.g., 100" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -447,17 +577,7 @@ export default function NewMotorcyclePage() {
                       <FormItem>
                         <FormLabel>Extra KMS Charges (₹/km) *</FormLabel>
                         <FormControl>
-                          <Input
-                            step="0.01"
-                            {...field}
-                            onChange={(e) => {
-                              const val = Number(e.target.value);
-                              if (isNaN(val)) field.onChange(1);
-                              if (!isNaN(val) && val >= 0) field.onChange(val);
-                              else field.onChange(0);
-                            }}
-                            className="border-yellow-primary/30 focus:border-yellow-primary"
-                          />
+                          <NumericInput field={field} placeholder="e.g., 10" />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -466,8 +586,8 @@ export default function NewMotorcyclePage() {
                 </div>
               </div>
 
-              {/* Specifications */}
-              <div className="space-y-4">
+              {/* Specifications Section */}
+              <div className="space-y-6 rounded-lg border p-4">
                 <h3 className="text-lg font-semibold text-yellow-primary">
                   Specifications
                 </h3>
@@ -477,18 +597,12 @@ export default function NewMotorcyclePage() {
                     name="specs.engine"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Engine (cc) *</FormLabel>
+                        <FormLabel>Engine (cc)*</FormLabel>
                         <FormControl>
-                          <Input
-                            placeholder="749"
-                            {...field}
-                            onChange={(e) => {
-                              const val = Number(e.target.value);
-                              if (isNaN(val)) field.onChange(1);
-                              if (!isNaN(val) && val >= 0) field.onChange(val);
-                              else field.onChange(0);
-                            }}
-                            className="border-yellow-primary/30 focus:border-yellow-primary"
+                          <NumericInput
+                            field={field}
+                            isFloat
+                            placeholder="e.g., 349.5"
                           />
                         </FormControl>
                         <FormMessage />
@@ -500,18 +614,12 @@ export default function NewMotorcyclePage() {
                     name="specs.power"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Power (ps) *</FormLabel>
+                        <FormLabel>Power (ps)*</FormLabel>
                         <FormControl>
-                          <Input
-                            placeholder="53"
-                            {...field}
-                            onChange={(e) => {
-                              const val = parseFloat(e.target.value);
-                              if (isNaN(val)) field.onChange(1);
-                              if (!isNaN(val) && val >= 0) field.onChange(val);
-                              else field.onChange(0);
-                            }}
-                            className="border-yellow-primary/30 focus:border-yellow-primary"
+                          <NumericInput
+                            field={field}
+                            isFloat
+                            placeholder="e.g., 57.5"
                           />
                         </FormControl>
                         <FormMessage />
@@ -523,18 +631,12 @@ export default function NewMotorcyclePage() {
                     name="specs.weight"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Weight (kg) *</FormLabel>
+                        <FormLabel>Weight (kg)*</FormLabel>
                         <FormControl>
-                          <Input
-                            placeholder="233"
-                            {...field}
-                            onChange={(e) => {
-                              const val = Number(e.target.value);
-                              if (isNaN(val)) field.onChange(1);
-                              if (!isNaN(val) && val >= 0) field.onChange(val);
-                              else field.onChange(0);
-                            }}
-                            className="border-yellow-primary/30 focus:border-yellow-primary"
+                          <NumericInput
+                            field={field}
+                            isFloat
+                            placeholder="e.g., 194.5"
                           />
                         </FormControl>
                         <FormMessage />
@@ -546,61 +648,141 @@ export default function NewMotorcyclePage() {
                     name="specs.seatHeight"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Seat Height (mm) *</FormLabel>
+                        <FormLabel>Seat Height (mm)*</FormLabel>
                         <FormControl>
-                          <Input
-                            placeholder="765"
-                            {...field}
-                            onChange={(e) => {
-                              const val = Number(e.target.value);
-                              if (isNaN(val)) field.onChange(1);
-                              if (!isNaN(val) && val >= 0) field.onChange(val);
-                              else field.onChange(0);
-                            }}
-                            className="border-yellow-primary/30 focus:border-yellow-primary"
+                          <NumericInput
+                            field={field}
+                            isFloat
+                            placeholder="e.g., 760 mm"
                           />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
+                  {/* ... other spec fields using NumericInput with isFloat */}
                 </div>
               </div>
 
-              {/* Branch Quantities */}
-              <div className="space-y-4">
+              {/* Branch Availability with useFieldArray */}
+              <div className="space-y-6 rounded-lg border p-4">
                 <h3 className="text-lg font-semibold text-yellow-primary">
                   Branch Availability
                 </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {branchQuantities.map((item) => (
+                <div className="space-y-4">
+                  {branchFields.map((field, index) => (
                     <div
-                      key={item.branch}
-                      className="flex items-center space-x-3"
+                      key={field.id}
+                      className="flex flex-col md:flex-row items-start gap-2"
                     >
-                      <Label className="w-1/2">{item.branch}</Label>
-                      <Input
-                        placeholder="0"
-                        value={item.quantity}
-                        onChange={(e) => {
-                          const val = Number(e.target.value);
-                          if (isNaN(val)) return;
-                          handleBranchQuantityChange(
-                            item.branch,
-                            Number(e.target.value)
-                          );
-                        }}
-                        className="w-1/2 border-yellow-primary/30 focus:border-yellow-primary"
+                      <FormField
+                        control={form.control}
+                        name={`availableInCities.${index}.branch`}
+                        render={({ field }) => (
+                          <FormItem className="w-full md:w-3/4">
+                            <FormControl>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <FormControl>
+                                    <Button
+                                      variant="outline"
+                                      role="combobox"
+                                      className={cn(
+                                        "w-full justify-between border-yellow-primary/30",
+                                        !field.value && "text-muted-foreground"
+                                      )}
+                                    >
+                                      {field.value || "Select or type a Branch"}
+                                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                    </Button>
+                                  </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-[250px] lg:w-[300px] max-h-60 p-0">
+                                  <Command>
+                                    <CommandInput
+                                      placeholder="Search or add new Branch..."
+                                      onValueChange={(search) => {
+                                        // Allow free text entry
+                                        field.onChange(search);
+                                      }}
+                                      value={field.value}
+                                    />
+                                    <CommandEmpty>No make found.</CommandEmpty>
+                                    <CommandGroup>
+                                      <CommandList>
+                                        {availableBranches.map((branch) => (
+                                          <CommandItem
+                                            value={branch}
+                                            key={branch}
+                                            onSelect={() => {
+                                              form.setValue(
+                                                `availableInCities.${index}.branch`,
+                                                branch
+                                              );
+                                            }}
+                                          >
+                                            <Check
+                                              className={cn(
+                                                "mr-2 h-4 w-4",
+                                                branch === field.value
+                                                  ? "opacity-100"
+                                                  : "opacity-0"
+                                              )}
+                                            />
+                                            {branch}
+                                          </CommandItem>
+                                        ))}
+                                      </CommandList>
+                                    </CommandGroup>
+                                  </Command>
+                                </PopoverContent>
+                              </Popover>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
                       />
+                      <FormField
+                        control={form.control}
+                        name={`availableInCities.${index}.quantity`}
+                        render={({ field: qtyField }) => (
+                          <FormItem className="w-full md:w-1/4">
+                            <FormControl>
+                              <NumericInput
+                                field={qtyField}
+                                placeholder="Quantity"
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => removeBranch(index)}
+                      >
+                        <Trash2 className="h-4 w-4 text-red-500" />
+                      </Button>
                     </div>
                   ))}
                 </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => appendBranch({ branch: "", quantity: 0 })}
+                >
+                  <PlusCircle className="h-4 w-4 mr-2" />
+                  Add Branch
+                </Button>
               </div>
 
-              {/* Images */}
+              {/* ... (Image upload and preview section is identical to the first example) ... */}
+
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold text-yellow-primary">
-                  Images *
+                  Images * (Max 5)
                 </h3>
                 <div className="border-2 border-dashed border-yellow-primary/30 rounded-lg p-6 text-center">
                   <input
@@ -610,40 +792,40 @@ export default function NewMotorcyclePage() {
                     onChange={handleImagesChange}
                     className="hidden"
                     id="images"
+                    ref={fileInputRef}
                   />
                   <label htmlFor="images" className="cursor-pointer">
                     <Upload className="h-8 w-8 text-yellow-primary mx-auto mb-2" />
-                    <p className="text-sm text-gray-600">
-                      Click to upload motorcycle images
-                    </p>
+                    <p>Click to upload</p>
                   </label>
                 </div>
-
                 {selectedImages.length > 0 && (
-                  <div className="mt-4">
-                    <p className="text-sm font-medium mb-2">Selected Images:</p>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedImages.map((image, index) => (
-                        <div
-                          key={index}
-                          className="relative dark:bg-[#18181B] rounded-lg p-2 text-xs flex items-center border-2 border-yellow-800"
+                  <div className="mt-4 flex flex-wrap gap-4">
+                    {selectedImages.map((image, index) => (
+                      <div key={index} className="relative group">
+                        <Image
+                          src={image.preview}
+                          alt={`preview ${index}`}
+                          width={100}
+                          height={100}
+                          className="rounded-md object-cover h-24 w-24 cursor-pointer"
+                          onClick={() => setLargePreview(image.preview)}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeImage(index)}
+                          className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 opacity-75 group-hover:opacity-100 transition-opacity"
                         >
-                          <span className="mr-2">{image.name}</span>
-                          <button
-                            type="button"
-                            onClick={() => removeImage(index)}
-                            className="text-red-500 hover:text-red-700"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
+                          <X className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
 
               <div className="flex gap-4 pt-6">
+                {/* ... (Submit and Cancel buttons are identical) ... */}
                 <Link href="/dashboard?tab=motorcycles" className="flex-1">
                   <Button
                     type="button"
