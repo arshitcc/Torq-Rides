@@ -1,7 +1,7 @@
 import asyncHandler from "../utils/async-handler";
 import { ApiResponse } from "../utils/api-response";
 import { ApiError } from "../utils/api-error";
-import { CustomRequest, IUser } from "../models/users.model";
+import { CustomRequest } from "../models/users.model";
 import { NextFunction, Response } from "express";
 import mongoose from "mongoose";
 import { Motorcycle } from "../models/motorcycles.model";

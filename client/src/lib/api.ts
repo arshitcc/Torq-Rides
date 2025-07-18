@@ -101,6 +101,8 @@ export const motorcycleAPI = {
 
   deleteMotorcycleLog: (motorcycleId: string, logId: string) =>
     api.delete(`/motorcycles/logs/${motorcycleId}/${logId}`),
+
+  getMotorcycleLogFilters: () => api.get("/motorcycles/logs/filters"),
 };
 
 export const bookingAPI = {

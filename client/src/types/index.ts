@@ -204,7 +204,7 @@ export type PromoCode = {
   _id: string;
   name: string;
   promoCode: string;
-  type: string;
+  type: "FLAT" | "PERCENTAGE";
   discountValue: number;
   isActive: boolean;
   minimumCartValue: number;
@@ -265,4 +265,5 @@ export type MotorcycleLog = {
   isAvailable: boolean;
   createdAt: Date;
   updatedAt: Date;
+  motorcycle: Motorcycle;
 };

@@ -9,6 +9,7 @@ import {
   createMotorcycleLog,
   deleteMotorcycleLog,
   getAllMotorcycleLogs,
+  getMotorcycleLogFilters,
   getMotorcycleLogs,
   updateMotorcycleLog,
 } from "../controllers/motorcycle-logs.controller";
@@ -24,6 +25,7 @@ router.use(authenticateUser);
 router.use(verifyPermission([UserRolesEnum.ADMIN]));
 
 router.route("/").get(getAllMotorcycleLogs);
+router.route("/filters").get(getMotorcycleLogFilters);
 
 router
   .route("/:motorcycleId")

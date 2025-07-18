@@ -10,7 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
-import { getStatusColor } from "../filters";
+import { getStatusColor } from "../utils";
 
 interface MaintenanceDialogProps {
   open: boolean;

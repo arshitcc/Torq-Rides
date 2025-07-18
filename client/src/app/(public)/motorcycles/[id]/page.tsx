@@ -94,9 +94,9 @@ export default function MotorcycleDetailPage() {
     defaultValues: {
       quantity: 1,
       pickupTime: pickupTime || "9:00 AM",
-      pickupDate: pickupDate || new Date(),
+      pickupDate: new Date(pickupDate) || new Date(),
       dropoffTime: dropoffTime || "6:00 PM",
-      dropoffDate: dropoffDate,
+      dropoffDate: new Date(dropoffDate),
       pickupLocation: motorcycle?.availableInCities.find(
         (loc) => loc.branch === pickupLocation
       )?.branch,

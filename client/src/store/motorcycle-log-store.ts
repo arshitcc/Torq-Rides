@@ -4,6 +4,10 @@ import type { MotorcycleLog } from "@/types";
 import { AxiosError } from "axios";
 
 interface MotorcycleLogState {
+  filters: {
+    statuses: string[];
+    serviceCentres: string[];
+  };
   logs: MotorcycleLog[];
   loading: boolean;
   error: string | null;
@@ -27,9 +31,14 @@ interface MotorcycleLogState {
     data: any
   ) => Promise<void>;
   deleteMotorcycleLog: (motorcycleId: string, logId: string) => Promise<void>;
+  getMotorcycleLogFilters: () => Promise<void>;
 }
 
 export const useMotorcycleLogStore = create<MotorcycleLogState>((set, get) => ({
+  filters: {
+    statuses: [],
+    serviceCentres: [],
+  },
   logs: [],
   loading: false,
   error: null,
@@ -68,8 +77,8 @@ export const useMotorcycleLogStore = create<MotorcycleLogState>((set, get) => ({
         motorcycleId,
         params
       );
-      const { data, metadata } = response.data;
-      set({ logs: data, metadata, loading: false });
+      const { data, metadata } = response.data.data;
+      set({ logs: data, metadata: metadata[0], loading: false });
     } catch (error: AxiosError | any) {
       set({
         loading: false,
@@ -138,6 +147,22 @@ export const useMotorcycleLogStore = create<MotorcycleLogState>((set, get) => ({
         loading: false,
         error:
           error.response?.data?.message || "Failed to delete motorcycle log",
+      });
+      throw error;
+    }
+  },
+
+  getMotorcycleLogFilters: async () => {
+    set({ loading: true, error: null });
+    try {
+      const response = await motorcycleAPI.getMotorcycleLogFilters();
+      const filters = response.data.data;
+      set({ filters, loading: false });
+    } catch (error: AxiosError | any) {
+      set({
+        loading: false,
+        error:
+          error.response?.data?.message || "Failed to fetch motorcycle logs",
       });
       throw error;
     }

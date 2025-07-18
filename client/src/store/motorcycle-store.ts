@@ -27,6 +27,7 @@ interface MotorcycleState {
     page: number;
     totalPages: number;
   };
+  setMotorcycle: (motorcycle: Motorcycle) => void;
   setMotorcycles: (motorcycles: Motorcycle[]) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
@@ -85,6 +86,7 @@ export const useMotorcycleStore = create<MotorcycleState>((set, get) => ({
     totalPages: 1,
   },
   setMotorcycles: (motorcycles) => set({ motorcycles }),
+  setMotorcycle: (motorcycle) => set({ motorcycle }),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
   setMetadata: (metadata) => set({ metadata }),
