@@ -5,10 +5,7 @@ import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import {
   ACCESS_TOKEN_SECRET,
-  ACCESS_TOKEN_EXPIRY,
   REFRESH_TOKEN_SECRET,
-  REFRESH_TOKEN_EXPIRY,
-  EMAIL_VERIFICATION_TOKEN_EXPIRY,
 } from "../utils/env";
 import {
   AvailableAuthTypes,
@@ -186,13 +183,13 @@ userSchema.methods.generateAccessToken = function () {
       role: this.role,
     },
     ACCESS_TOKEN_SECRET!,
-    { expiresIn: eval(ACCESS_TOKEN_EXPIRY!) },
+    { expiresIn: "1D" },
   );
 };
 
 userSchema.methods.generateRefreshToken = function () {
   return jwt.sign({ _id: this._id }, REFRESH_TOKEN_SECRET!, {
-    expiresIn: eval(REFRESH_TOKEN_EXPIRY!),
+    expiresIn: "7D",
   });
 };
 

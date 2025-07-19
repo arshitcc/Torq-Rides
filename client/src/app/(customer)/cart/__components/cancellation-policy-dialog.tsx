@@ -48,7 +48,7 @@ export function CancellationPolicyDialog({
               <ul className="list-disc pl-5">
                 <li>
                   <strong>Cancellation Charge:</strong> ₹
-                  {Number(process.env.CANCELLATION_CHARGE) || 199} will be deducted
+                  {Number(process.env.NEXT_PUBLIC_CANCELLATION_CHARGE) || 199} will be deducted
                   from the amount paid and remaining amount will be refunded.
                 </li>
                 <li>

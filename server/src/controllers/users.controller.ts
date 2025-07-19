@@ -20,8 +20,8 @@ import { deleteFile, uploadFile } from "../utils/cloudinary";
 
 async function generateAccessAndRefreshTokens(user: IUser) {
   try {
-    const accessToken = user.generateAccessToken();
-    const refreshToken = user.generateRefreshToken();
+    const accessToken = await user.generateAccessToken();
+    const refreshToken = await user.generateRefreshToken();
     user.refreshToken = refreshToken;
     await user.save({ validateBeforeSave: false });
     return { accessToken, refreshToken };
@@ -146,13 +146,17 @@ const userLogout = asyncHandler(async (req: CustomRequest, res: Response) => {
 
   const options = {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: NODE_ENV === "production",
+    sameSite: "none" as const,
   };
+
+  const accessTokenOptions = { ...options, maxAge: 24 * 60 * 60 * 1000 };
+  const refreshTokenOptions = { ...options, maxAge: 7 * 24 * 60 * 60 * 1000 };
 
   return res
     .status(200)
-    .clearCookie("accessToken", options)
-    .clearCookie("refreshToken", options)
+    .clearCookie("accessToken", accessTokenOptions)
+    .clearCookie("refreshToken", refreshTokenOptions)
     .json(new ApiResponse(200, true, "Logout Successful"));
 });
 
@@ -234,7 +238,7 @@ const resendVerificationEmail = asyncHandler(
 
 const refreshAccessToken = asyncHandler(
   async (req: CustomRequest, res: Response) => {
-    const refreshToken = req.cookies.refreshToken || req.body.refreshToken;
+    const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
 
     if (!refreshToken) {
       throw new ApiError(401, "Unauthorized request");
@@ -263,12 +267,16 @@ const refreshAccessToken = asyncHandler(
     const options = {
       httpOnly: true,
       secure: NODE_ENV === "production",
+      sameSite: "none" as const,
     };
+
+    const accessTokenOptions = { ...options, maxAge: 1 * 24 * 60 * 60 * 1000 };
+    const refreshTokenOptions = { ...options, maxAge: 7 * 24 * 60 * 60 * 1000 };
 
     return res
       .status(200)
-      .cookie("accessToken", newAccessToken, options)
-      .cookie("refreshToken", newRefreshToken, options)
+      .cookie("accessToken", newAccessToken, accessTokenOptions)
+      .cookie("refreshToken", newRefreshToken, refreshTokenOptions)
       .json(new ApiResponse(200, true, "Access token refreshed"));
   },
 );

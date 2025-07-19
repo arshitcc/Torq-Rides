@@ -230,7 +230,7 @@ const sendEmail = async (mailConfig: MailConfig) => {
   } as nodemailer.TransportOptions);
 
   const emailData = {
-    from: "server@gmail.com",
+    from: "TORQRIDES <hello@torqrides.com>",
     to: mailConfig.email,
     subject: mailConfig.subject,
     text: emailText,

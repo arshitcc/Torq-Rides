@@ -281,6 +281,7 @@ export const useAuthStore = create<AuthState>()(
         set({ loading: true, error: null });
         try {
           const res = await authAPI.updateUserProfile(data);
+          if (res.data.data.role === "USER") set({ users: [] });
           set({ user: res.data.data });
         } catch (error: AxiosError | any) {
           set({

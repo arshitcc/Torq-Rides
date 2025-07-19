@@ -60,12 +60,12 @@ export function CancelBookingDialog({
   if (booking.paymentStatus === PaymentStatusEnum.PARTIAL) {
     cancellationCharge = Math.max(
       booking.paidAmount * cancellationChargePercentage,
-      Number(process.env.CANCELLATION_CHARGE) || 199
+      Number(process.env.NEXT_PUBLIC_CANCELLATION_CHARGE) || 199
     );
   } else if (booking.paymentStatus === PaymentStatusEnum.FULLY_PAID) {
     cancellationCharge = Math.max(
       booking.rentTotal * cancellationChargePercentage,
-      Number(process.env.CANCELLATION_CHARGE) || 199
+      Number(process.env.NEXT_PUBLIC_CANCELLATION_CHARGE) || 199
     );
   }
 
