@@ -90,11 +90,10 @@ export const BookingStatusEnum = {
 
 export const PaymentStatusEnum = {
   PARTIAL: "PARTIAL-PAID",
-  REFUNDED: "REFUNDED",
-  PARTIAL_REFUNDED: "PARTIAL-REFUNDED",
-  FULLY_REFUNDED: "FULLY-REFUNDED",
   FULLY_PAID: "FULLY-PAID",
   UNPAID: "UNPAID",
+  REFUND_INITIATED: "REFUND-INITIATED",
+  FULLY_REFUNDED: "REFUNDED",
 } as const;
 
 export const AvailableInCitiesEnum = {
@@ -183,6 +182,9 @@ export type Booking = {
   paymentId: string;
   paymentStatus: PaymentStatus;
   couponId: string;
+  cancellationCharge: number;
+  cancellationReason: string;
+  refundAmount: number;
   coupon: PromoCode;
   createdAt: Date;
   updatedAt: Date;
@@ -237,6 +239,8 @@ export type Cart = {
   securityDepositTotal: number;
   cartTotal: number;
   discountedTotal: number;
+  createdAt: Date;
+  updatedAt: Date;
 };
 
 export type MotorcycleLog = {

@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { CardContent } from "@/components/ui/card";
-import { format } from "date-fns";
+import { differenceInDays, format } from "date-fns";
 import { EyeIcon, Trash2Icon } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -116,11 +116,17 @@ function CartItemContent({
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 items-center space-x-4">
               <div className="text-center">
                 <p className="text-sm text-gray-500">Total Rent</p>
-                <p className="font-semibold">₹{cart.rentTotal}</p>
+                <p className="font-semibold">
+                  ₹
+                  {item.motorcycle.rentPerDay *
+                    (differenceInDays(item.dropoffDate, item.pickupDate)+1)}
+                </p>
               </div>
               <div className="text-center">
                 <p className="text-sm text-gray-500">Security Deposit</p>
-                <p className="font-semibold">₹{cart.securityDepositTotal}</p>
+                <p className="font-semibold">
+                  ₹{item.motorcycle.securityDeposit * item.quantity}
+                </p>
               </div>
               <div className="text-center">
                 <p className="text-sm text-gray-500">Quantity</p>

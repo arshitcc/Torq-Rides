@@ -17,6 +17,7 @@ import {
   UserRolesEnum,
 } from "../constants/constants";
 import { File } from "./motorcycles.model";
+import { Cart } from "./carts.model";
 
 export const DocumentTypesEnum = {
   E_KYC: "E-KYC",
@@ -160,6 +161,16 @@ userSchema.pre("save", async function (this: IUser, next) {
     this.password = await bcrypt.hash(this.password, 10);
   }
   next();
+});
+
+userSchema.post("save", async function (this: IUser) {
+  if (this.isNew) {
+    try {
+      await Cart.create({ customerId: this._id, items: [] });
+    } catch (error) {
+      console.error(`Failed to create cart for new user ${this._id}:`, error);
+    }
+  }
 });
 
 userSchema.methods.isPasswordCorrect = async function (password: string) {

@@ -384,28 +384,24 @@ export default function MotorcyclesPage() {
                   </Select>
                 </div>
                 {/* Action Buttons */}
-                <div className="flex flex-col-reverse justify-end gap-3 mt-4 pt-4 border-t border-gray-100">
-                  <DialogClose>
-                    <div>
-                      <Button
-                        variant="outline"
-                        onClick={clearFilters}
-                        className="w-full sm:w-auto cursor-pointer dark:text-white dark:hover:text-white rounded-lg p-4"
-                      >
-                        <FilterXIcon className="h-4 w-4 mr-2" />
-                        Clear Filters
-                      </Button>
-                    </div>
+                <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 mt-4 pt-4 border-t border-gray-100">
+                  <DialogClose asChild>
+                    <Button
+                      variant="outline"
+                      onClick={clearFilters}
+                      className="w-full sm:w-auto"
+                    >
+                      <FilterXIcon className="h-4 w-4 mr-2" />
+                      Clear Filters
+                    </Button>
                   </DialogClose>
-                  <DialogClose>
-                    <div>
-                      <Button
-                        className="w-full sm:w-auto bg-yellow-primary cursor-pointer text-white"
-                        onClick={applyFilters}
-                      >
-                        Apply Filters
-                      </Button>
-                    </div>
+                  <DialogClose asChild>
+                    <Button
+                      className="w-full sm:w-auto bg-yellow-primary text-white"
+                      onClick={applyFilters}
+                    >
+                      Apply Filters
+                    </Button>
                   </DialogClose>
                 </div>
               </DialogContent>
@@ -418,7 +414,7 @@ export default function MotorcyclesPage() {
         <div className="hidden md:flex sm:flex-col col-span-0 sm:col-span-2 space-y-4 sticky top-24 self-start">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center">
+              <CardTitle className="flex items-center gap-2">
                 <ArrowDownNarrowWideIcon className="h-4 w-4 mr-2" />
                 Sort By
               </CardTitle>
@@ -439,7 +435,7 @@ export default function MotorcyclesPage() {
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center">
+              <CardTitle className="flex items-center gap-2">
                 <MapPinIcon className="h-4 w-4 mr-2" />
                 Locations
               </CardTitle>
@@ -466,7 +462,7 @@ export default function MotorcyclesPage() {
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center">
+              <CardTitle className="flex items-center gap-2">
                 <SlidersHorizontalIcon className="h-4 w-4 mr-2" />
                 Filters
               </CardTitle>
@@ -603,7 +599,7 @@ export default function MotorcyclesPage() {
           </div>
         ) : (
           <div className="col-span-8 md:col-span-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-4 px-1">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-4 px-1">
               {motorcycles.length <= 0 ? (
                 <Card className="col-span-8 bg-muted/50 border-0 shadow-none">
                   <CardContent className="flex flex-col items-center justify-center py-12 space-y-4">
@@ -646,25 +642,57 @@ export default function MotorcyclesPage() {
                         <CardTitle className="text-xl text-center font-semibold mb-4">
                           {motorcycle.make} {motorcycle.vehicleModel}
                         </CardTitle>
-                        <div className="grid grid-cols-2 gap-y-2 gap-x-4 justify-items-center text-sm text-gray-600">
+                        <div className="grid grid-cols-2 gap-4 justify-items-center text-sm text-gray-600">
                           {motorcycle.specs?.engine && (
-                            <div className="flex items-center">
-                              <span>{motorcycle.specs.engine} cc</span>
+                            <div className="flex items-center gap-2">
+                              <Image
+                                width="25"
+                                height="25"
+                                src="https://img.icons8.com/ios-filled/100/E7B005/engine.png"
+                                alt="Engine"
+                              />
+                              <span className="text-muted-foreground">
+                                {motorcycle.specs.engine} cc
+                              </span>
                             </div>
                           )}
                           {motorcycle.specs?.power && (
-                            <div className="flex items-center">
-                              <span>{motorcycle.specs.power} ps</span>
+                            <div className="flex items-center gap-2">
+                              <Image
+                                width="25"
+                                height="25"
+                                src="https://img.icons8.com/ios-filled/100/E7B005/electricity.png"
+                                alt="Power"
+                              />
+                              <span className="text-muted-foreground">
+                                {motorcycle.specs.power} ps
+                              </span>
                             </div>
                           )}
                           {motorcycle.specs?.weight && (
-                            <div className="flex items-center">
-                              <span>{motorcycle.specs.weight} kg</span>
+                            <div className="flex items-center gap-2">
+                              <Image
+                                width="25"
+                                height="25"
+                                src="https://img.icons8.com/ink/100/E7B005/weight-kg.png"
+                                alt="weight-kg"
+                              />
+                              <span className="text-muted-foreground">
+                                {motorcycle.specs.weight} kg
+                              </span>
                             </div>
                           )}
                           {motorcycle.specs?.seatHeight && (
-                            <div className="flex items-center">
-                              <span>{motorcycle.specs.seatHeight} mm</span>
+                            <div className="flex items-center gap-2">
+                              <Image
+                                width="25"
+                                height="25"
+                                src="https://img.icons8.com/ios-filled/100/E7B005/motorcycle.png"
+                                alt="Seat Height"
+                              />
+                              <span className="text-muted-foreground">
+                                {motorcycle.specs.seatHeight} mm
+                              </span>
                             </div>
                           )}
                         </div>

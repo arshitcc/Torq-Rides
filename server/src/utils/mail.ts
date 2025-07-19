@@ -24,13 +24,17 @@ interface ResetPasswordTemplate {
 interface BookingConfirmationTemplate {
   username: string;
   booking: IBooking;
-  totalAmount: number;
 }
 
 interface MailConfig {
   email: string;
   subject: string;
   template: Content;
+}
+
+interface BookingCancellationTemplate {
+  username: string;
+  booking: IBooking;
 }
 
 const emailVerificationTemplate = ({
@@ -78,73 +82,138 @@ const resetPasswordTemplate = ({
   };
 };
 
+const calculateRentalDays = (startDate: Date, endDate: Date): number => {
+  const msInDay = 1000 * 60 * 60 * 24;
+  const differenceInDays = Math.round(
+    (endDate.getTime() - startDate.getTime()) / msInDay,
+  );
+  return differenceInDays + 1;
+};
+
 const bookingConfirmationTemplate = ({
   username,
   booking,
-  totalAmount,
 }: BookingConfirmationTemplate) => {
+  const formatCurrency = (amount: number) =>
+    `INR ${amount.toLocaleString("en-IN")}/-`;
+
+  const isPartiallyPaid = booking.remainingAmount > 0;
+  const intro = isPartiallyPaid
+    ? [
+        `Thank you for your partial payment! Your booking for a ride with ${COMPANY_NAME} is now reserved.`,
+        "To fully confirm your booking, please complete the remaining payment at your earliest convenience.",
+      ]
+    : [
+        `Thank you for choosing ${COMPANY_NAME}! Your booking is fully confirmed.`,
+        `We've received your full payment and are getting your ride ready. You can find all the details of your booking below.`,
+      ];
+
+  const action = isPartiallyPaid
+    ? {
+        instructions:
+          "You can complete your payment and manage your trip by clicking the button below:",
+        button: {
+          color: "#FFC107", // A brand-appropriate color
+          text: "Pay Remaining Amount",
+          link: `${CLIENT_URL}/my-bookings?bookingId=${booking._id}`,
+        },
+      }
+    : {
+        instructions:
+          "You can view your booking details and manage your trip by clicking the button below:",
+        button: {
+          color: "#22BC66", // Green for confirmed
+          text: "View My Booking",
+          link: `${CLIENT_URL}/my-bookings?bookingId=${booking._id}`,
+        },
+      };
+
+  const outro = isPartiallyPaid
+    ? [
+        "Please note that your booking is not fully confirmed until the remaining balance is paid.",
+        "If you have any questions, just reply to this email—we’re here to help!",
+      ]
+    : [
+        `Please ensure you have the necessary documents ready for pick-up.`,
+        `If you have any questions or need to make changes, please don't hesitate to reply to this email. We're here to help!`,
+        `Safe travels,`,
+        `The ${COMPANY_NAME} Team`,
+      ];
   return {
     body: {
       name: username,
-      email: "",
-      intro: "🎉 Your booking has been confirmed!",
+      intro: intro,
+      action: action,
+      dictionary: {
+        "Booking ID": `#${booking._id?.toString().slice(-8).toUpperCase()}`,
+        "Booking Date": new Date(booking.bookingDate).toLocaleDateString(
+          "en-IN",
+          {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+          },
+        ),
+        "Payment Status": booking.paymentStatus,
+        "Total Amount": formatCurrency(booking.discountedTotal),
+        "Amount Paid": formatCurrency(booking.paidAmount),
+        "Amount Remaining": formatCurrency(booking.remainingAmount),
+      },
       table: {
-        data: booking.items.map((b) => ({
-          Motorcycle: b.motorcycle?.make + " " + b.motorcycle?.vehicleModel,
-          "Pickup Date": b.pickupDate.toLocaleDateString("en-IN", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-          }),
-          "Return Date": b.dropoffDate.toLocaleDateString("en-IN", {
-            day: "2-digit",
-            month: "short",
-            year: "numeric",
-          }),
-          Days:
-            1 +
-            Math.ceil(
-              ((b.dropoffDate.getTime() - b.pickupDate.getTime()) /
-                1000 ** 60) *
-                60 *
-                24,
-            ),
-          "Rate/Day": `INR ${b.motorcycle?.rentPerDay}/-`,
-          Quantity: b.quantity,
-          "Item Total": `INR ${b.motorcycle?.rentPerDay! * b.quantity * ((b.dropoffDate.getTime() - b.pickupDate.getTime()) / (1000 * 60 * 60 * 24))}/-`,
-        })),
+        data: booking.items.map((item) => {
+          if (!item.motorcycle) return {};
+          const days = calculateRentalDays(item.pickupDate, item.dropoffDate);
+          const itemTotal = item.motorcycle.rentPerDay * item.quantity * days;
+
+          return {
+            Motorcycle: `${item.motorcycle.make} ${item.motorcycle.vehicleModel}`,
+            "Pick-up": `${new Date(item.pickupDate).toLocaleDateString(
+              "en-IN",
+              { day: "numeric", month: "short", year: "numeric" },
+            )} at ${item.pickupTime}`,
+            "Drop-off": `${new Date(item.dropoffDate).toLocaleDateString(
+              "en-IN",
+              { day: "numeric", month: "short", year: "numeric" },
+            )} at ${item.dropoffTime}`,
+            Days: days,
+            "Rate/Day": formatCurrency(item.motorcycle.rentPerDay),
+            Qty: item.quantity,
+            Total: formatCurrency(itemTotal),
+          };
+        }),
         columns: {
-          // adjust widths as needed
+          // Adjust widths for better layout
           customWidth: {
             Motorcycle: "25%",
-            "Pickup Date": "15%",
-            "Return Date": "15%",
-            Days: "10%",
-            "Rate/Day": "15%",
-            Quantity: "10%",
-            "Item Total": "10%",
+            "Pick-up": "20%",
+            "Drop-off": "20%",
+            Total: "15%",
           },
           customAlignment: {
             "Rate/Day": "right",
-            Quantity: "right",
-            "Item Total": "right",
+            Qty: "center",
+            Total: "right",
           },
         },
       },
-      outro: [
-        `**Total Booking Cost:** INR ${totalAmount}/-`,
-        "If you have any questions, just reply to this email—we’re here to help!",
-      ],
+      outro: outro,
     },
   };
 };
+
+const bookingCancellationTemplate = ({
+  username,
+  booking,
+}: BookingCancellationTemplate) => {};
 
 const sendEmail = async (mailConfig: MailConfig) => {
   const mailGenerator = new MailGen({
     theme: "default",
     product: {
       name: `${COMPANY_NAME}`,
-      link: "https://torq-rides.vercel.app",
+      link: `${CLIENT_URL}`,
+      logo: "https://res.cloudinary.com/arshitcc/image/upload/v1752870222/logo_zs99pq.png",
+      logoHeight: "40px",
     },
   });
 
@@ -180,6 +249,10 @@ const sendEmail = async (mailConfig: MailConfig) => {
       "Email service failed silently. Make sure you have provided your MAILTRAP credentials in the .env file",
     );
     logger.error("Error: ", error);
+    console.error(
+      "Email service failed silently. Make sure you have provided your MAILTRAP credentials in the .env file",
+    );
+    console.error("Error: ", error);
   }
 };
 

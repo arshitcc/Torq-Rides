@@ -1,12 +1,12 @@
 import mongoose from "mongoose";
-import { IUser } from "./users.model";
 import { ICartItem } from "./carts.model";
-import { AvailableInCities, AvailableInCitiesEnum } from "./motorcycles.model";
+import { AvailableInCities } from "./motorcycles.model";
 import {
   AvailablePaymentProviders,
   PaymentProviderEnum,
 } from "../constants/constants";
 import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2";
+import { CANCELLATION_CHARGE } from "../utils/env";
 
 export const BookingStatusEnum = {
   PENDING: "PENDING",
@@ -19,11 +19,10 @@ export const BookingStatusEnum = {
 
 export const PaymentStatusEnum = {
   PARTIAL: "PARTIAL-PAID",
-  PARTIAL_REFUNDED: "PARTIAL-REFUNDED",
-  FULLY_REFUNDED: "FULLY-REFUNDED",
   FULLY_PAID: "FULLY-PAID",
   UNPAID: "UNPAID",
-  IN_REFUND: "IN-REFUND",
+  REFUND_INITIATED: "REFUND-INITIATED",
+  FULLY_REFUNDED: "REFUNDED",
 } as const;
 
 export const AvailableBookingStatus = Object.values(BookingStatusEnum);
@@ -42,7 +41,10 @@ export interface IBooking extends mongoose.Document {
   discountedTotal: number;
   paidAmount: number;
   remainingAmount: number;
-  customer?: IUser;
+  customer: { fullname: string; email: string };
+  cancellationReason: string;
+  cancellationCharge: number;
+  refundAmount: number;
   couponId: mongoose.Types.ObjectId | null;
   items: ICartItem[];
   paymentProvider: AvailablePaymentProviders;
@@ -90,6 +92,17 @@ const bookingSchema = new mongoose.Schema<IBooking>(
     remainingAmount: {
       type: Number,
       required: true,
+    },
+    cancellationReason: {
+      type: String,
+    },
+    cancellationCharge: {
+      type: Number,
+      default: Number(CANCELLATION_CHARGE),
+    },
+    refundAmount: {
+      type: Number,
+      default: 0,
     },
     couponId: {
       type: mongoose.Schema.Types.ObjectId,

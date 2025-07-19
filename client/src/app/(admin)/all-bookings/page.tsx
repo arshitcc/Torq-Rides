@@ -191,7 +191,7 @@ export default function AllBookingsPage() {
                     Total Bookings
                   </p>
                   <p className="text-2xl font-bold text-yellow-700">
-                    {metadata.total}
+                    {metadata?.total}
                   </p>
                 </div>
                 <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">

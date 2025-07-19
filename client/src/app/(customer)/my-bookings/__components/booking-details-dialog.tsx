@@ -22,8 +22,9 @@ import {
   IndianRupeeIcon,
   UserIcon,
   MailIcon,
+  ShieldAlertIcon,
 } from "lucide-react";
-import { Booking } from "@/types";
+import { Booking, BookingStatusEnum, PaymentStatusEnum } from "@/types";
 
 interface BookingDetailsDialogProps {
   booking: Booking;
@@ -67,6 +68,8 @@ export function BookingDetailsDialog({
         return "bg-gray-100 text-gray-800";
     }
   };
+
+  const isCancelled = booking.status === BookingStatusEnum.CANCELLED;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -120,6 +123,51 @@ export function BookingDetailsDialog({
             </CardContent>
           </Card>
 
+          {isCancelled && (
+            <Card className="border-orange-300 bg-orange-50/50">
+              <CardContent className="p-6">
+                <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-orange-800">
+                  <ShieldAlertIcon className="h-5 w-5" />
+                  Refund Details
+                </h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Paid Amount</span>
+                    <span className="font-medium text-green-600">
+                      ₹{booking.paidAmount?.toLocaleString() ?? "0"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">Cancellation Charge</span>
+                    <span className="font-medium text-red-600">
+                      - ₹{booking.cancellationCharge?.toLocaleString() ?? "0"}
+                    </span>
+                  </div>
+                  {booking.cancellationReason?.length > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Cancellation Reason</span>
+                      <span className="font-medium text-red-600">
+                        {booking.cancellationReason}
+                      </span>
+                    </div>
+                  )}
+                  <Separator />
+                  <div className="flex justify-between items-center text-lg font-semibold">
+                    <span>
+                      {booking.paymentStatus ===
+                      PaymentStatusEnum.FULLY_REFUNDED
+                        ? "Amount Refunded"
+                        : "Amount to be Refunded"}
+                    </span>
+                    <span className="text-green-600">
+                      ₹{booking.refundAmount?.toLocaleString() ?? "0"}
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Booked Items */}
           <div>
             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -144,7 +192,8 @@ export function BookingDetailsDialog({
                       </div>
                       <div className="flex-1">
                         <h4 className="font-semibold text-lg">
-                          {item.motorcycle?.make} {item.motorcycle?.vehicleModel}
+                          {item.motorcycle?.make}{" "}
+                          {item.motorcycle?.vehicleModel}
                         </h4>
                       </div>
                     </div>
@@ -260,7 +309,13 @@ export function BookingDetailsDialog({
                 {booking.remainingAmount > 0 && (
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">Remaining Amount</span>
-                    <span className="font-medium text-red-600">
+                    <span
+                      className={`font-medium text-red-600 ${
+                        booking.status === BookingStatusEnum.CANCELLED
+                          ? "line-through"
+                          : ""
+                      }`}
+                    >
                       ₹{booking.remainingAmount.toLocaleString()}
                     </span>
                   </div>

@@ -1,17 +1,20 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { Cart } from "@/types";
+import { Booking, Cart } from "@/types";
 import { CreditCardIcon, Loader2Icon } from "lucide-react";
+import { BookingDetails } from "../page";
 
 interface ProcessingPaymentProps {
-  paymentMethod: string;
-  calculateAdvancePayment: () => number;
-  cart: Cart | null;
+  paymentMethod?: string;
+  calculateAdvancePayment?: () => number;
+  cart?: Cart | null;
+  bookingDetails?: BookingDetails | null;
 }
 
 function ProcessingPayment({
   paymentMethod,
   calculateAdvancePayment,
   cart,
+  bookingDetails,
 }: ProcessingPaymentProps) {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#121212] flex items-center justify-center">
@@ -36,7 +39,9 @@ function ProcessingPayment({
                 <span>Amount:</span>
                 <span className="font-semibold">
                   ₹
-                  {paymentMethod === "partial"
+                  {bookingDetails
+                    ? bookingDetails.amount
+                    : paymentMethod === "partial" && calculateAdvancePayment
                     ? calculateAdvancePayment()
                     : cart?.discountedTotal}
                 </span>

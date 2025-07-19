@@ -92,7 +92,8 @@ export default function CartPage() {
 
   const calculateAdvancePayment = () => {
     if (!cart) return 0;
-    return cart.rentTotal * 0.2; // 20% advance
+
+    return (cart.rentTotal * 0.2); // 20% advance
   };
 
   const calculateItemBreakup = (item: CartItem) => {

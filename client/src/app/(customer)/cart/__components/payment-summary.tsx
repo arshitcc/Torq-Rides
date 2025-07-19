@@ -24,6 +24,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
 import { BookingDetails, PaymentState } from "../page";
+import { CancellationPolicyDialog } from "./cancellation-policy-dialog";
+import Image from "next/image";
 
 export interface PaymentSummaryProps {
   paymentMethod: string;
@@ -49,6 +51,7 @@ function PaymentSummary({
   setErrorMessage,
 }: PaymentSummaryProps) {
   const [agreeToTerms, setAgreeToTerms] = useState(false);
+  const [agreedToPolicy, setAgreedToPolicy] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [applyingCoupon, setApplyingCoupon] = useState(false);
   const { generateRazorpayOrder, verifyRazorpayPayment } = useBookingStore();
@@ -82,7 +85,7 @@ function PaymentSummary({
 
       const options = {
         key:
-          process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_s0pNt1htM7MoYI",
+          process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_zmm6GMCAMYUaLC",
         amount: amount * 100,
         currency: "INR",
         name: "TORQ Rides",
@@ -335,23 +338,43 @@ function PaymentSummary({
           </Label>
         </div>
 
+        <div className=" flex items-center space-x-2">
+          <Checkbox
+            className="border-1 border-yellow-400 data-[state=checked]:border-transparent data-[state=checked]:bg-yellow-500"
+            id="policy"
+            checked={agreedToPolicy}
+            onCheckedChange={(checked) => setAgreedToPolicy(checked as boolean)}
+          />
+          <Label
+            htmlFor="policy"
+            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          >
+            I agree to the{" "}
+            <CancellationPolicyDialog>
+              <span className="text-yellow-600 hover:underline cursor-pointer">
+                Cancellation policy
+              </span>
+            </CancellationPolicyDialog>
+          </Label>
+        </div>
+
         {/* Payment Button */}
         <Button
           onClick={handlePayment}
-          className="w-full bg-yellow-primary hover:bg-yellow-600 text-black font-semibold py-3"
-          disabled={!agreeToTerms || loading}
+          className="w-full bg-yellow-primary hover:bg-yellow-600 text-white font-semibold py-3"
+          disabled={!agreeToTerms || !agreedToPolicy || loading}
         >
           Pay ₹
           {paymentMethod === "partial"
-            ? calculateAdvancePayment()
-            : cart.cartTotal}{" "}
-          and Reserve
+            ? `${calculateAdvancePayment()} and Reserve Booking`
+            : `${cart.cartTotal} and Confirm Booking`}
         </Button>
 
         {/* Payment Methods */}
         <div className="pt-4 border-t">
           <h4 className="font-medium mb-3 text-center">
             100% Secure Payment By
+            <Image src="/razorpay.png" alt="razorpay" width={100} height={30} className="mx-auto"/>
           </h4>
           <div className="mt-6 pt-6 border-t">
             <h4 className="font-medium mb-3 text-center">

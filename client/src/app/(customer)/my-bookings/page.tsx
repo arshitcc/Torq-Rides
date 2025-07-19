@@ -30,7 +30,6 @@ import {
   BikeIcon,
   XIcon,
   StarIcon,
-  DownloadIcon,
   InfoIcon,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -46,26 +45,34 @@ import {
 import Image from "next/image";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
 import { ReviewModal } from "./__components/review-modal";
 import { BookingDetailsDialog } from "./__components/booking-details-dialog";
+import { BookingDetails, PaymentState } from "../cart/page";
+import ProcessingPayment from "../cart/__components/processing-payment";
+import SuccessfulPayment from "../cart/__components/success-payment";
+import FailedPayment from "../cart/__components/failed-payment";
+import { CancelBookingDialog } from "./__components/cancel-booking-dialog";
 
 export default function MyBookingsPage() {
-  const { bookings, loading, error, getAllBookings, cancelBooking, metadata } =
-    useBookingStore();
+  const {
+    bookings,
+    loading,
+    error,
+    getAllBookings,
+    cancelBooking,
+    metadata,
+    generateRazorpayOrder,
+    verifyRazorpayPayment,
+  } = useBookingStore();
   const { user, isAuthenticated } = useAuthStore();
   const router = useRouter();
   const [currentPage, setCurrentPage] = useState(1);
+  const [paymentMethod, setPaymentMethod] = useState("partial");
+  const [paymentState, setPaymentState] = useState<PaymentState>("cart");
+  const [bookingDetails, setBookingDetails] = useState<BookingDetails | null>(
+    null
+  );
+  const [errorMessage, setErrorMessage] = useState("");
   const itemsPerPage = 5;
 
   // Redirect logic moved to useEffect to avoid setState in render
@@ -93,6 +100,118 @@ export default function MyBookingsPage() {
         error?.response?.data?.message ??
           "Failed to cancel booking. Please try again."
       );
+    }
+  };
+
+  const handlePayment = async (booking: Booking) => {
+    try {
+      if (!user) return;
+
+      // Set processing state
+      setPaymentState("processing");
+      setBookingDetails({
+        bookingId: booking._id,
+        amount: booking.remainingAmount,
+        paymentMethod: paymentMethod,
+        motorcycles: booking.items.map((item) => ({
+          make: item.motorcycle.make,
+          model: item.motorcycle.vehicleModel,
+          pickupDate: item.pickupDate,
+          dropoffDate: item.dropoffDate,
+          pickupLocation: item.pickupLocation,
+          dropoffLocation: item.dropoffLocation,
+          quantity: item.quantity,
+        })),
+      });
+      window.scrollTo({ top: 0, behavior: "smooth" });
+
+      const amount = booking.remainingAmount;
+
+      const order = (await generateRazorpayOrder(
+        paymentMethod === "partial" ? "p" : "f",
+        booking._id
+      )) as unknown as {
+        id: string;
+      };
+
+      const options = {
+        key:
+          process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_zmm6GMCAMYUaLC",
+        amount: amount * 100,
+        currency: "INR",
+        name: "TORQ Rides",
+        description: "Motorcycle Rental Booking",
+        order_id: order.id,
+        handler: async (response: any) => {
+          try {
+            const {
+              razorpay_payment_id,
+              razorpay_order_id,
+              razorpay_signature,
+            } = response;
+            console.log(response);
+            const data = {
+              razorpay_payment_id,
+              razorpay_order_id,
+              razorpay_signature,
+              amount,
+            };
+
+            const paymentResponse = await verifyRazorpayPayment(data);
+            if (paymentResponse) {
+              console.log(paymentResponse);
+              // Set booking details for success screen
+              setBookingDetails({
+                bookingId: paymentResponse._id || `BK${Date.now()}`,
+                amount: amount,
+                paymentMethod:
+                  paymentMethod === "partial"
+                    ? "Partial Payment"
+                    : "Full Payment",
+                motorcycles: booking.items.map((item) => ({
+                  make: item.motorcycle.make,
+                  model: item.motorcycle.vehicleModel,
+                  pickupDate: item.pickupDate,
+                  dropoffDate: item.dropoffDate,
+                  quantity: item.quantity,
+                  pickupLocation: item.pickupLocation,
+                  dropoffLocation: item.dropoffLocation,
+                })),
+              });
+
+              setBookingDetails(null);
+              setPaymentState("success");
+            } else {
+              throw new Error("Payment verification failed");
+            }
+          } catch (error: any) {
+            setErrorMessage(error?.message || "Payment verification failed");
+            setPaymentState("failed");
+          }
+        },
+        prefill: {
+          name: user?.fullname,
+          email: user?.email,
+        },
+        theme: { color: "#F59E0B" },
+        modal: {
+          ondismiss: () => {
+            setPaymentState("cart");
+          },
+        },
+      };
+
+      const razorpay = new (window as any).Razorpay(options);
+      razorpay.on("payment.failed", (response: any) => {
+        setErrorMessage(response.error.description || "Payment failed");
+        setPaymentState("failed");
+      });
+      razorpay.open();
+    } catch (error: any) {
+      setErrorMessage(
+        error?.response?.data?.message || "Failed to process payment."
+      );
+      setPaymentState("failed");
     }
   };
 
@@ -165,36 +284,33 @@ export default function MyBookingsPage() {
             }
           />
 
-          {booking.status === "CONFIRMED" && (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-red-600 hover:text-red-700 bg-transparent"
-                >
-                  <XIcon className="h-4 w-4" />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Cancel Booking</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Are you sure you want to cancel this booking? This action
-                    cannot be undone and cancellation charges may apply.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Keep Booking</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={() => handleCancelBooking(booking._id)}
-                    className="bg-red-600 hover:bg-red-700 dark:text-white"
-                  >
-                    Cancel Booking
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+          {(booking.status === "PENDING" || booking.status === "RESERVED") &&
+            booking.remainingAmount > 0 && (
+              <Button
+                onClick={() => {
+                  handlePayment(booking);
+                }}
+              >
+                {" "}
+                ₹ Pay
+              </Button>
+            )}
+
+          {(booking.status === "CONFIRMED" ||
+            booking.status === "PENDING" ||
+            booking.status === "RESERVED") && (
+            <CancelBookingDialog
+              booking={booking}
+              onConfirmCancel={handleCancelBooking}
+            >
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-red-600 hover:text-red-700 bg-transparent"
+              >
+                <XIcon className="h-4 w-4" />
+              </Button>
+            </CancelBookingDialog>
           )}
 
           {booking.status === "COMPLETED" && (
@@ -218,6 +334,30 @@ export default function MyBookingsPage() {
   const upcomingBookings = bookings.filter(isUpcoming);
   const pastBookings = bookings.filter(isPast);
   const cancelledBookings = bookings.filter(isCancelled);
+
+  if (paymentState === "processing") {
+    return (
+      <ProcessingPayment
+        paymentMethod={paymentMethod}
+        bookingDetails={bookingDetails}
+      />
+    );
+  }
+
+  // Payment Success State
+  if (paymentState === "success" && bookingDetails) {
+    return (
+      <SuccessfulPayment
+        bookingDetails={bookingDetails}
+        paymentMethod={paymentMethod}
+      />
+    );
+  }
+
+  // Payment Failed State
+  if (paymentState === "failed") {
+    return <FailedPayment errorMessage={errorMessage} />;
+  }
 
   if (!user || user.role !== UserRolesEnum.CUSTOMER) {
     return null;
@@ -294,7 +434,9 @@ export default function MyBookingsPage() {
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
-                  <TableBody>{bookings && bookings.map(renderBookingRow)}</TableBody>
+                  <TableBody>
+                    {bookings && bookings.map(renderBookingRow)}
+                  </TableBody>
                 </Table>
               </CardContent>
             </Card>

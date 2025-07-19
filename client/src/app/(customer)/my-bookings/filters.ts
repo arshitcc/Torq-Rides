@@ -28,9 +28,7 @@ export const getPaymentStatusColor = (status: PaymentStatus) => {
       return "bg-yellow-100 text-yellow-800";
     case PaymentStatusEnum.UNPAID:
       return "bg-red-100 text-red-800";
-    case PaymentStatusEnum.REFUNDED:
     case PaymentStatusEnum.FULLY_REFUNDED:
-    case PaymentStatusEnum.PARTIAL_REFUNDED:
       return "bg-blue-100 text-blue-800";
     default:
       return "bg-gray-100 text-gray-800";

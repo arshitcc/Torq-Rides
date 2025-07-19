@@ -19,12 +19,15 @@ const uploadFile = async (filePath: string) => {
     const response = await cloudinary.uploader.upload(filePath, {
       folder: CLOUDINARY_FOLDER_NAME,
       resource_type: "auto",
+      background_removal: "cloudinary_ai",
     });
     fs.unlinkSync(filePath);
 
     return response;
   } catch (error: any) {
-    fs.unlinkSync(filePath);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
     throw new ApiError(500, "Failed to upload file to cloudinary");
   }
 };

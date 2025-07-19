@@ -36,4 +36,6 @@ export const {
 
   PAYPAL_CLIENT_ID,
   PAYPAL_SECRET,
+
+  CANCELLATION_CHARGE
 } = process.env;

@@ -113,12 +113,14 @@ export const bookingAPI = {
 
   cancelBooking: (bookingId: string) => api.delete(`/bookings/${bookingId}`),
 
-  generateRazorpayOrder: (mode: string) =>
-    api.post("/bookings/provider/razorpay", { mode }),
+  generateRazorpayOrder: (mode: string, bookingId?: string) =>
+    api.post("/bookings/provider/razorpay", { mode, bookingId }),
   verifyRazorpayOrder: (data: {
     razorpay_payment_id: string;
     razorpay_signature: string;
     razorpay_order_id: string;
+    amount: number;
+    bookingId?: string;
   }) => api.post("/bookings/provider/razorpay/verify-payment", data),
 };
 

@@ -22,6 +22,12 @@ export const removeUnusedMulterImageFilesOnError = (req : Request) => {
       removeLocalFile(multerFile.path);
     }
 
+    if(Array.isArray(multerFiles) && multerFiles.length > 0) {
+      multerFiles.forEach((file) =>{
+        removeLocalFile(file.path);
+      })
+    }
+
     if (multerFiles) {
       const filesValueArray = Object.values(multerFiles);
       // If there are multiple files uploaded for more than one fields

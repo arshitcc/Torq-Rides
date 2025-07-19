@@ -5,7 +5,7 @@ import Link from "next/link";
 
 interface FailedPaymentProps {
   errorMessage: string;
-  resetToCart: () => void;
+  resetToCart?: () => void;
 }
 
 function FailedPayment({ errorMessage, resetToCart }: FailedPaymentProps) {
@@ -42,14 +42,16 @@ function FailedPayment({ errorMessage, resetToCart }: FailedPaymentProps) {
               )}
             </div>
 
-            <div className="space-y-3">
-              <Button
-                onClick={resetToCart}
-                className="w-full bg-primary hover:bg-primary/90"
-              >
-                <ArrowLeftIcon className="h-4 w-4 mr-2" />
-                Try Again
-              </Button>
+            <div className="space-y-6 flex flex-col">
+              <Link href={"/my-bookings"}>
+                <Button
+                  onClick={resetToCart}
+                  className="w-full bg-yellow-500 hover:bg-yellow/90"
+                >
+                  <ArrowLeftIcon className="h-4 w-4 mr-2" />
+                  Try Again
+                </Button>
+              </Link>
               <Button
                 asChild
                 variant="outline"

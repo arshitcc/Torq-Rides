@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { bookingAPI } from "@/lib/api";
 import { Booking } from "@/types";
-import { AxiosError, AxiosResponse } from "axios";
+import { AxiosError } from "axios";
 
 interface BookingState {
   bookings: Booking[];
@@ -22,11 +22,13 @@ interface BookingState {
   cancelBooking: (bookingId: string) => Promise<void>;
 
   // Payment Functions :
-  generateRazorpayOrder: (mode: string) => Promise<void>;
+  generateRazorpayOrder: (mode: string, bookingId?: string) => Promise<void>;
   verifyRazorpayPayment: (data: {
     razorpay_payment_id: string;
     razorpay_signature: string;
     razorpay_order_id: string;
+    amount: number;
+    bookingId?: string;
   }) => Promise<Booking>;
 }
 
@@ -57,6 +59,8 @@ export const useBookingStore = create<BookingState>((set, get) => ({
         error: error.response?.data?.message || "Failed to fetch bookings",
       });
       throw error;
+    } finally {
+      set({ loading: false });
     }
   },
 
@@ -81,6 +85,8 @@ export const useBookingStore = create<BookingState>((set, get) => ({
         error: error.response?.data?.message || "Failed to modify booking",
       });
       throw error;
+    } finally {
+      set({ loading: false });
     }
   },
 
@@ -88,14 +94,11 @@ export const useBookingStore = create<BookingState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const response = await bookingAPI.cancelBooking(bookingId);
-      const { updatedBooking, customer } = response.data.data;
-      const canceledBooking = {
-        ...updatedBooking,
-        customer,
-      };
+      const updatedBooking = response.data.data;
+
       set((state) => ({
         bookings: state.bookings.map((b) =>
-          b._id === bookingId ? canceledBooking : b
+          b._id === bookingId ? updatedBooking : b
         ),
         loading: false,
       }));
@@ -108,10 +111,10 @@ export const useBookingStore = create<BookingState>((set, get) => ({
     }
   },
 
-  generateRazorpayOrder: async (mode) => {
+  generateRazorpayOrder: async (mode, bookingId) => {
     set({ loading: true, error: null });
     try {
-      const response = await bookingAPI.generateRazorpayOrder(mode);
+      const response = await bookingAPI.generateRazorpayOrder(mode, bookingId);
       const order = response.data.data;
       return order;
     } catch (error: AxiosError | any) {
@@ -121,6 +124,8 @@ export const useBookingStore = create<BookingState>((set, get) => ({
           error.response?.data?.message || "Failed to generate razorpay order",
       });
       throw error;
+    } finally {
+      set({ loading: false });
     }
   },
 
@@ -129,6 +134,12 @@ export const useBookingStore = create<BookingState>((set, get) => ({
     try {
       const response = await bookingAPI.verifyRazorpayOrder(data);
       const order = response.data.data;
+      set((state) => ({
+        bookings: state.bookings.map((b) =>
+          b._id === data.bookingId ? order : b
+        ),
+        loading: false,
+      }));
       return order;
     } catch (error: AxiosError | any) {
       set({
@@ -137,6 +148,8 @@ export const useBookingStore = create<BookingState>((set, get) => ({
           error.response?.data?.message || "Failed to verify razorpay order",
       });
       throw error;
+    } finally {
+      set({ loading: false });
     }
   },
 }));

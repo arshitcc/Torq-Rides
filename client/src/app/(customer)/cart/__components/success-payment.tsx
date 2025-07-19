@@ -76,16 +76,18 @@ function SuccessfulPayment({
                   <Card key={index} className="bg-white dark:bg-gray-800">
                     <CardContent className="p-4">
                       <div className="flex justify-between items-center">
-                        <div>
+                        <div className="flex gap-6 justify-between items-center">
                           <p className="font-semibold">
                             {motorcycle.make} {motorcycle.model}
                           </p>
-                          <p className="text-sm text-gray-600 dark:text-gray-300">
+                          X{" "}
+                          <span className="text-sm text-gray-600 dark:text-gray-300">
                             {differenceInDays(
                               motorcycle.dropoffDate,
                               motorcycle.pickupDate
-                            )}
-                          </p>
+                            ) + 1}
+                          </span>
+                          X <span>{motorcycle.quantity}</span>
                         </div>
                         <Badge variant="secondary">Confirmed</Badge>
                       </div>

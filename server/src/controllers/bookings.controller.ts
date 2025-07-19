@@ -19,79 +19,153 @@ import { getCart } from "./carts.controller";
 import razorpayInstance from "../utils/razorpay";
 import { nanoid } from "nanoid";
 import crypto from "crypto";
-import { RAZORPAY_KEY_SECRET } from "../utils/env";
+import {
+  CANCELLATION_CHARGE,
+  COMPANY_NAME,
+  RAZORPAY_KEY_SECRET,
+} from "../utils/env";
 import { bookingConfirmationTemplate, sendEmail } from "../utils/mail";
+import logger from "../loggers/winston.logger";
+import { differenceInDays } from "date-fns";
 
 const handleBooking = async (
-  bookingPaymentId: string,
+  bookingPaymentId: string, // razorpay_order_id
   req: CustomRequest,
   amount: number,
 ) => {
   const order = await Booking.findOne({
     paymentId: bookingPaymentId,
-    status: BookingStatusEnum.PENDING,
   });
 
   if (!order) {
-    throw new ApiError(404, "Booking does not exist");
+    throw new ApiError(404, "Booking record not found for this payment ID");
   }
+
+  if (
+    order.status === BookingStatusEnum.CONFIRMED ||
+    order.status === BookingStatusEnum.COMPLETED
+  ) {
+    throw new ApiError(
+      400,
+      `Booking ${order._id} is already confirmed. Ignoring duplicate verification.`,
+    );
+  }
+
+  const wasNewBooking = order.status === BookingStatusEnum.PENDING;
 
   order.paidAmount += amount;
-  order.remainingAmount -= amount;
-  order.status =
-    order.remainingAmount === 0
-      ? BookingStatusEnum.CONFIRMED
-      : BookingStatusEnum.RESERVED;
-  order.paymentStatus =
-    order.remainingAmount === 0
-      ? PaymentStatusEnum.FULLY_PAID
-      : PaymentStatusEnum.PARTIAL;
-  await order.save({ validateBeforeSave: false });
+  order.remainingAmount = order.discountedTotal - order.paidAmount;
 
-  const cart = await Cart.findOne({ customerId: req.user._id });
-
-  if (!cart) {
-    throw new ApiError(404, "Cart does not exist");
+  if (order.remainingAmount <= 0) {
+    order.status = BookingStatusEnum.CONFIRMED;
+    order.paymentStatus = PaymentStatusEnum.FULLY_PAID;
+    order.remainingAmount = 0;
+  } else {
+    order.status = BookingStatusEnum.RESERVED;
+    order.paymentStatus = PaymentStatusEnum.PARTIAL;
   }
 
-  const userCart = await getCart(req.user._id as string);
+  await order.save({ validateBeforeSave: false });
 
-  const bulkStockUpdates = userCart.items.map((item: ICartItem) => ({
-    updateOne: {
-      filter: {
-        _id: item.motorcycleId,
-        "availableInCities.branch": item.pickupLocation,
+  if (wasNewBooking) {
+    const cart = await Cart.findOne({ customerId: req.user._id });
+
+    if (!cart) {
+      throw new ApiError(404, "Cart does not exist");
+    }
+
+    const userCart = await getCart(req.user._id as string);
+
+    const bulkStockUpdates = userCart.items.map((item: ICartItem) => ({
+      updateOne: {
+        filter: {
+          _id: item.motorcycleId,
+          "availableInCities.branch": item.pickupLocation,
+        },
+        update: {
+          $inc: { "availableInCities.$.quantity": -item.quantity },
+        },
       },
-      update: {
-        $inc: { "availableInCities.$.quantity": -item.quantity },
+    }));
+
+    /* 
+      (bulkWrite()) is faster than sending multiple independent operations (e.g. if you use create()) 
+      because with bulkWrite() there is only one network round trip to the MongoDB server.
+    */
+
+    await Motorcycle.bulkWrite(bulkStockUpdates, { skipValidation: true });
+
+    cart.items = []; // empty the cart
+    cart.couponId = null;
+
+    await cart.save({ validateBeforeSave: false });
+  }
+
+  const populatedOrderArr = await Booking.aggregate([
+    { $match: { _id: order._id } },
+    { $unwind: "$items" },
+    {
+      $lookup: {
+        from: "motorcycles",
+        localField: "items.motorcycleId",
+        foreignField: "_id",
+        as: "items.motorcycle",
       },
     },
-  }));
+    {
+      $addFields: {
+        "items.motorcycle": { $arrayElemAt: ["$items.motorcycle", 0] },
+      },
+    },
+    {
+      $group: {
+        _id: "$_id",
+        customerId: { $first: "$customerId" },
+        status: { $first: "$status" },
+        bookingDate: { $first: "$bookingDate" },
+        rentTotal: { $first: "$rentTotal" },
+        securityDepositTotal: { $first: "$securityDepositTotal" },
+        cartTotal: { $first: "$cartTotal" },
+        discountedTotal: { $first: "$discountedTotal" },
+        paidAmount: { $first: "$paidAmount" },
+        remainingAmount: { $first: "$remainingAmount" },
+        couponId: { $first: "$couponId" },
+        items: { $push: "$items" },
+        paymentProvider: { $first: "$paymentProvider" },
+        paymentId: { $first: "$paymentId" },
+        paymentStatus: { $first: "$paymentStatus" },
+        customer: { $first: "$customer" },
+        createdAt: { $first: "$createdAt" },
+        updatedAt: { $first: "$updatedAt" },
+      },
+    },
+  ]);
 
-  /* 
-    (bulkWrite()) is faster than sending multiple independent operations (e.g. if you use create()) 
-    because with bulkWrite() there is only one network round trip to the MongoDB server.
-  */
+  if (!populatedOrderArr || populatedOrderArr.length === 0) {
+    logger.error(
+      `Could not find booking ${order._id} for email confirmation after update.`,
+    );
+    console.error(
+      `Could not find booking ${order._id} for email confirmation after update.`,
+    );
+    return order;
+  }
 
-  await Motorcycle.bulkWrite(bulkStockUpdates, {
-    skipValidation: true,
-  });
+  const populatedOrder = populatedOrderArr[0];
 
-  await sendEmail({
+  sendEmail({
     email: req.user?.email,
-    subject: "Order confirmed",
+    subject: `${COMPANY_NAME} - Booking Confirmation for Order - #${populatedOrder._id
+      .toString()
+      .slice(-8)
+      .toUpperCase()}`,
     template: bookingConfirmationTemplate({
       username: req.user?.username,
-      booking: order,
-      totalAmount: order.discountedTotal ?? 0,
+      booking: populatedOrder,
     }),
   });
 
-  cart.items = []; // empty the cart
-  cart.couponId = null;
-
-  await cart.save({ validateBeforeSave: false });
-  return order;
+  return populatedOrder;
 };
 
 export const getbooking = async (
@@ -294,6 +368,9 @@ const getAllBookings = asyncHandler(
           discountedTotal: { $first: "$discountedTotal" },
           paidAmount: { $first: "$paidAmount" },
           remainingAmount: { $first: "$remainingAmount" },
+          cancellationCharge: { $first: "$cancellationCharge" },
+          cancellationReason: { $first: "$cancellationReason" },
+          refundAmount: { $first: "$refundAmount" },
           createdAt: { $first: "$createdAt" },
           updatedAt: { $first: "$updatedAt" },
           customer: { $first: "$customer" },
@@ -385,29 +462,175 @@ const cancelBooking = asyncHandler(
       throw new ApiError(403, "Unauthorized action");
     }
 
-    const updatedBooking = await Booking.findOneAndUpdate(
-      { _id: bookingId },
-      { $set: { status: BookingStatusEnum.CANCELLED } },
-      { new: true },
-    );
-
-    if (!updatedBooking) {
-      throw new ApiError(500, "Something went wrong");
+    if (booking.status === BookingStatusEnum.CANCELLED) {
+      throw new ApiError(400, "Booking is already cancelled.");
     }
 
-    const customer = await User.findById(updatedBooking.customerId).select(
-      "-password -refreshToken -emailVerificationToken -emailVerificationExpiry -forgotPasswordToken -forgotPasswordExpiry",
+    const minimumBookingDate: Date = booking.items.reduce<Date>(
+      (minDate, item) => {
+        // ensure both sides are Date objects
+        const pd =
+          item.pickupDate instanceof Date
+            ? item.pickupDate
+            : new Date(item.pickupDate);
+
+        return pd < minDate ? pd : minDate;
+      },
+
+      booking.items[0].pickupDate instanceof Date
+        ? booking.items[0].pickupDate
+        : new Date(booking.items[0].pickupDate),
     );
 
-    return res.status(200).json(
-      new ApiResponse(200, true, "Booking cancelled successfully", {
-        updatedBooking,
-        customer: {
-          username: customer?.username,
-          fullname: customer?.fullname,
+    const daysUntilPickup = differenceInDays(minimumBookingDate, new Date());
+
+    let cancellationChargePercentage = 0;
+
+    if (daysUntilPickup < 3) {
+      cancellationChargePercentage = 1; // 100%
+    } else if (daysUntilPickup >= 3 && daysUntilPickup <= 7) {
+      cancellationChargePercentage = 0.5; // 50%
+    } else {
+      cancellationChargePercentage = 0; // 0% but minimum cancellation charge will be applied
+    }
+
+    let cancellationCharge = 0;
+
+    if (booking.paymentStatus === PaymentStatusEnum.PARTIAL) {
+      cancellationCharge = Math.max(
+        booking.paidAmount * cancellationChargePercentage,
+        Number(CANCELLATION_CHARGE),
+      );
+    } else if (booking.paymentStatus === PaymentStatusEnum.FULLY_PAID) {
+      cancellationCharge = Math.max(
+        booking.rentTotal * cancellationChargePercentage,
+        Number(CANCELLATION_CHARGE),
+      );
+    }
+
+    let refundableAmount = booking.paidAmount - cancellationCharge;
+
+    if (refundableAmount < 0) {
+      refundableAmount = 0;
+    }
+
+    booking.status = BookingStatusEnum.CANCELLED;
+    booking.paymentStatus = PaymentStatusEnum.REFUND_INITIATED;
+    booking.cancellationCharge = cancellationCharge;
+    booking.refundAmount = refundableAmount;
+    await booking.save({ validateBeforeSave: false });
+
+    const bulkStockUpdates = booking.items.map((item: ICartItem) => ({
+      updateOne: {
+        filter: {
+          _id: item.motorcycleId,
+          "availableInCities.branch": item.pickupLocation,
         },
-      }),
-    );
+        update: {
+          $inc: { "availableInCities.$.quantity": item.quantity },
+        },
+      },
+    }));
+
+    if (bulkStockUpdates.length > 0) {
+      await Motorcycle.bulkWrite(bulkStockUpdates);
+    }
+
+    if (refundableAmount > 0 && razorpayInstance) {
+      const refundOptions = {
+        amount: Math.round(refundableAmount * 100),
+        speed: "normal",
+        notes: {
+          reason: "Booking cancellation by customer.",
+          bookingId: booking._id?.toString(),
+        },
+      };
+
+      try {
+        await razorpayInstance.payments.refund(
+          booking.paymentId,
+          refundOptions,
+        );
+      } catch (error: any) {
+        logger.error(
+          `Razorpay refund failed for booking ${bookingId}: ${error.message}`,
+        );
+        // TODO : Implement a mechanism to flag this booking for manual refund processing
+      }
+    }
+
+    const updatedBooking = await Booking.aggregate([
+      {
+        $match: {
+          _id: new mongoose.Types.ObjectId(bookingId),
+        },
+      },
+      { $unwind: "$items" },
+      {
+        $lookup: {
+          from: "motorcycles",
+          let: { mid: "$items.motorcycleId" },
+          pipeline: [
+            { $match: { $expr: { $eq: ["$_id", "$$mid"] } } },
+            { $project: { maintenanceLogs: 0 } },
+          ],
+          as: "items.motorcycle",
+        },
+      },
+      // flatten the lookup array
+      {
+        $addFields: {
+          "items.motorcycle": { $arrayElemAt: ["$items.motorcycle", 0] },
+        },
+      },
+      {
+        $group: {
+          _id: "$_id",
+          customerId: { $first: "$customerId" },
+          status: { $first: "$status" },
+          location: { $first: "$location" },
+          paymentProvider: { $first: "$paymentProvider" },
+          paymentId: { $first: "$paymentId" },
+          bookingDate: { $first: "$bookingDate" },
+          isAvailable: { $first: "$isAvailable" },
+          paymentStatus: { $first: "$paymentStatus" },
+          rentTotal: { $first: "$rentTotal" },
+          securityDepositTotal: { $first: "$securityDepositTotal" },
+          cartTotal: { $first: "$cartTotal" },
+          discountedTotal: { $first: "$discountedTotal" },
+          paidAmount: { $first: "$paidAmount" },
+          remainingAmount: { $first: "$remainingAmount" },
+          cancellationCharge: { $first: "$cancellationCharge" },
+          cancellationReason: { $first: "$cancellationReason" },
+          refundAmount: { $first: "$refundAmount" },
+          createdAt: { $first: "$createdAt" },
+          updatedAt: { $first: "$updatedAt" },
+          customer: { $first: "$customer" },
+          items: { $push: "$items" },
+          couponId: { $first: "$couponId" },
+        },
+      },
+      {
+        $lookup: {
+          from: "promocodes",
+          localField: "couponId",
+          foreignField: "_id",
+          as: "coupon",
+        },
+      },
+      { $addFields: { coupon: { $arrayElemAt: ["$coupon", 0] } } },
+    ]);
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          true,
+          "Booking cancelled successfully",
+          updatedBooking[0],
+        ),
+      );
   },
 );
 
@@ -421,30 +644,84 @@ const generateRazorpayOrder = asyncHandler(
       );
     }
 
-    const { mode } = req.body;
+    const { mode, bookingId } = req.body;
 
-    if (!mode) {
-      throw new ApiError(400, "Mode is required");
+    let amount: number;
+    let receiptId: string | undefined;
+    let orderItems: ICartItem[];
+    let booking: any;
+
+    if (bookingId) {
+      const existingBooking = await Booking.findById(bookingId);
+
+      if (!existingBooking) {
+        throw new ApiError(404, "Booking not found.");
+      }
+      if (existingBooking.customerId.toString() !== req.user._id?.toString()) {
+        throw new ApiError(
+          403,
+          "You are not authorized to pay for this booking.",
+        );
+      }
+      if (existingBooking.remainingAmount <= 0) {
+        throw new ApiError(400, "This booking has no remaining balance.");
+      }
+
+      amount = existingBooking.remainingAmount;
+      receiptId = existingBooking._id?.toString();
+      booking = existingBooking;
+    } else {
+      if (!mode) {
+        throw new ApiError(
+          400,
+          "Payment mode ('p' or 'f') is required for new bookings.",
+        );
+      }
+
+      const cart = await Cart.findOne({
+        customerId: req.user._id,
+      });
+
+      if (!cart || !cart.items?.length) {
+        throw new ApiError(400, "Your cart is empty");
+      }
+      const userCart = await getCart(req.user._id as string);
+      const totalDiscountedPrice = userCart.discountedTotal;
+
+      amount = mode === "p" ? 0.2 * userCart.rentTotal : totalDiscountedPrice;
+      receiptId = nanoid(10);
+      orderItems = cart.items;
+
+      /* 
+        Create an order while we generate razorpay session 
+        In case payment is done and there is some network issue in the payment verification API
+        We will at least have a record of the order
+      */
+
+      booking = {
+        customerId: req.user._id,
+        status: BookingStatusEnum.PENDING,
+        items: orderItems,
+        rentTotal: userCart.rentTotal,
+        securityDepositTotal: userCart.securityDepositTotal,
+        convenienceFee: userCart.convenienceFee,
+        cartTotal: userCart.cartTotal,
+        discountedTotal: totalDiscountedPrice ?? 0,
+        paidAmount: 0,
+        remainingAmount: totalDiscountedPrice,
+        paymentProvider: PaymentProviderEnum.RAZORPAY,
+        couponId: userCart.coupon?._id,
+        customer: {
+          fullname: req.user.fullname,
+          email: req.user.email,
+        },
+      };
     }
-
-    const cart = await Cart.findOne({
-      customerId: req.user._id,
-    });
-
-    if (!cart || !cart.items?.length) {
-      throw new ApiError(400, "Your cart is empty");
-    }
-    const orderItems = cart.items;
-    const userCart = await getCart(req.user._id as string);
-
-    const totalDiscountedPrice = userCart.discountedTotal;
-
-    let amount = mode === "p" ? 0.2 * userCart.rentTotal : totalDiscountedPrice;
 
     const orderOptions = {
-      amount: amount * 100,
+      amount: Math.round(amount * 100),
       currency: "INR",
-      receipt: nanoid(10),
+      receipt: receiptId,
       payment_capture: 1,
     };
 
@@ -463,56 +740,31 @@ const generateRazorpayOrder = asyncHandler(
           );
       }
 
-      /* 
-        Create an order while we generate razorpay session 
-        In case payment is done and there is some network issue in the payment verification API
-        We will at least have a record of the order
-      */
-
-      const unpaidOrder = await Booking.create({
-        cartId: cart._id,
-        customerId: req.user._id,
-        items: orderItems,
-        rentTotal: userCart.rentTotal,
-        securityDepositTotal: userCart.securityDepositTotal,
-        cartTotal: userCart.cartTotal,
-        totalCost: userCart.cartTotal ?? 0,
-        discountedTotal: totalDiscountedPrice ?? 0,
-        paidAmount: razorpayOrder.amount_paid / 100,
-        remainingAmount: totalDiscountedPrice - razorpayOrder.amount_paid / 100,
-        paymentProvider: PaymentProviderEnum.RAZORPAY,
-        paymentId: razorpayOrder.id,
-        couponId: userCart.coupon?._id,
-        customer: {
-          fullname: req.user.fullname,
-          email: req.user.email,
-        },
-      });
+      booking.paymentId = razorpayOrder.id;
+      if (bookingId) {
+        await booking.save({ validateBeforeSave: false });
+      } else {
+        const newBooking = await Booking.create(booking);
+        if (!newBooking) {
+          // This is a critical failure: a charge was created but not saved in our DB.
+          // This needs logging for manual intervention.
+          console.error(
+            `CRITICAL: Razorpay order ${razorpayOrder.id} was created but the booking failed to save to the DB.`,
+          );
+          throw new ApiError(
+            500,
+            "Server error: Could not record the booking after payment initialization.",
+          );
+        }
+      }
 
       // order successful
-      if (unpaidOrder) {
-        return res
-          .status(200)
-          .json(
-            new ApiResponse(
-              200,
-              true,
-              "Razorpay order generated",
-              razorpayOrder,
-            ),
-          );
-      } else {
-        return res
-          .status(500)
-          .json(
-            new ApiResponse(
-              500,
-              false,
-              "Something went wrong while initialising the razorpay order.",
-              null,
-            ),
-          );
-      }
+
+      return res
+        .status(201)
+        .json(
+          new ApiResponse(201, true, "Razorpay order generated", razorpayOrder),
+        );
     } catch (err: any) {
       const status = err.statusCode ?? 500;
       const message = err.error?.reason ?? err.message ?? "Unknown error";
@@ -653,15 +905,8 @@ const updateBookingStatus = asyncHandler(
       throw new ApiError(400, "Order is already delivered");
     }
 
-    booking = await Booking.findByIdAndUpdate(
-      booking,
-      {
-        $set: {
-          status,
-        },
-      },
-      { new: true },
-    );
+    booking.status = status;
+    await booking.save({ validateBeforeSave: false });
     return res.status(200).json(
       new ApiResponse(200, true, "Order status changed successfully", {
         status,

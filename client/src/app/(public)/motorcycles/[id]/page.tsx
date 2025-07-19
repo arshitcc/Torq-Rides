@@ -80,7 +80,7 @@ export default function MotorcycleDetailPage() {
     pickupLocation,
   } = useCartStore();
 
-  const { user, isAuthenticated } = useAuthStore();
+  const { user } = useAuthStore();
 
   const router = useRouter();
 
@@ -256,13 +256,13 @@ export default function MotorcycleDetailPage() {
                   ₹{motorcycle?.rentPerDay}/day
                 </div>
                 <div className="flex flex-col sm:grid grid-cols-3 gap-4 text-sm dark:text-white">
-                  <div className="bg-gray-100 dark:bg-[#18181B] border-2 p-4 rounded-xl flex flex-col justify-between text-center">
+                  <div className="bg-gray-100 dark:bg-[#18181B] border-2 p-4 rounded-xl flex flex-row md:flex-col justify-between text-center">
                     <div className="dark:text-white">Deposit</div>
                     <div className="font-medium">
                       ₹ {motorcycle?.securityDeposit}
                     </div>
                   </div>
-                  <div className="bg-gray-100 dark:bg-[#18181B] border-2 p-4 rounded-xl flex flex-col justify-between text-center">
+                  <div className="bg-gray-100 dark:bg-[#18181B] border-2 p-4 rounded-xl flex flex-row md:flex-col justify-between text-center">
                     <div className="dark:text-white text-muted-foreground">
                       Trip Limit
                     </div>
@@ -270,7 +270,7 @@ export default function MotorcycleDetailPage() {
                       {motorcycle?.kmsLimitPerDay} kms
                     </div>
                   </div>
-                  <div className="bg-gray-100 dark:bg-[#18181B] border-2 p-4 rounded-xl flex flex-col justify-between text-center">
+                  <div className="bg-gray-100 dark:bg-[#18181B] border-2 p-4 rounded-xl flex flex-row md:flex-col justify-between text-center">
                     <div className="dark:text-white text-muted-foreground">
                       Extra Km Charge
                     </div>
@@ -291,7 +291,7 @@ export default function MotorcycleDetailPage() {
             <CardContent>
               {motorcycle?.specs && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 ">
-                  {Object.entries(motorcycle.specs).map(([key, value]) => (
+                  {/* {Object.entries(motorcycle.specs).map(([key, value]) => (
                     <div
                       key={key}
                       className="flex items-center justify-between p-2 border-l-0 sm:border-l border-primary-200 dark:border-primary-700"
@@ -315,7 +315,71 @@ export default function MotorcycleDetailPage() {
                           : ""}
                       </span>
                     </div>
-                  ))}
+                  ))} */}
+                  {motorcycle.specs?.engine && (
+                    <div className="flex items-center justify-between p-2 border-l-0 sm:border-l border-primary-200 dark:border-primary-700">
+                      <div className="flex items-center space-x-2">
+                        <Image
+                          width="25"
+                          height="25"
+                          src="https://img.icons8.com/ios-filled/100/E7B005/engine.png"
+                          alt="Engine"
+                        />
+                        <span className="font-medium">Engine</span>
+                      </div>
+                      <span className="text-muted-foreground">
+                        {motorcycle.specs.engine} cc
+                      </span>
+                    </div>
+                  )}
+                  {motorcycle.specs?.power && (
+                    <div className="flex items-center justify-between p-2 border-l-0 sm:border-l border-primary-200 dark:border-primary-700">
+                      <div className="flex items-center space-x-2">
+                        <Image
+                          width="25"
+                          height="25"
+                          src="https://img.icons8.com/ios-filled/100/E7B005/electricity.png"
+                          alt="Power"
+                        />
+                        <span className="font-medium ">Power</span>
+                      </div>
+                      <span className="text-muted-foreground">
+                        {motorcycle.specs.power} ps
+                      </span>
+                    </div>
+                  )}
+                  {motorcycle.specs?.weight && (
+                    <div className="flex items-center justify-between p-2 border-l-0 sm:border-l border-primary-200 dark:border-primary-700">
+                      <div className="flex items-center space-x-2">
+                        <Image
+                          width="25"
+                          height="25"
+                          src="https://img.icons8.com/ink/100/E7B005/weight-kg.png"
+                          alt="weight-kg"
+                        />
+                        <span className="font-medium ">Weight</span>
+                      </div>
+                      <span className="text-muted-foreground">
+                        {motorcycle.specs.weight} kg
+                      </span>
+                    </div>
+                  )}
+                  {motorcycle.specs?.seatHeight && (
+                    <div className="flex items-center justify-between p-2 border-l-0 sm:border-l border-primary-200 dark:border-primary-700">
+                      <div className="flex items-center space-x-2">
+                        <Image
+                          width="25"
+                          height="25"
+                          src="https://img.icons8.com/ios-filled/100/E7B005/motorcycle.png"
+                          alt="Seat Height"
+                        />
+                        <span className="font-medium ">Seat Height</span>
+                      </div>
+                      <span className="text-muted-foreground">
+                        {motorcycle.specs.seatHeight} mm
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>
