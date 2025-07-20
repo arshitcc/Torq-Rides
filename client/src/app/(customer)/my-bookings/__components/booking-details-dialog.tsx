@@ -284,7 +284,7 @@ export function BookingDetailsDialog({
                 </div>
                 {booking.discountedTotal !== booking.cartTotal && (
                   <div className="flex justify-between items-center text-green-600">
-                    <span>Discount Applied ({booking.coupon.promoCode})</span>
+                    <span>Discount Applied ({booking.coupon?.promoCode})</span>
                     <span className="font-medium">
                       -₹
                       {(

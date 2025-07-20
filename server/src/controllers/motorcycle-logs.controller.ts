@@ -170,29 +170,48 @@ const getMotorcycleLogs = asyncHandler(
 
 const updateMotorcycleLog = asyncHandler(
   async (req: CustomRequest, res: Response) => {
-    const { motorcycleId, logId } = req.params;
+    const { logId } = req.params;
     const updated = await MotorcycleLog.findOneAndUpdate(
-      { motorcycleId, _id: logId },
+      { _id: logId },
       req.body,
-      {
-        new: true,
-        runValidators: true,
-      },
+      { new: true },
     );
     if (!updated) {
       throw new ApiError(404, "Log not found");
     }
+
+    const updatedLog = await MotorcycleLog.aggregate([
+      {
+        $match: {
+          _id: new mongoose.Types.ObjectId(logId),
+        },
+      },
+      {
+        $lookup: {
+          from: "motorcycles",
+          localField: "motorcycleId",
+          foreignField: "_id",
+          as: "motorcycle",
+        },
+      },
+      {
+        $addFields: {
+          motorcycle: { $arrayElemAt: ["$motorcycle", 0] },
+        },
+      },
+    ]);
+
     return res.json(
-      new ApiResponse(200, true, "Log updated successfully", updated),
+      new ApiResponse(200, true, "Log updated successfully", updatedLog[0]),
     );
   },
 );
 
 const deleteMotorcycleLog = asyncHandler(
   async (req: CustomRequest, res: Response) => {
-    const { motorcycleId, logId } = req.params;
+    const { logId } = req.params;
     const deleted = await MotorcycleLog.findOneAndDelete(
-      { motorcycleId, _id: logId },
+      { _id: logId },
       { isDeleted: true },
     );
     if (!deleted)

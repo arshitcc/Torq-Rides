@@ -26,11 +26,10 @@ interface MotorcycleLogState {
   getMotorcycleLogs: (motorcycleId: string, params?: any) => Promise<void>;
   createMotorcycleLog: (motorcycleId: string, data: any) => Promise<void>;
   updateMotorcycleLog: (
-    motorcycleId: string,
     logId: string,
     data: any
   ) => Promise<void>;
-  deleteMotorcycleLog: (motorcycleId: string, logId: string) => Promise<void>;
+  deleteMotorcycleLog: (logId: string) => Promise<void>;
   getMotorcycleLogFilters: () => Promise<void>;
 }
 
@@ -111,11 +110,10 @@ export const useMotorcycleLogStore = create<MotorcycleLogState>((set, get) => ({
     }
   },
 
-  updateMotorcycleLog: async (motorcycleId, logId, data) => {
+  updateMotorcycleLog: async (logId, data) => {
     set({ loading: true, error: null });
     try {
       const response = await motorcycleAPI.updateMotorcycleLog(
-        motorcycleId,
         logId,
         data
       );
@@ -134,10 +132,10 @@ export const useMotorcycleLogStore = create<MotorcycleLogState>((set, get) => ({
     }
   },
 
-  deleteMotorcycleLog: async (motorcycleId, logId) => {
+  deleteMotorcycleLog: async (logId) => {
     set({ loading: true, error: null });
     try {
-      await motorcycleAPI.deleteMotorcycleLog(motorcycleId, logId);
+      await motorcycleAPI.deleteMotorcycleLog(logId);
       set((state) => ({
         logs: state.logs.filter((log) => log._id !== logId),
         loading: false,

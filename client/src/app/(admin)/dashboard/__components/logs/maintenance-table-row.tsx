@@ -29,13 +29,11 @@ import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { EditIcon, InfoIcon, Trash2Icon } from "lucide-react";
-import { useMotorcycleLogStore } from "@/store/motorcycle-log-store";
-import { useMotorcycleStore } from "@/store/motorcycle-store";
 
 interface MaintenanceTableRowProps {
   log: MotorcycleLog;
   handleEditLog: (log: MotorcycleLog) => void;
-  handleDeleteLog: (motorcycleId: string, logId: string) => void;
+  handleDeleteLog: (logId: string) => void;
   setSelectedLog: (log: MotorcycleLog) => void;
   setIsInfoDialogOpen: (open: boolean) => void;
 }
@@ -129,7 +127,7 @@ function MaintenanceTableRow({
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction
-                  onClick={() => handleDeleteLog(log.motorcycle._id, log._id)}
+                  onClick={() => handleDeleteLog(log._id)}
                   className="bg-red-600 hover:bg-red-700"
                 >
                   Delete

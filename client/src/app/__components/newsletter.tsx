@@ -33,7 +33,7 @@ export function Newsletter() {
   };
 
   return (
-    <section className="py-16 bg-gradient-to-r from-yellow-primary to-yellow-600 text-black relative overflow-hidden">
+    <section className="py-16 bg-gradient-to-r from-yellow-100 to-yellow-500 text-white relative overflow-hidden">
       {/* Background pattern */}
       <div className="absolute inset-0 opacity-10">
         <div className="absolute top-10 left-10 w-20 h-20 border-2 border-black rounded-full"></div>

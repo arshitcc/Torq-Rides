@@ -55,6 +55,7 @@ import { Switch } from "@/components/ui/switch";
 import { AvailableMotorcycleStatus } from "@/types";
 import { useMotorcycleStore } from "@/store/motorcycle-store";
 import { useMotorcycleLogStore } from "@/store/motorcycle-log-store";
+import { useState } from "react";
 
 interface AddMotorcycleLogDialogProps {
   showAddLogDialog: boolean;
@@ -72,6 +73,9 @@ function AddMotorcycleLogDialog({
   const { motorcycle } = useMotorcycleStore();
   const { filters } = useMotorcycleLogStore();
   const availableServiceCentres = filters.serviceCentres;
+  const [dateInOpen, setDateInOpen] = useState(false);
+  const [dateOutOpen, setDateOutOpen] = useState(false);
+
   return (
     <Dialog open={showAddLogDialog} onOpenChange={setShowAddLogDialog}>
       <DialogTrigger asChild>
@@ -185,7 +189,7 @@ function AddMotorcycleLogDialog({
                   <FormItem>
                     <FormLabel>Date In</FormLabel>
                     <FormControl>
-                      <Popover>
+                      <Popover open={dateInOpen} onOpenChange={setDateInOpen}>
                         <PopoverTrigger asChild>
                           <Button
                             variant="outline"
@@ -201,7 +205,10 @@ function AddMotorcycleLogDialog({
                           <Calendar
                             mode="single"
                             selected={field.value}
-                            onSelect={field.onChange}
+                            onSelect={(date) => {
+                              field.onChange(date);
+                              setDateInOpen(false);
+                            }}
                             disabled={(date) => date < new Date()}
                           />
                         </PopoverContent>
@@ -218,7 +225,7 @@ function AddMotorcycleLogDialog({
                   <FormItem>
                     <FormLabel>Date Out</FormLabel>
                     <FormControl>
-                      <Popover>
+                      <Popover open={dateOutOpen} onOpenChange={setDateOutOpen}>
                         <PopoverTrigger asChild>
                           <Button
                             variant="outline"
@@ -234,7 +241,10 @@ function AddMotorcycleLogDialog({
                           <Calendar
                             mode="single"
                             selected={field.value}
-                            onSelect={field.onChange}
+                            onSelect={(date) => {
+                              field.onChange(date);
+                              setDateOutOpen(false);
+                            }}
                             disabled={(date) => date < new Date()}
                           />
                         </PopoverContent>
@@ -574,7 +584,7 @@ function AddMotorcycleLogDialog({
               </Button>
               <Button
                 type="submit"
-                className="bg-yellow-primary hover:bg-yellow-600 text-black"
+                className="bg-yellow-primary hover:bg-yellow-600 text-white"
               >
                 Add Log
               </Button>

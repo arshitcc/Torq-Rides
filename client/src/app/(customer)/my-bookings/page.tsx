@@ -149,7 +149,6 @@ export default function MyBookingsPage() {
               razorpay_order_id,
               razorpay_signature,
             } = response;
-            console.log(response);
             const data = {
               razorpay_payment_id,
               razorpay_order_id,
@@ -159,7 +158,6 @@ export default function MyBookingsPage() {
 
             const paymentResponse = await verifyRazorpayPayment(data);
             if (paymentResponse) {
-              console.log(paymentResponse);
               // Set booking details for success screen
               setBookingDetails({
                 bookingId: paymentResponse._id || `BK${Date.now()}`,

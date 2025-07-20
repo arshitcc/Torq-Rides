@@ -86,6 +86,8 @@ export default function MotorcycleDetailPage() {
 
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [currentReviewIndex, setCurrentReviewIndex] = useState(0);
+  const [pickupDateOpen, setPickupDateOpen] = useState(false);
+  const [dropoffDateOpen, setDropoffDateOpen] = useState(false);
 
   const inCart = cart?.items.find((item) => item.motorcycleId === id);
 
@@ -291,31 +293,6 @@ export default function MotorcycleDetailPage() {
             <CardContent>
               {motorcycle?.specs && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 ">
-                  {/* {Object.entries(motorcycle.specs).map(([key, value]) => (
-                    <div
-                      key={key}
-                      className="flex items-center justify-between p-2 border-l-0 sm:border-l border-primary-200 dark:border-primary-700"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <CheckCircleIcon className="w-5 h-5 text-yellow-500" />
-                        <span className="font-medium ">
-                          {key[0].toUpperCase() + key.slice(1)}
-                        </span>
-                      </div>
-                      <span>
-                        {value}{" "}
-                        {key === "engine"
-                          ? "cc"
-                          : key === "power"
-                          ? "bhp"
-                          : key === "weight"
-                          ? "kg"
-                          : key === "seatHeight"
-                          ? "mm"
-                          : ""}
-                      </span>
-                    </div>
-                  ))} */}
                   {motorcycle.specs?.engine && (
                     <div className="flex items-center justify-between p-2 border-l-0 sm:border-l border-primary-200 dark:border-primary-700">
                       <div className="flex items-center space-x-2">
@@ -463,7 +440,10 @@ export default function MotorcycleDetailPage() {
                         <FormItem>
                           <FormLabel>Pickup Date</FormLabel>
                           <FormControl>
-                            <Popover>
+                            <Popover
+                              open={pickupDateOpen}
+                              onOpenChange={setPickupDateOpen}
+                            >
                               <PopoverTrigger asChild>
                                 <Button
                                   variant="outline"
@@ -484,34 +464,11 @@ export default function MotorcycleDetailPage() {
                                 <Calendar
                                   mode="single"
                                   selected={field.value}
-                                  onSelect={field.onChange}
-                                  disabled={(date) => date < new Date()}
-                                  classNames={{
-                                    months:
-                                      "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-                                    month: "space-y-4",
-                                    caption:
-                                      "flex justify-center pt-1 relative items-center text-yellow-900",
-                                    caption_label: "text-sm font-medium",
-                                    nav_button:
-                                      "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 text-yellow-600",
-                                    nav_button_previous: "absolute left-1",
-                                    nav_button_next: "absolute right-1",
-                                    table: "w-full border-collapse space-y-1 ",
-                                    head_row: "flex",
-                                    head_cell:
-                                      "text-yellow-600 rounded-md w-9 font-normal text-[0.8rem]",
-                                    row: "flex w-full mt-2 space-x-1",
-                                    day: "h-9 w-9 font-normal aria-selected:opacity-100 hover:bg-yellow-50 rounded-md",
-                                    day_selected:
-                                      "bg-yellow-600 text-white hover:bg-yellow-700 focus:bg-yellow-600 focus:text-white",
-                                    day_today: "bg-yellow-100 text-yellow-900",
-                                    day_outside: "text-gray-400 opacity-50",
-                                    day_disabled: "text-gray-400 opacity-50",
-                                    day_range_middle:
-                                      "aria-selected:bg-yellow-100 aria-selected:text-yellow-900",
-                                    day_hidden: "invisible",
+                                  onSelect={(date) => {
+                                    field.onChange(date);
+                                    setPickupDateOpen(false);
                                   }}
+                                  disabled={(date) => date < new Date()}
                                 />
                               </PopoverContent>
                             </Popover>
@@ -657,7 +614,10 @@ export default function MotorcycleDetailPage() {
                         <FormItem>
                           <FormLabel>Drop Off Date</FormLabel>
                           <FormControl>
-                            <Popover>
+                            <Popover
+                              open={dropoffDateOpen}
+                              onOpenChange={setDropoffDateOpen}
+                            >
                               <PopoverTrigger asChild>
                                 <Button
                                   variant="outline"
@@ -679,38 +639,13 @@ export default function MotorcycleDetailPage() {
                                 <Calendar
                                   mode="single"
                                   selected={field.value}
-                                  onSelect={field.onChange}
+                                  onSelect={(date) => {
+                                    field.onChange(date);
+                                    setDropoffDateOpen(false);
+                                  }}
                                   disabled={(date) => {
                                     const start = cartForm.watch("pickupDate");
-                                    return date < (start || new Date());
-                                  }}
-                                  classNames={{
-                                    months:
-                                      "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
-                                    month: "space-y-4",
-                                    caption:
-                                      "flex justify-center pt-1 relative items-center text-yellow-900",
-                                    caption_label: "text-sm font-medium",
-
-                                    nav_button:
-                                      "h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100 text-yellow-600",
-                                    nav_button_previous:
-                                      "absolute left-1 top-2",
-                                    nav_button_next: "absolute right-1 top-2",
-                                    table: "w-full border-collapse space-y-1 ",
-                                    head_row: "flex",
-                                    head_cell:
-                                      "text-yellow-600 rounded-md w-9 font-normal text-[0.8rem]",
-                                    row: "flex w-full mt-2 space-x-1",
-                                    day: "h-9 w-9 font-normal aria-selected:opacity-100 hover:bg-yellow-50 rounded-md",
-                                    day_selected:
-                                      "bg-yellow-600 text-white hover:bg-yellow-700 focus:bg-yellow-600 focus:text-white",
-                                    day_today: "bg-yellow-200 text-yellow-900",
-                                    day_outside: "text-gray-400 opacity-50",
-                                    day_disabled: "text-gray-400 opacity-50",
-                                    day_range_middle:
-                                      "aria-selected:bg-yellow-100 aria-selected:text-yellow-900",
-                                    day_hidden: "invisible",
+                                    return date <= (start || new Date());
                                   }}
                                   initialFocus
                                 />

@@ -97,20 +97,20 @@ export default function AboutPage() {
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto text-center">
             <h2 className="text-4xl font-bold mb-8">Our Story</h2>
-            <p className="text-lg text-gray-600 mb-6">
+            <p className="text-lg text-muted-foreground mb-6">
               Founded in 2020, TORQ Rides was born from a simple passion - the
               love for motorcycles and the freedom they represent. What started
               as a small collection of bikes has grown into one of India's most
               trusted motorcycle rental services.
             </p>
-            <p className="text-lg text-gray-600 mb-6">
+            <p className="text-lg text-muted-foreground mb-6">
               We believe that everyone deserves to experience the thrill of
               riding premium motorcycles, whether it's for a weekend getaway, a
               long road trip, or simply exploring the city. Our mission is to
               make quality motorcycles accessible to all riders, backed by
               exceptional service and support.
             </p>
-            <p className="text-lg text-gray-600">
+            <p className="text-lg text-muted-foreground">
               Today, we serve thousands of customers across multiple cities,
               offering a diverse fleet of well-maintained motorcycles from
               leading brands. Every bike in our collection is carefully selected
@@ -121,24 +121,24 @@ export default function AboutPage() {
       </section>
 
       {/* Our Values */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-16 bg-[#121212]">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold mb-4">Our Values</h2>
-            <p className="text-xl text-gray-600">
+            <p className="text-xl text-muted-foreground">
               The principles that guide everything we do
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {values.map((value, index) => (
-              <Card key={index} className="text-center p-6">
+              <Card key={index} className="text-center p-6 border-yellow-300">
                 <CardContent className="pt-6">
                   <div className="inline-flex items-center justify-center w-16 h-16 bg-primary/10 rounded-full mb-4">
-                    <value.icon className="w-8 h-8 text-primary" />
+                    <value.icon className="w-8 h-8 text-yellow-500" />
                   </div>
                   <h3 className="text-xl font-semibold mb-3">{value.title}</h3>
-                  <p className="text-gray-600">{value.description}</p>
+                  <p className="text-muted-foreground">{value.description}</p>
                 </CardContent>
               </Card>
             ))}
@@ -151,7 +151,7 @@ export default function AboutPage() {
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold mb-4">Meet Our Team</h2>
-            <p className="text-xl text-gray-600">
+            <p className="text-xl text-muted-foreground">
               The passionate people behind TORQ Rides
             </p>
           </div>
@@ -170,7 +170,7 @@ export default function AboutPage() {
                   </div>
                   <h3 className="text-xl font-semibold mb-1">{member.name}</h3>
                   <p className="text-primary font-medium mb-3">{member.role}</p>
-                  <p className="text-gray-600 text-sm">{member.description}</p>
+                  <p className="text-muted-foreground text-sm">{member.description}</p>
                 </CardContent>
               </Card>
             ))}
@@ -179,7 +179,7 @@ export default function AboutPage() {
       </section>
 
       {/* Statistics */}
-      <section className="py-16 bg-primary text-white">
+      <section className="py-16 bg-[#18181B] text-white">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-center">
             <div>

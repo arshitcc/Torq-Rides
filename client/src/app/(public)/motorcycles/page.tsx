@@ -45,7 +45,7 @@ import {
   MotorcycleCategory,
 } from "@/types";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Label } from "@/components/ui/label";
 import MotorcycleCardSkeleton from "./__components/motorcycle-card-skeleton";
 import {
@@ -59,7 +59,6 @@ import {
 } from "@/components/ui/dialog";
 import { sortTypes } from "@/data";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useCartStore } from "@/store/cart-store";
 
 export default function MotorcyclesPage() {
   const {
@@ -72,18 +71,14 @@ export default function MotorcyclesPage() {
     getAllFilters,
   } = useMotorcycleStore();
 
-  const { setPickupLocation } = useCartStore();
-
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const pathname = usePathname();
   const params = Object.fromEntries(searchParams.entries());
 
   const [sortDialogOpen, setSortDialogOpen] = useState(false);
   const [filterDialogOpen, setFilterDialogOpen] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 9;
+  const itemsPerPage = 12;
   const [minPrice, setMinPrice] = useState(0);
   const [maxPrice, setMaxPrice] = useState(0);
   const [selectedMake, setSelectedMake] = useState("All Makes");
@@ -117,7 +112,7 @@ export default function MotorcyclesPage() {
     }
 
     if (params.category?.trim()) {
-      filters.categories = [params.category.trim()];
+      filters.categories = params.category.trim();
       setSelectedCategory(params.category as MotorcycleCategory);
       setFilters({ ...savedFilters, selectedCategory: params.category });
     }
@@ -154,7 +149,7 @@ export default function MotorcyclesPage() {
     }
 
     if (selectedCategory !== "All Categories") {
-      filters.categories = [selectedCategory];
+      filters.categories = selectedCategory;
       setFilters({ ...savedFilters, selectedCategory });
     }
 
@@ -215,14 +210,14 @@ export default function MotorcyclesPage() {
         </p>
       </div>
 
-      <section className="sticky top-0 z-50 dark:bg-[#18181B] bg-white p-2 flex flex-col gap-4 rounded-2xl shadow-lg border border-gray-300 mb-8">
+      <section className="sticky top-0 z-50 dark:bg-[#18181B] bg-white flex flex-col gap-4 rounded-2xl shadow-lg border border-gray-300 mb-8">
         {/* Search Input */}
 
         <div className="relative mb-0">
           <SearchIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 placeholder:text-md" />
           <Input
             id="search"
-            className="dark:text-white h-12 placeholder:font-normal text-md font-semibold pl-10 dark:bg-transparent text-yellow-500 focus-visible:border-yellow-500 dark:hover:border-yellow-500 border-1 border-gray-300 dark:border-gray-700 transition-all duration-200 ease-in-out"
+            className="rounded-2xl border-none dark:text-white h-12 placeholder:font-normal text-md font-semibold pl-10 dark:bg-transparent text-yellow-500 focus-visible:border-yellow-500 dark:hover:border-yellow-500 border-1 border-gray-300 dark:border-gray-700 transition-all duration-200 ease-in-out"
             placeholder="Search by Brand or Model..."
             value={searchTerm}
             onChange={(e) => {
@@ -448,8 +443,10 @@ export default function MotorcyclesPage() {
                       checked={cities.includes(branch)}
                       onCheckedChange={(checked) => {
                         if (checked) {
+                          setCurrentPage(1);
                           setCities([...cities, branch]);
                         } else {
+                          setCurrentPage(1);
                           setCities(cities.filter((b) => b !== branch));
                         }
                       }}

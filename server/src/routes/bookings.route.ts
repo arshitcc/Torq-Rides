@@ -21,7 +21,13 @@ import {
   generatePaypalOrder,
   verifyPaypalPayment,
   updateBookingStatus,
+  getDashboardStats,
+  getSalesOverview,
   getAnalytics,
+  addBookingByAdmin,
+  updateBookingByAdmin,
+  cancelBookingByAdmin,
+  deleteBookingByAdmin,
 } from "../controllers/bookings.controller";
 import {
   mongoIdPathVariableValidator,
@@ -40,6 +46,22 @@ router
     validate,
     getAllBookings,
   )
+  .post(verifyPermission([UserRolesEnum.ADMIN]), addBookingByAdmin);
+
+router
+  .route("/stats")
+  .get(
+    authenticateUser,
+    verifyPermission([UserRolesEnum.ADMIN]),
+    getDashboardStats,
+  );
+router
+  .route("/sales-overview")
+  .get(
+    authenticateUser,
+    verifyPermission([UserRolesEnum.ADMIN]),
+    getSalesOverview,
+  );
 
 router
   .route("/analytics")
@@ -62,6 +84,27 @@ router
 
 router.route("/provider/razorpay").post(generateRazorpayOrder);
 router.route("/provider/paypal").post(generatePaypalOrder);
+
+router
+  .route("/:bookingId/admin")
+  .put(
+    verifyPermission([UserRolesEnum.ADMIN]),
+    mongoIdPathVariableValidator("bookingId"),
+    validate,
+    updateBookingByAdmin,
+  )
+  .patch(
+    verifyPermission([UserRolesEnum.ADMIN]),
+    mongoIdPathVariableValidator("bookingId"),
+    validate,
+    cancelBookingByAdmin,
+  )
+  .delete(
+    verifyPermission([UserRolesEnum.ADMIN]),
+    mongoIdPathVariableValidator("bookingId"),
+    validate,
+    deleteBookingByAdmin,
+  );
 
 router
   .route("/provider/razorpay/verify-payment")

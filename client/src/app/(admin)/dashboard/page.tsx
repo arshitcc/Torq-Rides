@@ -56,7 +56,8 @@ function DashboardComponent() {
   } = useMotorcycleStore();
   const { coupons, getAllCoupons, deleteCoupon, updateCouponActiveStatus } =
     useCouponStore();
-  const { bookings, getAllBookings } = useBookingStore();
+  const { bookings, getAllBookings, getDashboardStats, getSalesOverview } =
+    useBookingStore();
   const {
     logs,
     getAllMotorcycleLogs,
@@ -109,6 +110,10 @@ function DashboardComponent() {
   >("All Service Centers");
   const [logsCurrentPage, setLogsCurrentPage] = useState(1);
 
+  let prevUserFilters: Record<string, any> = {};
+  let prevMotorcycleFilters: Record<string, any> = {};
+  let prevMotorcycleLogFilters: Record<string, any> = {};
+
   useEffect(() => {
     if (!isAuthenticated) return;
 
@@ -120,14 +125,25 @@ function DashboardComponent() {
 
     // Fetch data based on active tab
     if (activeTab === "overview") {
-      getAllBookings();
-      getAllMotorcycles({});
+      // getAllBookings();
+      // getAllMotorcycles({});
+      getDashboardStats();
+      getSalesOverview();
     }
     if (activeTab === "users") {
       const userFilters: Record<string, any> = {
         page: usersCurrentPage,
         offset: 10,
       };
+      if (
+        prevUserFilters &&
+        (prevUserFilters.role !== userRoleFilter ||
+          prevUserFilters.searchTerm !== debouncedUserSearch ||
+          prevUserFilters.verification !== userVerificationFilter)
+      ) {
+        userFilters.page = 1;
+      }
+
       if (debouncedUserSearch?.trim())
         userFilters.searchTerm = debouncedUserSearch.trim();
       if (userVerificationFilter === "verified")
@@ -137,12 +153,24 @@ function DashboardComponent() {
       if (userRoleFilter !== "all")
         userFilters.role = userRoleFilter.toUpperCase();
       getAllUsers(userFilters);
+      prevUserFilters = userFilters;
     }
     if (activeTab === "motorcycles") {
       const motorcycleFilters: Record<string, any> = {
         page: motorcyclesCurrentPage,
         offset: itemsPerPage,
       };
+
+      if (
+        prevMotorcycleFilters &&
+        (prevMotorcycleFilters.make !== selectedMake ||
+          prevMotorcycleFilters.searchTerm !== debouncedSearchTerm ||
+          prevMotorcycleFilters.categories !== selectedCategory ||
+          prevMotorcycleFilters.cities !== branch)
+      ) {
+        motorcycleFilters.page = 1;
+      }
+
       if (debouncedSearchTerm?.trim())
         motorcycleFilters.searchTerm = debouncedSearchTerm.trim();
       if (selectedMake !== "All Makes" && filters.makes.includes(selectedMake))
@@ -155,6 +183,7 @@ function DashboardComponent() {
       }
       if (branch !== "All Branches") motorcycleFilters.cities = branch;
       getAllMotorcycles(motorcycleFilters);
+      prevMotorcycleFilters = motorcycleFilters;
     }
     if (activeTab === "coupons") {
       getAllCoupons();
@@ -164,6 +193,17 @@ function DashboardComponent() {
         page: logsCurrentPage,
         offset: 10,
       };
+
+      if (
+        prevMotorcycleLogFilters &&
+        (prevMotorcycleLogFilters.searchTerm !== debouncedLogSearch ||
+          prevMotorcycleLogFilters.status !== logStatusFilter ||
+          prevMotorcycleLogFilters.cities !== logBranchFilter ||
+          prevMotorcycleLogFilters.serviceCentre !== logServiceCentreFilter)
+      ) {
+        logFilters.page = 1;
+      }
+
       if (debouncedLogSearch?.trim())
         logFilters.searchTerm = debouncedLogSearch.trim();
       if (logStatusFilter !== "All Status") logFilters.status = logStatusFilter;
@@ -174,9 +214,7 @@ function DashboardComponent() {
 
       getMotorcycleLogFilters();
       getAllMotorcycleLogs(logFilters);
-    }
-    if (activeTab === "analytics") {
-      // Fetch analytics data if needed
+      prevMotorcycleLogFilters = logFilters;
     }
   }, [
     user,
@@ -300,9 +338,9 @@ function DashboardComponent() {
     }
   };
 
-  const handleDeleteLog = async (motorcycleId: string, logId: string) => {
+  const handleDeleteLog = async (logId: string) => {
     try {
-      await deleteMotorcycleLog(motorcycleId, logId);
+      await deleteMotorcycleLog(logId);
       toast.success("Maintenance log deleted successfully!");
     } catch (error: AxiosError | any) {
       toast.error(
@@ -310,7 +348,6 @@ function DashboardComponent() {
       );
     }
   };
-
 
   if (!user || user.role !== UserRolesEnum.ADMIN) {
     return null; // Or a loading/unauthorized component
@@ -346,18 +383,19 @@ function DashboardComponent() {
           <TabsTrigger value="motorcycles">Motorcycles</TabsTrigger>
           <TabsTrigger value="coupons">Coupons</TabsTrigger>
           <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
-          <TabsTrigger value="analytics">Analytics</TabsTrigger>
+          {/* <TabsTrigger value="analytics">Analytics</TabsTrigger> */}
         </TabsList>
 
         <TabsContent value="overview">
-          <OverviewTab
+          {/* <OverviewTab
             totalRevenue={totalRevenue}
             totalBookings={totalBookings}
             totalCustomers={totalCustomers}
             totalMotorcycles={totalMotorcycles}
             selectedPeriod={selectedPeriod}
             setSelectedPeriod={setSelectedPeriod}
-          />
+          /> */}
+          <OverviewTab />
         </TabsContent>
         <TabsContent value="users">
           <UsersTab
@@ -423,9 +461,9 @@ function DashboardComponent() {
             logMetadata={logMetadata}
           />
         </TabsContent>
-        <TabsContent value="analytics">
+        {/* <TabsContent value="analytics">
           <AnalyticsTab />
-        </TabsContent>
+        </TabsContent> */}
       </Tabs>
     </div>
   );

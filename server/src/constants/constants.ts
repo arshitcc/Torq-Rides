@@ -7,6 +7,8 @@ export const UserRolesEnum = {
 export const PaymentProviderEnum = {
   UNKNOWN: "UNKNOWN",
   RAZORPAY: "RAZORPAY",
+  UPI: "UPI",
+  CASH: "CASH",
   PAYPAL: "PAYPAL",
 } as const;
 
@@ -26,7 +28,8 @@ export const AvailablePaymentProviders = Object.values(PaymentProviderEnum);
 export const AvailablePromoCodeTypes = Object.values(PromoCodeTypeEnum);
 export const AvailableAuthTypes = Object.values(UserAuthType);
 
-export type AvailableUserRoles = typeof AvailableUserRoles[number];
-export type AvailablePaymentProviders = typeof AvailablePaymentProviders[number];
-export type AvailablePromoCodeTypes = typeof AvailablePromoCodeTypes[number];
-export type AvailableAuthTypes = typeof AvailableAuthTypes[number];
+export type AvailableUserRoles = (typeof AvailableUserRoles)[number];
+export type AvailablePaymentProviders =
+  (typeof AvailablePaymentProviders)[number];
+export type AvailablePromoCodeTypes = (typeof AvailablePromoCodeTypes)[number];
+export type AvailableAuthTypes = (typeof AvailableAuthTypes)[number];

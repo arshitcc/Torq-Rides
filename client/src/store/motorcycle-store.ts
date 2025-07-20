@@ -299,11 +299,7 @@ export const useMotorcycleStore = create<MotorcycleState>((set, get) => ({
   updateMotorcycleLog: async (motorcycleId, logId, data) => {
     set({ loading: true, error: null });
     try {
-      const response = await motorcycleAPI.updateMotorcycleLog(
-        motorcycleId,
-        logId,
-        data
-      );
+      const response = await motorcycleAPI.updateMotorcycleLog(logId, data);
       const updatedMotorcycleLog: MotorcycleLog = response.data.data;
       set((state) => ({
         logs: state.logs.map((log) =>
@@ -322,10 +318,10 @@ export const useMotorcycleStore = create<MotorcycleState>((set, get) => ({
     }
   },
 
-  deleteMotorcycleLog: async (motorcycleId, logId) => {
+  deleteMotorcycleLog: async (logId) => {
     set({ loading: true, error: null });
     try {
-      await motorcycleAPI.deleteMotorcycleLog(motorcycleId, logId);
+      await motorcycleAPI.deleteMotorcycleLog(logId);
       set((state) => ({
         logs: state.logs.filter((log) => log._id !== logId),
         loading: false,

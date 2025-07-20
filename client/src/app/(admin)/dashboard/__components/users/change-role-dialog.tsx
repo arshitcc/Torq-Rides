@@ -103,7 +103,7 @@ function ChangeRoleDialog({
                           selectedUser._id
                         )
                       }
-                      className="bg-yellow-500 hover:bg-yellow-600 text-black"
+                      className="bg-yellow-500 hover:bg-yellow-600 text-white"
                     >
                       Confirm Change
                     </AlertDialogAction>

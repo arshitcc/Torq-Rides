@@ -384,7 +384,7 @@ export default function ProfilePage() {
                 </Avatar>
                 <div className="absolute -bottom-2 -right-2">
                   <label htmlFor="avatar-upload" className="cursor-pointer">
-                    <div className="bg-yellow-500 hover:bg-yellow-600 text-black p-2 rounded-full shadow-lg transition-colors">
+                    <div className="bg-yellow-500 hover:bg-yellow-600 text-white p-2 rounded-full shadow-lg transition-colors">
                       <CameraIcon className="h-4 w-4" />
                     </div>
                   </label>

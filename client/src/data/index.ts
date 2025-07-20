@@ -3,7 +3,7 @@ const bikeCategories = [
   { name: "KTM Rentals", href: "/motorcycles?make=KTM" },
   { name: "BMW Rentals", href: "/motorcycles?make=BMW" },
   { name: "Triumph Rentals", href: "/motorcycles?make=Triumph" },
-  { name: "Superbike Rentals", href: "/motorcycles?category=SPORTS" },
+  { name: "Superbike Rentals", href: "/motorcycles?category=SUPERBIKE" },
   { name: "Adventure Motorcycles", href: "/motorcycles?category=ADVENTURE" },
 ];
 

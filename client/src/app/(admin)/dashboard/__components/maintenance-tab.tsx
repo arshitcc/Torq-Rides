@@ -77,7 +77,7 @@ interface MaintenanceTabProps {
     distinctCities: string[];
     categories: string[];
   };
-  handleDeleteLog: (motorcycleId: string, logId: string) => void;
+  handleDeleteLog: (logId: string) => void;
   logSearchTerm: string;
   setLogSearchTerm: (term: string) => void;
   logStatusFilter: string | "All Status";
@@ -93,7 +93,6 @@ interface MaintenanceTabProps {
   totalLogPages: number;
   logMetadata: any;
   updateMotorcycleLog: (
-    motorcycleId: string,
     logId: string,
     data: any
   ) => Promise<void>;
@@ -132,7 +131,6 @@ export default function MaintenanceTab({
 
     try {
       await updateMotorcycleLog(
-        selectedLog.motorcycle._id,
         selectedLog._id,
         data
       );

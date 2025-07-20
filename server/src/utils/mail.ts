@@ -1,11 +1,12 @@
 import nodemailer from "nodemailer";
 import {
-  MAILTRAP_SMTP_HOST,
-  MAILTRAP_SMTP_PORT,
-  MAILTRAP_SMTP_USERNAME,
-  MAILTRAP_SMTP_PASSWORD,
+  SMTP_HOST,
+  SMTP_PORT,
+  SMTP_USERNAME,
+  SMTP_PASSWORD,
   CLIENT_URL,
   COMPANY_NAME,
+  SENDEREMAIL,
 } from "./env";
 import MailGen, { Content } from "mailgen";
 import logger from "../loggers/winston.logger";
@@ -221,16 +222,17 @@ const sendEmail = async (mailConfig: MailConfig) => {
   const emailText = mailGenerator.generatePlaintext(mailConfig.template);
 
   const mailer = nodemailer.createTransport({
-    host: MAILTRAP_SMTP_HOST,
-    port: MAILTRAP_SMTP_PORT,
+    service: "gmail",
+    host: SMTP_HOST,
+    port: Number(SMTP_PORT),
     auth: {
-      user: MAILTRAP_SMTP_USERNAME,
-      pass: MAILTRAP_SMTP_PASSWORD,
+      user: SMTP_USERNAME,
+      pass: SMTP_PASSWORD,
     },
   } as nodemailer.TransportOptions);
 
   const emailData = {
-    from: "TORQRIDES <hello@torqrides.com>",
+    from: `TORQ Rides <${SENDEREMAIL}>`,
     to: mailConfig.email,
     subject: mailConfig.subject,
     text: emailText,
@@ -246,11 +248,11 @@ const sendEmail = async (mailConfig: MailConfig) => {
     */
 
     logger.error(
-      "Email service failed silently. Make sure you have provided your MAILTRAP credentials in the .env file",
+      "Email service failed silently. Make sure you have provided your MAILTRAP/SMTP credentials in the .env file",
     );
     logger.error("Error: ", error);
     console.error(
-      "Email service failed silently. Make sure you have provided your MAILTRAP credentials in the .env file",
+      "Email service failed silently. Make sure you have provided your MAILTRAP/SMTP credentials in the .env file",
     );
     console.error("Error: ", error);
   }

@@ -235,7 +235,7 @@ function PaymentSummary({
               <Button
                 onClick={handleApplyCoupon}
                 disabled={applyingCoupon || !couponCode.trim()}
-                className="bg-yellow-primary hover:bg-yellow-600 text-black"
+                className="bg-yellow-primary hover:bg-yellow-600 text-white"
               >
                 {applyingCoupon ? (
                   <Loader2Icon className="w-4 h-4 animate-spin" />
@@ -374,31 +374,8 @@ function PaymentSummary({
         <div className="pt-4 border-t">
           <h4 className="font-medium mb-3 text-center">
             100% Secure Payment By
-            <Image src="/razorpay.png" alt="razorpay" width={100} height={30} className="mx-auto"/>
+            <Image src="/razorpay_icon.png" alt="razorpay" width={100} height={30} className="mx-auto"/>
           </h4>
-          <div className="mt-6 pt-6 border-t">
-            <h4 className="font-medium mb-3 text-center">
-              Accepted Payment Methods
-            </h4>
-            <div className="flex justify-around text-xs text-gray-500 mt-2">
-              <div className="flex flex-col items-center gap-1.5">
-                <CreditCardIcon className="w-8 h-8 text-gray-400" />
-                <span>Cards</span>
-              </div>
-              <div className="flex flex-col items-center gap-1.5">
-                <SmartphoneIcon className="w-8 h-8 text-gray-400" />
-                <span>UPI</span>
-              </div>
-              <div className="flex flex-col items-center gap-1.5">
-                <BuildingIcon className="w-8 h-8 text-gray-400" />
-                <span>Net Banking</span>
-              </div>
-              <div className="flex flex-col items-center gap-1.5">
-                <BitcoinIcon className="w-8 h-8 text-gray-400" />
-                <span>Crypto</span>
-              </div>
-            </div>
-          </div>
         </div>
       </CardContent>
     </Card>

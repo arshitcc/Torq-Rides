@@ -280,7 +280,7 @@ export function Navbar() {
                 <Link href="/cart">
                   <ShoppingCartIcon className="h-5 w-5 text-yellow-primary" />
                   {cartItemsCount > 0 && (
-                    <Badge className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 bg-yellow-primary text-black text-xs font-bold">
+                    <Badge className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 bg-yellow-primary text-white text-xs font-bold">
                       {cartItemsCount}
                     </Badge>
                   )}
@@ -433,7 +433,7 @@ export function Navbar() {
                   ) : (
                     <Button
                       asChild
-                      className="mt-4 bg-yellow-primary hover:bg-yellow-600 text-black font-semibold"
+                      className="mt-4 bg-yellow-primary hover:bg-yellow-600 text-white font-semibold"
                     >
                       <Link href="/login" onClick={() => setIsOpen(false)}>
                         Login

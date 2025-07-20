@@ -20,8 +20,8 @@ export const DocumentTypesEnum = {
 
 export const PaymentProvidersEnum = {
   RAZORPAY: "RAZORPAY",
-  STRIPE: "STRIPE",
-  PAYPAL: "PAYPAL",
+  UPI: "UPI",
+  CASH: "CASH",
   UNKNOWN: "UNKNOWN",
 } as const;
 
@@ -185,7 +185,7 @@ export type Booking = {
   cancellationCharge: number;
   cancellationReason: string;
   refundAmount: number;
-  coupon: PromoCode;
+  coupon?: PromoCode;
   createdAt: Date;
   updatedAt: Date;
 };

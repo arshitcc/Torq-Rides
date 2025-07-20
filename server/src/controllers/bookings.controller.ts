@@ -2,11 +2,10 @@ import asyncHandler from "../utils/async-handler";
 import { ApiResponse } from "../utils/api-response";
 import { ApiError } from "../utils/api-error";
 import { CustomRequest, User } from "../models/users.model";
-import { Response } from "express";
+import { Request, Response } from "express";
 import {
   AvailableBookingStatus,
   Booking,
-  BookingStatus,
   BookingStatusEnum,
   PaymentStatusEnum,
 } from "../models/bookings.model";
@@ -62,7 +61,7 @@ const handleBooking = async (
     order.remainingAmount = 0;
   } else {
     order.status = BookingStatusEnum.RESERVED;
-    order.paymentStatus = PaymentStatusEnum.PARTIAL;
+    order.paymentStatus = PaymentStatusEnum.PARTIAL_PAID;
   }
 
   await order.save({ validateBeforeSave: false });
@@ -226,11 +225,9 @@ export const getbooking = async (
         _id: "$_id",
         customerId: { $first: "$customerId" },
         status: { $first: "$status" },
-        location: { $first: "$location" },
         paymentProvider: { $first: "$paymentProvider" },
         paymentId: { $first: "$paymentId" },
         bookingDate: { $first: "$bookingDate" },
-        isAvailable: { $first: "$isAvailable" },
         paymentStatus: { $first: "$paymentStatus" },
         rentTotal: { $first: "$rentTotal" },
         securityDepositTotal: { $first: "$securityDepositTotal" },
@@ -356,11 +353,9 @@ const getAllBookings = asyncHandler(
           _id: "$_id",
           customerId: { $first: "$customerId" },
           status: { $first: "$status" },
-          location: { $first: "$location" },
           paymentProvider: { $first: "$paymentProvider" },
           paymentId: { $first: "$paymentId" },
           bookingDate: { $first: "$bookingDate" },
-          isAvailable: { $first: "$isAvailable" },
           paymentStatus: { $first: "$paymentStatus" },
           rentTotal: { $first: "$rentTotal" },
           securityDepositTotal: { $first: "$securityDepositTotal" },
@@ -419,23 +414,106 @@ const modifyBooking = asyncHandler(
       throw new ApiError(404, "Booking not found");
     }
 
-    const modifiedBooking = await Booking.findOneAndUpdate(
-      { _id: bookingId },
-      { $set: { status: req.body.status } },
-      { new: true },
-    );
+    const { status, paymentStatus } = req.body;
 
-    if (!modifiedBooking) {
-      throw new ApiError(500, "Something went wrong");
+    if (status === BookingStatusEnum.CANCELLED) {
+      booking.status = "CANCELLED";
+      booking.cancellationReason = req.body.cancellationReason || "N/A";
+    } else if (status === BookingStatusEnum.COMPLETED) {
+      booking.status = BookingStatusEnum.COMPLETED;
+      booking.remainingAmount = 0;
+      booking.paidAmount = booking.discountedTotal;
+      booking.paymentStatus = PaymentStatusEnum.FULLY_PAID;
+    } else if (status === BookingStatusEnum.STARTED) {
+      booking.status = BookingStatusEnum.STARTED;
+    } else {
+      if (AvailableBookingStatus.includes(status)) {
+        booking.status = status;
+      }
     }
 
-    const customer = await User.findById(modifiedBooking.customerId).select(
+    if (paymentStatus === PaymentStatusEnum.FULLY_PAID) {
+      booking.paymentStatus = paymentStatus;
+      if (
+        status === BookingStatusEnum.CONFIRMED ||
+        status === BookingStatusEnum.COMPLETED
+      )
+        booking.status = status;
+      booking.paidAmount = booking.discountedTotal;
+      booking.remainingAmount = 0;
+    } else if (paymentStatus === PaymentStatusEnum.PARTIAL_PAID) {
+      booking.status = BookingStatusEnum.RESERVED;
+    }
+
+    await booking.save({ validateBeforeSave: false });
+
+    const customer = await User.findById(booking.customerId).select(
       "-password -refreshToken -emailVerificationToken -emailVerificationExpiry -forgotPasswordToken -forgotPasswordExpiry",
     );
 
+    const modifiedBooking = await Booking.aggregate([
+      {
+        $match: {
+          _id: new mongoose.Types.ObjectId(bookingId),
+        },
+      },
+      { $unwind: "$items" },
+      {
+        $lookup: {
+          from: "motorcycles",
+          let: { mid: "$items.motorcycleId" },
+          pipeline: [
+            { $match: { $expr: { $eq: ["$_id", "$$mid"] } } },
+            { $project: { maintenanceLogs: 0 } },
+          ],
+          as: "items.motorcycle",
+        },
+      },
+      // flatten the lookup array
+      {
+        $addFields: {
+          "items.motorcycle": { $arrayElemAt: ["$items.motorcycle", 0] },
+        },
+      },
+      {
+        $group: {
+          _id: "$_id",
+          customerId: { $first: "$customerId" },
+          status: { $first: "$status" },
+          paymentProvider: { $first: "$paymentProvider" },
+          paymentId: { $first: "$paymentId" },
+          bookingDate: { $first: "$bookingDate" },
+          paymentStatus: { $first: "$paymentStatus" },
+          rentTotal: { $first: "$rentTotal" },
+          securityDepositTotal: { $first: "$securityDepositTotal" },
+          cartTotal: { $first: "$cartTotal" },
+          discountedTotal: { $first: "$discountedTotal" },
+          paidAmount: { $first: "$paidAmount" },
+          remainingAmount: { $first: "$remainingAmount" },
+          cancellationCharge: { $first: "$cancellationCharge" },
+          cancellationReason: { $first: "$cancellationReason" },
+          refundAmount: { $first: "$refundAmount" },
+          createdAt: { $first: "$createdAt" },
+          updatedAt: { $first: "$updatedAt" },
+          customer: { $first: "$customer" },
+          items: { $push: "$items" },
+          couponId: { $first: "$couponId" },
+        },
+      },
+      {
+        $lookup: {
+          from: "promocodes",
+          localField: "couponId",
+          foreignField: "_id",
+          as: "coupon",
+        },
+      },
+      { $addFields: { coupon: { $arrayElemAt: ["$coupon", 0] } } },
+    ]);
+
     return res.status(200).json(
       new ApiResponse(200, true, "Booking modified successfully", {
-        modifiedBooking,
+        modifiedBooking: modifiedBooking[0],
         customer: {
           username: customer?.username,
           fullname: customer?.fullname,
@@ -496,7 +574,7 @@ const cancelBooking = asyncHandler(
 
     let cancellationCharge = 0;
 
-    if (booking.paymentStatus === PaymentStatusEnum.PARTIAL) {
+    if (booking.paymentStatus === PaymentStatusEnum.PARTIAL_PAID) {
       cancellationCharge = Math.max(
         booking.paidAmount * cancellationChargePercentage,
         Number(CANCELLATION_CHARGE),
@@ -588,11 +666,9 @@ const cancelBooking = asyncHandler(
           _id: "$_id",
           customerId: { $first: "$customerId" },
           status: { $first: "$status" },
-          location: { $first: "$location" },
           paymentProvider: { $first: "$paymentProvider" },
           paymentId: { $first: "$paymentId" },
           bookingDate: { $first: "$bookingDate" },
-          isAvailable: { $first: "$isAvailable" },
           paymentStatus: { $first: "$paymentStatus" },
           rentTotal: { $first: "$rentTotal" },
           securityDepositTotal: { $first: "$securityDepositTotal" },
@@ -1112,86 +1188,381 @@ const getAnalytics = asyncHandler(async (req: CustomRequest, res: Response) => {
     .json(new ApiResponse(200, true, "Analytics", analytics));
 });
 
-const getMonthlyAndYearlySales = async (
-  bookingMonth: number,
-  bookingYear: number,
-) => {
-  const matchStage: Record<string, any> = {
-    stage: "COMPLETED",
+async function getYearlySalesOverview(year: number) {
+  const pipeline: mongoose.PipelineStage[] = [
+    // 1. Filter bookings for the specified year and valid statuses
+    {
+      $match: {
+        createdAt: {
+          $gte: new Date(`${year}-01-01T00:00:00.000Z`),
+          $lte: new Date(`${year}-12-31T23:59:59.999Z`),
+        },
+        // We consider these statuses as successful sales
+        status: { $in: ["COMPLETED", "CONFIRMED", "STARTED"] },
+      },
+    },
+    // 2. Group by month to get monthly totals and weekly data points
+    {
+      $group: {
+        _id: {
+          month: { $month: "$createdAt" },
+        },
+        monthlyTotal: { $sum: "$paidAmount" },
+        // Push each booking's sale amount to calculate weekly average later
+        sales: { $push: { amount: "$paidAmount", createdAt: "$createdAt" } },
+      },
+    },
+    // 3. Sort by month
+    { $sort: { "_id.month": 1 } },
+  ];
+
+  const monthlySalesData = await Booking.aggregate(pipeline);
+
+  const getMonthName = (monthNumber: number) => {
+    const names = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
+    return names[monthNumber - 1];
   };
 
-  await Booking.aggregate([
+  // 4. Post-process in code to format the data exactly as requested
+  let yearlyCumulative = 0;
+  const allMonthsData = Array.from({ length: 12 }, (_, i) => {
+    const monthNumber = i + 1;
+    const monthData = monthlySalesData.find((d) => d._id.month === monthNumber);
+
+    if (monthData) {
+      yearlyCumulative += monthData.monthlyTotal;
+
+      // Calculate average weekly sales for the month
+      const weeksInMonth = new Set(
+        monthData.sales.map((s: any) =>
+          Math.ceil(new Date(s.createdAt).getDate() / 7),
+        ),
+      );
+      const averageWeekly = monthData.monthlyTotal / (weeksInMonth.size || 1);
+
+      return {
+        name: getMonthName(monthNumber),
+        weekly: Math.round(averageWeekly),
+        monthly: Math.round(monthData.monthlyTotal),
+        yearly: Math.round(yearlyCumulative),
+      };
+    } else {
+      // If no sales for a month, return zero values but maintain the cumulative total
+      return {
+        name: getMonthName(monthNumber),
+        weekly: 0,
+        monthly: 0,
+        yearly: Math.round(yearlyCumulative),
+      };
+    }
+  });
+
+  return allMonthsData;
+}
+
+async function getWeeklySalesForMonth(year: number, month: number) {
+  const startDate = new Date(year, month - 1, 1);
+  const endDate = new Date(year, month, 0, 23, 59, 59, 999);
+
+  const pipeline: mongoose.PipelineStage[] = [
     {
-      $addFields: {
-        bookingMonth: "$bookingDate",
-        bookingYear: "$bookingDate",
+      $match: {
+        createdAt: { $gte: startDate, $lte: endDate },
+        status: { $in: ["COMPLETED", "CONFIRMED", "STARTED"] },
       },
     },
     {
-      $match: {
-        bookingMonth,
-        bookingYear,
-        ...matchStage,
+      $group: {
+        _id: { week: { $isoWeek: "$createdAt" } },
+        totalSales: { $sum: "$paidAmount" },
+        totalBookings: { $sum: 1 },
       },
     },
-  ]);
-};
+    { $sort: { "_id.week": 1 } },
+    {
+      $project: {
+        _id: 0,
+        week: "$_id.week",
+        sales: "$totalSales",
+        bookings: "$totalBookings",
+      },
+    },
+  ];
 
-const getDateWiseSales = async (fromDate: Date, toDate: Date) => {
-  await Booking.aggregate([
+  return Booking.aggregate(pipeline);
+}
+
+async function getSalesForDateRange(fromDate: string, toDate: string) {
+  const pipeline: mongoose.PipelineStage[] = [
     {
       $match: {
-        $gte: fromDate,
-        $lte: toDate,
+        createdAt: { $gte: new Date(fromDate), $lte: new Date(toDate) },
+        status: { $in: ["COMPLETED", "CONFIRMED", "STARTED"] },
       },
     },
-  ]);
-};
-
-const getOverview = asyncHandler(async (req: CustomRequest, res: Response) => {
-  const {
-    month,
-    year,
-    fromDate,
-    toDate,
-    onDate,
-    today,
-    weeklyOfTheMonth,
-    monthlyOfTheYear,
-    status,
-  } = req.query;
-
-  let matchStage: Record<string, any> = {};
-  let overview;
-
-  if (
-    AvailableBookingStatus.includes(
-      status?.toString().toUpperCase() as BookingStatus,
-    )
-  ) {
-    matchStage.status = status?.toString().toUpperCase();
-  }
-
-  if (fromDate && toDate) {
-    const fromBookingDate = new Date(fromDate as string);
-    const toBookingDate = new Date(toDate as string);
-    const pipeline: mongoose.PipelineStage[] = [];
-    pipeline.push({
-      $match: matchStage,
-    });
-    pipeline.push({
-      $match: {
-        bookingDate: {
-          $gte: fromBookingDate,
-          $lte: toBookingDate,
+    {
+      $group: {
+        _id: {
+          date: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
         },
+        totalSales: { $sum: "$paidAmount" },
+        totalBookings: { $sum: 1 },
       },
+    },
+    { $sort: { "_id.date": 1 } },
+    {
+      $project: {
+        _id: 0,
+        date: "$_id.date",
+        sales: "$totalSales",
+        bookings: "$totalBookings",
+      },
+    },
+  ];
+  return Booking.aggregate(pipeline);
+}
+
+export const getDashboardStats = asyncHandler(
+  async (req: Request, res: Response) => {
+    // Using Promise.all to fetch all stats concurrently for better performance
+    const [
+      revenueResult,
+      totalBookings,
+      totalCustomers,
+      totalMotorcycles,
+      motorcycleCategories,
+    ] = await Promise.all([
+      Booking.aggregate([
+        { $match: { status: { $in: ["COMPLETED", "CONFIRMED", "STARTED"] } } },
+        { $group: { _id: null, total: { $sum: "$paidAmount" } } },
+      ]),
+      Booking.countDocuments({ status: { $ne: "CANCELLED" } }),
+      User.countDocuments({ role: "CUSTOMER" }),
+      Motorcycle.countDocuments(),
+      Motorcycle.aggregate([
+        { $unwind: "$categories" },
+        { $group: { _id: "$categories", count: { $sum: 1 } } },
+        { $project: { _id: 0, name: "$_id", value: "$count" } },
+      ]),
+    ]);
+
+    const totalRevenue = revenueResult.length > 0 ? revenueResult[0].total : 0;
+
+    const stats = {
+      totalRevenue,
+      totalBookings,
+      totalCustomers,
+      totalMotorcycles,
+      motorcycleCategories,
+    };
+
+    res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          true,
+          "Dashboard stats fetched successfully",
+          stats,
+        ),
+      );
+  },
+);
+
+export const getSalesOverview = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { year, month, fromDate, toDate } = req.query;
+
+    if (fromDate && toDate) {
+      const data = await getSalesForDateRange(
+        fromDate as string,
+        toDate as string,
+      );
+      return res
+        .status(200)
+        .json(
+          new ApiResponse(
+            200,
+            true,
+            "Sales data for the specified range fetched successfully.",
+            data,
+          ),
+        );
+    }
+
+    if (month && year) {
+      const data = await getWeeklySalesForMonth(
+        parseInt(year as string),
+        parseInt(month as string),
+      );
+      return res
+        .status(200)
+        .json(
+          new ApiResponse(
+            200,
+            true,
+            `Weekly sales data for ${month}/${year} fetched successfully.`,
+            data,
+          ),
+        );
+    }
+
+    // Default case: Get the full yearly overview
+    const queryYear = year
+      ? parseInt(year as string)
+      : new Date().getFullYear();
+    const data = await getYearlySalesOverview(queryYear);
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          true,
+          `Sales overview for ${queryYear} fetched successfully.`,
+          data,
+        ),
+      );
+  },
+);
+
+const addBookingByAdmin = asyncHandler(async (req: Request, res: Response) => {
+  const bookingData = req.body;
+  const { customer } = req.body;
+
+  // Check if a user with the provided email already exists
+  let user = await User.findOne({ email: customer.email });
+
+  // If user doesn't exist, create a new one with a placeholder password
+  if (!user) {
+    user = await User.create({
+      email: customer.email,
+      fullname: customer.fullname,
+      username: customer.email, // Use email as username for simplicity
+      password: `password_${new mongoose.Types.ObjectId()}`,
     });
-    overview = await Booking.aggregate(pipeline);
   }
 
-  return res.status(200).json(new ApiResponse(200, true, "Showed Bookings !!"));
+  const newBooking = await Booking.create({
+    ...bookingData,
+    customerId: user._id,
+    customer: {
+      fullname: user.fullname,
+      email: user.email,
+    },
+    bookingDate: new Date(), // Set current date for admin-created bookings
+  });
+
+  if (!newBooking) {
+    throw new ApiError(500, "Something went wrong while creating the booking");
+  }
+
+  return res
+    .status(201)
+    .json(
+      new ApiResponse(
+        201,
+        true,
+        "Booking created successfully by admin",
+        newBooking,
+      ),
+    );
 });
+
+const updateBookingByAdmin = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { bookingId } = req.params;
+    const bookingData = req.body;
+
+    const updatedBooking = await Booking.findByIdAndUpdate(
+      bookingId,
+      {
+        $set: bookingData,
+      },
+      { new: true },
+    );
+
+    if (!updatedBooking) {
+      throw new ApiError(404, "Booking not found");
+    }
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(
+          200,
+          true,
+          "Booking updated successfully",
+          updatedBooking,
+        ),
+      );
+  },
+);
+
+const cancelBookingByAdmin = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { bookingId } = req.params;
+    const { cancellationReason } = req.body;
+
+    const booking = await Booking.findById(bookingId);
+
+    if (!booking) {
+      throw new ApiError(404, "Booking not found");
+    }
+
+    // Admins can cancel bookings in various states, but not already cancelled/completed
+    if (["CANCELLED", "COMPLETED"].includes(booking.status)) {
+      throw new ApiError(400, `Booking is already ${booking.status}`);
+    }
+
+    // Logic for refund amount can be added here if needed
+    // For now, we just update the status and reason
+    booking.status = "CANCELLED";
+    booking.cancellationReason = cancellationReason;
+    // booking.refundAmount = booking.paidAmount - booking.cancellationCharge;
+
+    await booking.save({ validateBeforeSave: false });
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(200, true, "Booking cancelled successfully", booking),
+      );
+  },
+);
+
+const deleteBookingByAdmin = asyncHandler(
+  async (req: Request, res: Response) => {
+    const { bookingId } = req.params;
+
+    const booking = await Booking.findByIdAndDelete(bookingId);
+
+    if (!booking) {
+      throw new ApiError(404, "Booking not found or already deleted");
+    }
+
+    // You might want to add logic here to delete associated data,
+    // like reviews, if necessary.
+
+    return res.status(200).json(
+      new ApiResponse(200, true, "Booking deleted permanently", {
+        _id: bookingId,
+      }),
+    );
+  },
+);
 
 export {
   getAllBookings,
@@ -1203,4 +1574,8 @@ export {
   verifyPaypalPayment,
   updateBookingStatus,
   getAnalytics,
+  addBookingByAdmin,
+  updateBookingByAdmin,
+  cancelBookingByAdmin,
+  deleteBookingByAdmin,
 };

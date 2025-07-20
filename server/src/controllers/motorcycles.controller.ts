@@ -56,7 +56,7 @@ const getAllMotorcycles = asyncHandler(
 
     const pageNum = Number.isNaN(Number(page)) ? 1 : Math.max(Number(page), 1);
     const limit = Number.isNaN(Number(offset))
-      ? 10
+      ? 12
       : Math.max(Number(offset), 1);
     const skip = (pageNum - 1) * Math.min(limit, 12);
 

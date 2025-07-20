@@ -36,6 +36,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { UpdateMotorcycleLogFormData } from "@/schemas/motorcycle-logs.schema";
 import { UseFormReturn } from "react-hook-form";
+import { useState } from "react";
 
 interface MotorcycleLogEditProps {
   showUpdateLogDialog: boolean;
@@ -50,6 +51,8 @@ function MotorcycleLogEditDialog({
   handleUpdateLog,
   updateLogForm,
 }: MotorcycleLogEditProps) {
+  const [dateInOpen, setDateInOpen] = useState(false);
+  const [dateOutOpen, setDateOutOpen] = useState(false);
   return (
     <Dialog open={showUpdateLogDialog} onOpenChange={setShowUpdateLogDialog}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -72,7 +75,7 @@ function MotorcycleLogEditDialog({
                   <FormItem>
                     <FormLabel>Date In</FormLabel>
                     <FormControl>
-                      <Popover>
+                      <Popover open={dateInOpen} onOpenChange={setDateInOpen}>
                         <PopoverTrigger asChild>
                           <Button
                             variant="outline"
@@ -88,7 +91,10 @@ function MotorcycleLogEditDialog({
                           <Calendar
                             mode="single"
                             selected={field.value}
-                            onSelect={field.onChange}
+                            onSelect={(date) => {
+                              field.onChange(date);
+                              setDateInOpen(false);
+                            }}
                             disabled={(date) => date < new Date()}
                           />
                         </PopoverContent>
@@ -105,7 +111,7 @@ function MotorcycleLogEditDialog({
                   <FormItem>
                     <FormLabel>Date Out</FormLabel>
                     <FormControl>
-                      <Popover>
+                      <Popover open={dateOutOpen} onOpenChange={setDateOutOpen}>
                         <PopoverTrigger asChild>
                           <Button
                             variant="outline"
@@ -121,7 +127,10 @@ function MotorcycleLogEditDialog({
                           <Calendar
                             mode="single"
                             selected={field.value}
-                            onSelect={field.onChange}
+                            onSelect={(date) => {
+                              field.onChange(date);
+                              setDateOutOpen(false);
+                            }}
                             disabled={(date) =>
                               date < new Date() ||
                               (updateLogForm.watch("dateIn") ?? new Date(0)) >
@@ -418,7 +427,7 @@ function MotorcycleLogEditDialog({
               </Button>
               <Button
                 type="submit"
-                className="bg-yellow-primary hover:bg-yellow-600 text-black"
+                className="bg-yellow-primary hover:bg-yellow-600 text-white"
               >
                 Save Changes
               </Button>

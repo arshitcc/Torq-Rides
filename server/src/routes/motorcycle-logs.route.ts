@@ -38,17 +38,16 @@ router
   .get(mongoIdPathVariableValidator("motorcycleId"), getMotorcycleLogs);
 
 router
-  .route("/:motorcycleId/:logId")
+  .route("/:logId")
   .put(
-    mongoIdPathVariableValidator("motorcycleId"),
     mongoIdPathVariableValidator("logId"),
     updateMotorcycleLogValidator(),
     validate,
     updateMotorcycleLog,
   )
   .delete(
-    mongoIdPathVariableValidator("motorcycleId"),
     mongoIdPathVariableValidator("logId"),
+    validate,
     deleteMotorcycleLog,
   );
 

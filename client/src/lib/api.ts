@@ -18,6 +18,11 @@ import {
 import { CouponFormData, UpdateCouponFormData } from "@/schemas/coupons.schema";
 import { initialAuthState } from "@/store/auth-store";
 import { initialCartState } from "@/store/cart-store";
+import {
+  AddBookingFormData,
+  UpdateBookingFormData,
+  CancelBookingFormData,
+} from "@/schemas/bookings.schema";
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api/v1",
@@ -93,14 +98,11 @@ export const motorcycleAPI = {
   getMotorcycleLogs: (motorcycleId: string, params?: any) =>
     api.get(`/motorcycles/logs/${motorcycleId}`, { params }),
 
-  updateMotorcycleLog: (
-    motorcycleId: string,
-    logId: string,
-    data: UpdateMotorcycleLogFormData
-  ) => api.put(`/motorcycles/logs/${motorcycleId}/${logId}`, data),
+  updateMotorcycleLog: (logId: string, data: UpdateMotorcycleLogFormData) =>
+    api.put(`/motorcycles/logs/${logId}`, data),
 
-  deleteMotorcycleLog: (motorcycleId: string, logId: string) =>
-    api.delete(`/motorcycles/logs/${motorcycleId}/${logId}`),
+  deleteMotorcycleLog: (logId: string) =>
+    api.delete(`/motorcycles/logs/${logId}`),
 
   getMotorcycleLogFilters: () => api.get("/motorcycles/logs/filters"),
 };
@@ -113,8 +115,22 @@ export const bookingAPI = {
 
   cancelBooking: (bookingId: string) => api.delete(`/bookings/${bookingId}`),
 
+  addBookingByAdmin: (data: AddBookingFormData) => api.post("/bookings", data),
+
+  updateBookingByAdmin: (bookingId: string, data: UpdateBookingFormData) =>
+    api.put(`/bookings/${bookingId}/admin`, data),
+
+  cancelBookingByAdmin: (
+    bookingId: string,
+    data: CancelBookingFormData | undefined
+  ) => api.patch(`/bookings/${bookingId}/admin`, { data }),
+
+  deleteBookingByAdmin: (bookingId: string) =>
+    api.delete(`/bookings/${bookingId}/admin`),
+
   generateRazorpayOrder: (mode: string, bookingId?: string) =>
     api.post("/bookings/provider/razorpay", { mode, bookingId }),
+
   verifyRazorpayOrder: (data: {
     razorpay_payment_id: string;
     razorpay_signature: string;
@@ -122,6 +138,10 @@ export const bookingAPI = {
     amount: number;
     bookingId?: string;
   }) => api.post("/bookings/provider/razorpay/verify-payment", data),
+
+  getDashboardStats: () => api.get("/bookings/stats"),
+  getSalesOverview: (params?: any) =>
+    api.get("/bookings/sales-overview", { params }),
 };
 
 export const reviewAPI = {

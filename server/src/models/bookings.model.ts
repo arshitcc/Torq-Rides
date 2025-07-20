@@ -18,7 +18,7 @@ export const BookingStatusEnum = {
 } as const;
 
 export const PaymentStatusEnum = {
-  PARTIAL: "PARTIAL-PAID",
+  PARTIAL_PAID: "PARTIAL-PAID",
   FULLY_PAID: "FULLY-PAID",
   UNPAID: "UNPAID",
   REFUND_INITIATED: "REFUND-INITIATED",
@@ -98,7 +98,7 @@ const bookingSchema = new mongoose.Schema<IBooking>(
     },
     cancellationCharge: {
       type: Number,
-      default: Number(CANCELLATION_CHARGE),
+      default: 0,
     },
     refundAmount: {
       type: Number,

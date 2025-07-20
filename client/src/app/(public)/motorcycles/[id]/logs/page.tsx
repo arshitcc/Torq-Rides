@@ -143,7 +143,7 @@ export default function MotorcycleLogsPage() {
     if (!selectedLog) return;
 
     try {
-      await updateMotorcycleLog(motorcycleId, selectedLog._id, data);
+      await updateMotorcycleLog(selectedLog._id, data);
       toast.success("Service Log Updated !!");
       setShowUpdateLogDialog(false);
       setSelectedLog(null);
@@ -154,7 +154,7 @@ export default function MotorcycleLogsPage() {
 
   const handleDeleteLog = async (logId: string) => {
     try {
-      await deleteMotorcycleLog(motorcycleId, logId);
+      await deleteMotorcycleLog(logId);
       toast.success("Service Log Deleted !!");
     } catch (error) {
       toast.error("Failed to delete maintenance log!! Please try again.");

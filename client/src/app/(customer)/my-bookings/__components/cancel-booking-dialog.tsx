@@ -135,7 +135,7 @@ export function CancelBookingDialog({
                   from{" "}
                   <strong>{format(minimumBookingDate, "MMM dd, yyyy")}</strong>.
                 </p>
-                <div className="p-3 bg-gray-50 rounded-lg border space-y-2">
+                <div className="p-3 bg-gray-50 dark:bg-[#18181B] rounded-lg border space-y-2">
                   <p className="flex justify-between">
                     <span>Amount Paid:</span>
                     <span className="font-medium">

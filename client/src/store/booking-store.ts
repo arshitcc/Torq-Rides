@@ -2,8 +2,40 @@ import { create } from "zustand";
 import { bookingAPI } from "@/lib/api";
 import { Booking } from "@/types";
 import { AxiosError } from "axios";
+import {
+  AddBookingFormData,
+  CancelBookingFormData,
+  UpdateBookingFormData,
+} from "@/schemas/bookings.schema";
+
+interface SalesOverviewData {
+  name: string;
+  weekly?: number;
+  monthly?: number;
+  yearly?: number;
+  sales?: number;
+}
+
+interface MotorcycleCategoryData {
+  name: string;
+  value: number;
+}
+
+interface DashboardStats {
+  totalRevenue: number;
+  totalBookings: number;
+  totalCustomers: number;
+  totalMotorcycles: number;
+  motorcycleCategories: MotorcycleCategoryData[];
+}
+
+interface AnalyticsState {
+  stats: DashboardStats;
+  salesOverview: SalesOverviewData[];
+}
 
 interface BookingState {
+  analytics: AnalyticsState;
   bookings: Booking[];
   loading: boolean;
   error: string | null;
@@ -21,6 +53,17 @@ interface BookingState {
   modifyBooking: (bookingId: string, data: any) => Promise<void>;
   cancelBooking: (bookingId: string) => Promise<void>;
 
+  addBookingByAdmin: (data: AddBookingFormData) => Promise<void>;
+  updateBookingByAdmin: (
+    bookingId: string,
+    data: UpdateBookingFormData
+  ) => Promise<void>;
+  cancelBookingByAdmin: (
+    bookingId: string,
+    data?: CancelBookingFormData
+  ) => Promise<void>;
+  deleteBookingByAdmin: (bookingId: string) => Promise<void>;
+
   // Payment Functions :
   generateRazorpayOrder: (mode: string, bookingId?: string) => Promise<void>;
   verifyRazorpayPayment: (data: {
@@ -30,9 +73,21 @@ interface BookingState {
     amount: number;
     bookingId?: string;
   }) => Promise<Booking>;
+  getDashboardStats: () => Promise<void>;
+  getSalesOverview: (params?: any) => Promise<void>;
 }
 
 export const useBookingStore = create<BookingState>((set, get) => ({
+  analytics: {
+    stats: {
+      totalRevenue: 0,
+      totalBookings: 0,
+      totalCustomers: 0,
+      totalMotorcycles: 0,
+      motorcycleCategories: [],
+    },
+    salesOverview: [],
+  },
   bookings: [],
   loading: false,
   error: null,
@@ -111,6 +166,83 @@ export const useBookingStore = create<BookingState>((set, get) => ({
     }
   },
 
+  addBookingByAdmin: async (data) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await bookingAPI.addBookingByAdmin(data);
+      const newBooking = response.data.data;
+      set((state) => ({
+        bookings: [newBooking, ...state.bookings],
+        loading: false,
+        metadata: { ...state.metadata, total: state.metadata.total + 1 },
+      }));
+    } catch (error: AxiosError | any) {
+      set({
+        loading: false,
+        error: error.response?.data?.message || "Failed to add booking",
+      });
+      throw error;
+    }
+  },
+
+  updateBookingByAdmin: async (bookingId, data) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await bookingAPI.updateBookingByAdmin(bookingId, data);
+      const updatedBooking = response.data.data;
+      set((state) => ({
+        bookings: state.bookings.map((b) =>
+          b._id === bookingId ? { ...b, ...updatedBooking } : b
+        ),
+        loading: false,
+      }));
+    } catch (error: AxiosError | any) {
+      set({
+        loading: false,
+        error: error.response?.data?.message || "Failed to update booking",
+      });
+      throw error;
+    }
+  },
+
+  cancelBookingByAdmin: async (bookingId, data) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await bookingAPI.cancelBookingByAdmin(bookingId, data);
+      const updatedBooking = response.data.data;
+
+      set((state) => ({
+        bookings: state.bookings.map((b) =>
+          b._id === bookingId ? updatedBooking : b
+        ),
+        loading: false,
+      }));
+    } catch (error: AxiosError | any) {
+      set({
+        loading: false,
+        error: error.response?.data?.message || "Failed to cancel booking",
+      });
+      throw error;
+    }
+  },
+
+  deleteBookingByAdmin: async (bookingId) => {
+    set({ loading: true, error: null });
+    try {
+      await bookingAPI.deleteBookingByAdmin(bookingId);
+      set((state) => ({
+        bookings: state.bookings.filter((b) => b._id !== bookingId),
+        loading: false,
+      }));
+    } catch (error: AxiosError | any) {
+      set({
+        loading: false,
+        error: error.response?.data?.message || "Failed to delete booking",
+      });
+      throw error;
+    }
+  },
+
   generateRazorpayOrder: async (mode, bookingId) => {
     set({ loading: true, error: null });
     try {
@@ -146,6 +278,46 @@ export const useBookingStore = create<BookingState>((set, get) => ({
         loading: false,
         error:
           error.response?.data?.message || "Failed to verify razorpay order",
+      });
+      throw error;
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  getDashboardStats: async () => {
+    set({ loading: true, error: null });
+    try {
+      const response = await bookingAPI.getDashboardStats();
+      const statsData = response.data.data;
+      set((state) => ({
+        analytics: { ...state.analytics, stats: statsData },
+        loading: false,
+      }));
+    } catch (error: AxiosError | any) {
+      set({
+        loading: false,
+        error: error.response?.data?.message || "Failed to fetch analytics",
+      });
+      throw error;
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  getSalesOverview: async (params) => {
+    set({ loading: true, error: null });
+    try {
+      const response = await bookingAPI.getSalesOverview(params);
+      const salesData = response.data.data;
+      set((state) => ({
+        analytics: { ...state.analytics, salesOverview: salesData },
+        loading: false,
+      }));
+    } catch (error: AxiosError | any) {
+      set({
+        loading: false,
+        error: error.response?.data?.message || "Failed to fetch analytics",
       });
       throw error;
     } finally {
