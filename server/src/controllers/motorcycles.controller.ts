@@ -50,15 +50,26 @@ const getAllMotorcycles = asyncHandler(
 
     const token =
       req.cookies?.accessToken ||
-      req.headers.authorization?.replace("Bearer ", "");
-    const decodedToken = jwt.verify(token, ACCESS_TOKEN_SECRET!) as {
-      _id: string;
-      role: string;
-      email: string;
-      username: string;
-    };
+      req.headers?.authorization?.replace("Bearer ", "");
 
-    if (decodedToken.role.toString() === UserRolesEnum.CUSTOMER) {
+    if (token) {
+      try {
+        const decodedToken = jwt.verify(token, ACCESS_TOKEN_SECRET!) as {
+          _id: string;
+          role: string;
+          email: string;
+          username: string;
+        };
+
+        if (decodedToken?.role.toString() !== UserRolesEnum.ADMIN) {
+          matchState["availableInCities.quantity"] = { $gt: 0 };
+        }
+      } catch (error) {
+        console.error("JWT Verification Error:");
+        matchState["availableInCities.quantity"] = { $gt: 0 };
+      }
+    } else {
+      // If no token is provided, treat as a regular customer
       matchState["availableInCities.quantity"] = { $gt: 0 };
     }
 
