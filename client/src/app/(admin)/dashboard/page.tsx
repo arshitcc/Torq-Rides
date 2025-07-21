@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuthStore } from "@/store/auth-store";
 import { useMotorcycleStore } from "@/store/motorcycle-store";
@@ -27,8 +27,6 @@ import CouponsTab from "./__components/coupons-tab";
 import MaintenanceTab from "./__components/maintenance-tab";
 import AnalyticsTab from "./__components/analytics-tab";
 import Loading from "@/app/loading";
-import { UpdateMotorcycleLogFormData } from "@/schemas/motorcycle-logs.schema";
-
 function DashboardComponent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -110,10 +108,50 @@ function DashboardComponent() {
   >("All Service Centers");
   const [logsCurrentPage, setLogsCurrentPage] = useState(1);
 
-  let prevUserFilters: Record<string, any> = {};
-  let prevMotorcycleFilters: Record<string, any> = {};
-  let prevMotorcycleLogFilters: Record<string, any> = {};
+  // Refs to track initial mount and prevent effects from running on load
+  const isInitialMountUsers = useRef(true);
+  const isInitialMountMotorcycles = useRef(true);
+  const isInitialMountLogs = useRef(true);
 
+  // Effect to reset user pagination when filters change
+  useEffect(() => {
+    if (isInitialMountUsers.current) {
+      isInitialMountUsers.current = false;
+    } else {
+      if (activeTab === "users") {
+        setUsersCurrentPage(1);
+      }
+    }
+  }, [debouncedUserSearch, userRoleFilter, userVerificationFilter]);
+
+  // Effect to reset motorcycle pagination when filters change
+  useEffect(() => {
+    if (isInitialMountMotorcycles.current) {
+      isInitialMountMotorcycles.current = false;
+    } else {
+      if (activeTab === "motorcycles") {
+        setMotorcyclesCurrentPage(1);
+      }
+    }
+  }, [debouncedSearchTerm, selectedMake, selectedCategory, branch]);
+
+  // Effect to reset maintenance log pagination when filters change
+  useEffect(() => {
+    if (isInitialMountLogs.current) {
+      isInitialMountLogs.current = false;
+    } else {
+      if (activeTab === "maintenance") {
+        setLogsCurrentPage(1);
+      }
+    }
+  }, [
+    debouncedLogSearch,
+    logStatusFilter,
+    logBranchFilter,
+    logServiceCentreFilter,
+  ]);
+
+  // Main effect for fetching data based on the active tab and filters
   useEffect(() => {
     if (!isAuthenticated) return;
 
@@ -125,8 +163,6 @@ function DashboardComponent() {
 
     // Fetch data based on active tab
     if (activeTab === "overview") {
-      // getAllBookings();
-      // getAllMotorcycles({});
       getDashboardStats();
       getSalesOverview();
     }
@@ -135,14 +171,6 @@ function DashboardComponent() {
         page: usersCurrentPage,
         offset: 10,
       };
-      if (
-        prevUserFilters &&
-        (prevUserFilters.role !== userRoleFilter ||
-          prevUserFilters.searchTerm !== debouncedUserSearch ||
-          prevUserFilters.verification !== userVerificationFilter)
-      ) {
-        userFilters.page = 1;
-      }
 
       if (debouncedUserSearch?.trim())
         userFilters.searchTerm = debouncedUserSearch.trim();
@@ -153,23 +181,12 @@ function DashboardComponent() {
       if (userRoleFilter !== "all")
         userFilters.role = userRoleFilter.toUpperCase();
       getAllUsers(userFilters);
-      prevUserFilters = userFilters;
     }
     if (activeTab === "motorcycles") {
       const motorcycleFilters: Record<string, any> = {
         page: motorcyclesCurrentPage,
         offset: itemsPerPage,
       };
-
-      if (
-        prevMotorcycleFilters &&
-        (prevMotorcycleFilters.make !== selectedMake ||
-          prevMotorcycleFilters.searchTerm !== debouncedSearchTerm ||
-          prevMotorcycleFilters.categories !== selectedCategory ||
-          prevMotorcycleFilters.cities !== branch)
-      ) {
-        motorcycleFilters.page = 1;
-      }
 
       if (debouncedSearchTerm?.trim())
         motorcycleFilters.searchTerm = debouncedSearchTerm.trim();
@@ -183,7 +200,6 @@ function DashboardComponent() {
       }
       if (branch !== "All Branches") motorcycleFilters.cities = branch;
       getAllMotorcycles(motorcycleFilters);
-      prevMotorcycleFilters = motorcycleFilters;
     }
     if (activeTab === "coupons") {
       getAllCoupons();
@@ -193,16 +209,6 @@ function DashboardComponent() {
         page: logsCurrentPage,
         offset: 10,
       };
-
-      if (
-        prevMotorcycleLogFilters &&
-        (prevMotorcycleLogFilters.searchTerm !== debouncedLogSearch ||
-          prevMotorcycleLogFilters.status !== logStatusFilter ||
-          prevMotorcycleLogFilters.cities !== logBranchFilter ||
-          prevMotorcycleLogFilters.serviceCentre !== logServiceCentreFilter)
-      ) {
-        logFilters.page = 1;
-      }
 
       if (debouncedLogSearch?.trim())
         logFilters.searchTerm = debouncedLogSearch.trim();
@@ -214,8 +220,9 @@ function DashboardComponent() {
 
       getMotorcycleLogFilters();
       getAllMotorcycleLogs(logFilters);
-      prevMotorcycleLogFilters = logFilters;
     }
+
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }, [
     user,
     isAuthenticated,
@@ -240,6 +247,11 @@ function DashboardComponent() {
     logStatusFilter,
     logBranchFilter,
     logServiceCentreFilter,
+    getDashboardStats,
+    getSalesOverview,
+    getMotorcycleLogFilters,
+    filters.makes,
+    filters.categories,
   ]);
 
   const handleTabChange = (value: string) => {
@@ -309,7 +321,6 @@ function DashboardComponent() {
     try {
       await deleteUserAccount(userId);
       setUsers(users.filter((u) => u._id !== userId));
-      toast.success("User deleted successfully!");
     } catch (error: AxiosError | any) {
       toast.error("Failed to delete user");
     }
@@ -353,16 +364,9 @@ function DashboardComponent() {
     return null; // Or a loading/unauthorized component
   }
 
-  const totalRevenue = bookings.reduce(
-    (sum, booking) => sum + booking.discountedTotal,
-    0
-  );
-  const totalBookings = bookings.length;
-  const totalCustomers = new Set(bookings.map((b) => b.customerId)).size;
-  const totalMotorcycles = motorcycleMetadata?.total || 0;
   const totalMotorcyclesPages =
     Math.ceil(motorcycleMetadata?.total / itemsPerPage) || 1;
-  const totalUsersPages = Math.ceil(userMetadata?.total / itemsPerPage) || 1;
+  const totalUsersPages = Math.ceil(userMetadata?.total / 10) || 1;
   const totalLogPages = Math.ceil(logMetadata?.total / 10) || 1;
 
   return (
@@ -383,18 +387,9 @@ function DashboardComponent() {
           <TabsTrigger value="motorcycles">Motorcycles</TabsTrigger>
           <TabsTrigger value="coupons">Coupons</TabsTrigger>
           <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
-          {/* <TabsTrigger value="analytics">Analytics</TabsTrigger> */}
         </TabsList>
 
         <TabsContent value="overview">
-          {/* <OverviewTab
-            totalRevenue={totalRevenue}
-            totalBookings={totalBookings}
-            totalCustomers={totalCustomers}
-            totalMotorcycles={totalMotorcycles}
-            selectedPeriod={selectedPeriod}
-            setSelectedPeriod={setSelectedPeriod}
-          /> */}
           <OverviewTab />
         </TabsContent>
         <TabsContent value="users">
@@ -461,9 +456,6 @@ function DashboardComponent() {
             logMetadata={logMetadata}
           />
         </TabsContent>
-        {/* <TabsContent value="analytics">
-          <AnalyticsTab />
-        </TabsContent> */}
       </Tabs>
     </div>
   );

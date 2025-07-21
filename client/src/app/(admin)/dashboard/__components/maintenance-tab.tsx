@@ -92,10 +92,7 @@ interface MaintenanceTabProps {
   setLogsCurrentPage: (page: number) => void;
   totalLogPages: number;
   logMetadata: any;
-  updateMotorcycleLog: (
-    logId: string,
-    data: any
-  ) => Promise<void>;
+  updateMotorcycleLog: (logId: string, data: any) => Promise<void>;
 }
 
 export default function MaintenanceTab({
@@ -130,10 +127,7 @@ export default function MaintenanceTab({
     if (!selectedLog) return;
 
     try {
-      await updateMotorcycleLog(
-        selectedLog._id,
-        data
-      );
+      await updateMotorcycleLog(selectedLog._id, data);
       toast.success("Service Log Updated !!");
       setShowUpdateLogDialog(false);
       setSelectedLog(null);
@@ -172,9 +166,9 @@ export default function MaintenanceTab({
       {/* Search and Filters */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         <div className="lg:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <Label className="block text-sm font-medium text-muted-foreground mb-1">
             Search Logs
-          </label>
+          </Label>
           <div className="relative">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
@@ -185,16 +179,16 @@ export default function MaintenanceTab({
             />
           </div>
         </div>
-        <div className="lg:col-span-3 flex justify-around">
+        <div className="lg:col-span-3 flex flex-col sm:flex-row gap-4 justify-around">
           <div>
-            <Label className="block text-sm font-medium text-gray-700 mb-1">
+            <Label className="block text-sm font-medium text-muted-foreground mb-1">
               Status
             </Label>
             <Select
               value={logStatusFilter}
               onValueChange={(value) => setLogStatusFilter(value)}
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
@@ -208,14 +202,14 @@ export default function MaintenanceTab({
             </Select>
           </div>
           <div>
-            <Label className="block text-sm font-medium text-gray-700 mb-1">
+            <Label className="block text-sm font-medium text-muted-foreground mb-1">
               Branch
             </Label>
             <Select
               value={logBranchFilter}
               onValueChange={(value) => setLogBranchFilter(value)}
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Filter by Branch" />
               </SelectTrigger>
               <SelectContent>
@@ -229,14 +223,14 @@ export default function MaintenanceTab({
             </Select>
           </div>
           <div>
-            <Label className="block text-sm font-medium text-gray-700 mb-1">
+            <Label className="block text-sm font-medium text-muted-foreground mb-1">
               Service Center
             </Label>
             <Select
               value={logServiceCentreFilter}
               onValueChange={(value) => setLogServiceCentreFilter(value)}
             >
-              <SelectTrigger>
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Filter by Service Center" />
               </SelectTrigger>
               <SelectContent>

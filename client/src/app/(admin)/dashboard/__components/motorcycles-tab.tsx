@@ -84,7 +84,7 @@ export default function MotorcyclesTab({
 
   return (
     <>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
         <h2 className="text-2xl font-bold">Motorcycle Fleet Management</h2>
         <Link href="/motorcycles/new">
           <Button className="cursor-pointer bg-yellow-500 hover:bg-yellow-600 text-white">
@@ -107,7 +107,7 @@ export default function MotorcyclesTab({
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
             <Input
               id="search"
-              className="dark:text-white pl-10 dark:bg-transparent"
+              className="pl-10 dark:bg-transparent text-yellow-500 font-medium"
               placeholder="Search by make or model..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -235,7 +235,7 @@ export default function MotorcyclesTab({
       </Card>
 
       {totalMotorcyclesPages > 1 && (
-        <Pagination>
+        <Pagination className="overflow-x-auto">
           <PaginationContent>
             <PaginationItem>
               <PaginationPrevious

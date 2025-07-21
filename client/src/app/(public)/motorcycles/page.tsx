@@ -598,7 +598,7 @@ export default function MotorcyclesPage() {
           <div className="col-span-8 md:col-span-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-4 px-1">
               {motorcycles.length <= 0 ? (
-                <Card className="col-span-8 bg-muted/50 border-0 shadow-none">
+                <Card className="col-span-8 bg-muted/50 border-0 shadow-none text-center">
                   <CardContent className="flex flex-col items-center justify-center py-12 space-y-4">
                     <div className="p-4 rounded-full bg-muted">
                       <FilterIcon className="h-10 w-10 text-muted-foreground" />
@@ -623,7 +623,7 @@ export default function MotorcyclesPage() {
                         <div className="relative h-56 overflow-hidden">
                           <Image
                             src={
-                              motorcycle?.images[0].url || "/placeholder.svg"
+                              motorcycle?.images[0]?.url || "/logo/logo.png"
                             }
                             alt={`${motorcycle.make} ${motorcycle.vehicleModel}`}
                             fill

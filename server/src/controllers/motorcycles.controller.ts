@@ -6,6 +6,9 @@ import { NextFunction, Response } from "express";
 import mongoose from "mongoose";
 import { Motorcycle } from "../models/motorcycles.model";
 import { deleteFile, uploadFile } from "../utils/cloudinary";
+import { UserRolesEnum } from "../constants/constants";
+import jwt from "jsonwebtoken";
+import { ACCESS_TOKEN_SECRET } from "../utils/env";
 
 const getAllMotorcycles = asyncHandler(
   async (req: CustomRequest, res: Response) => {
@@ -44,7 +47,20 @@ const getAllMotorcycles = asyncHandler(
     if (availableInCities?.length) {
       matchState["availableInCities.branch"] = { $in: availableInCities };
     }
-    matchState["availableInCities.quantity"] = { $gt: 0 };
+
+    const token =
+      req.cookies?.accessToken ||
+      req.headers.authorization?.replace("Bearer ", "");
+    const decodedToken = jwt.verify(token, ACCESS_TOKEN_SECRET!) as {
+      _id: string;
+      role: string;
+      email: string;
+      username: string;
+    };
+
+    if (decodedToken.role.toString() === UserRolesEnum.CUSTOMER) {
+      matchState["availableInCities.quantity"] = { $gt: 0 };
+    }
 
     if (searchTerm?.toString().trim()) {
       matchState.$or = [
@@ -119,12 +135,14 @@ const addMotorcycle = asyncHandler(
     const bike = await Motorcycle.findOne({
       make,
       vehicleModel,
+      color,
+      variant,
     });
 
     if (bike) {
       throw new ApiError(
         400,
-        `Motorcycle of ${make} with ${vehicleModel} already exists`,
+        `Motorcycle of ${make} with ${vehicleModel} with color ${color} and variant ${variant} already exists !!`,
       );
     }
 

@@ -104,7 +104,8 @@ export default function AllBookingsPage() {
   const [newBookingStatus, setNewBookingStatus] = useState("");
   const [newPaymentStatus, setNewPaymentStatus] = useState("");
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isUpdateStatusDialogOpen, setIsUpdateStatusDialogOpen] = useState(false);
+  const [isUpdateStatusDialogOpen, setIsUpdateStatusDialogOpen] =
+    useState(false);
   const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -306,86 +307,91 @@ export default function AllBookingsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredBookings.length > 0 ? filteredBookings.map((booking) => (
-                    <TableRow key={booking._id}>
-                      <TableCell className="font-mono text-sm">
-                        #{booking._id?.slice(-8).toUpperCase()}
-                      </TableCell>
-                      <TableCell>
-                        <div className="font-medium">
-                          {booking.customer?.fullname || "N/A"}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {booking.customer?.email || "N/A"}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        {format(new Date(booking.bookingDate), "MMM dd, yyyy")}
-                      </TableCell>
-                      <TableCell>
-                        ₹{booking.discountedTotal.toLocaleString("en-IN")}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={`${getStatusColor(booking.status)}`}
-                        >
-                          {booking.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary">
-                          {booking.paymentStatus}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex space-x-2 justify-end">
-                          {/* <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleUpdateBooking(booking)}
+                  {filteredBookings.length > 0 ? (
+                    filteredBookings.map((booking) => (
+                      <TableRow key={booking._id}>
+                        <TableCell className="font-mono text-sm">
+                          #{booking._id?.slice(-8).toUpperCase()}
+                        </TableCell>
+                        <TableCell>
+                          <div className="font-medium">
+                            {booking.customer?.fullname || "N/A"}
+                          </div>
+                          <div className="text-sm text-muted-foreground">
+                            {booking.customer?.email || "N/A"}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {format(
+                            new Date(booking.bookingDate),
+                            "MMM dd, yyyy"
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          ₹{booking.discountedTotal.toLocaleString("en-IN")}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant="outline"
+                            className={`${getStatusColor(booking.status)}`}
                           >
-                            <EditIcon className="h-4 w-4" />
-                          </Button> */}
-                          <UpdateStatusDialog
-                            booking={booking}
-                            open={isUpdateStatusDialogOpen}
-                            setOpen={setIsUpdateStatusDialogOpen}
-                            handleUpdateStatus={handleUpdateStatus}
-                            newBookingStatus={newBookingStatus}
-                            setNewBookingStatus={setNewBookingStatus}
-                            newPaymentStatus={newPaymentStatus}
-                            setNewPaymentStatus={setNewPaymentStatus}
-                            setSelectedBooking={setSelectedBooking}
-                          />
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-red-500 hover:text-red-700"
-                            onClick={() => handleOpenCancelDialog(booking)}
-                          >
-                            <XIcon className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-red-500 hover:text-red-700"
-                            onClick={() => handleOpenDeleteDialog(booking)}
-                          >
-                            <Trash2Icon className="h-4 w-4" />
-                          </Button>
-                          <BookingDetailsDialog
-                            booking={booking}
-                            trigger={
-                              <Button variant="ghost" size="icon">
-                                <InfoIcon className="h-4 w-4" />
-                              </Button>
-                            }
-                          />
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )): (
+                            {booking.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="secondary">
+                            {booking.paymentStatus}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex space-x-2 justify-end">
+                            {/* <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleUpdateBooking(booking)}
+                            >
+                              <EditIcon className="h-4 w-4" />
+                            </Button> */}
+                            <UpdateStatusDialog
+                              booking={booking}
+                              open={isUpdateStatusDialogOpen}
+                              setOpen={setIsUpdateStatusDialogOpen}
+                              handleUpdateStatus={handleUpdateStatus}
+                              newBookingStatus={newBookingStatus}
+                              setNewBookingStatus={setNewBookingStatus}
+                              newPaymentStatus={newPaymentStatus}
+                              setNewPaymentStatus={setNewPaymentStatus}
+                              setSelectedBooking={setSelectedBooking}
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-red-500 hover:text-red-700"
+                              onClick={() => handleOpenCancelDialog(booking)}
+                            >
+                              <XIcon className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="text-red-500 hover:text-red-700"
+                              onClick={() => handleOpenDeleteDialog(booking)}
+                            >
+                              <Trash2Icon className="h-4 w-4" />
+                            </Button>
+                            <BookingDetailsDialog
+                              booking={booking}
+                              trigger={
+                                <Button variant="ghost" size="icon">
+                                  <InfoIcon className="h-4 w-4" />
+                                </Button>
+                              }
+                            />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  ) : (
                     <TableRow>
                       <TableCell colSpan={7} className="h-24 text-center">
                         No results.
@@ -434,13 +440,6 @@ export default function AllBookingsPage() {
             </PaginationContent>
           </Pagination>
         )}
-
-        <AddBookingDialog
-          isOpen={isAddDialogOpen}
-          onClose={() => setIsAddDialogOpen(false)}
-          onSubmit={handleAddSubmit}
-          isLoading={loading}
-        />
 
         {/* {selectedBooking && (
           <UpdateBookingDialog

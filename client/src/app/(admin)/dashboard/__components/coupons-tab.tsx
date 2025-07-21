@@ -94,7 +94,7 @@ export default function CouponsTab({
 
   return (
     <>
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
         <h2 className="text-2xl font-bold">Coupon Management</h2>
         <AddCouponDialog
           open={showAddCouponDialog}
