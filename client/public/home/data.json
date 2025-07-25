@@ -2,7 +2,7 @@
   "availableBikes": [
     {
       "_id": 1,
-      "category": "SPORTS",
+      "category": "SUPERBIKE",
       "image": "/home/img16.jpg"
     },
     {

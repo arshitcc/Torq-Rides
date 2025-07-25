@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { BookingDetails, PaymentState } from "../page";
 import { CancellationPolicyDialog } from "./cancellation-policy-dialog";
 import Image from "next/image";
+import { getFormattedAmount } from "@/lib/utils";
 
 export interface PaymentSummaryProps {
   paymentMethod: string;
@@ -57,7 +58,8 @@ function PaymentSummary({
   const { generateRazorpayOrder, verifyRazorpayPayment } = useBookingStore();
 
   const { user } = useAuthStore();
-  const { applyCoupon, removeCouponFromCart, setCart } = useCartStore();
+  const { applyCoupon, removeCouponFromCart, setCart, error, setError } =
+    useCartStore();
 
   const handlePayment = async (e: React.FormEvent) => {
     try {
@@ -74,7 +76,7 @@ function PaymentSummary({
 
       const amount =
         paymentMethod === "partial"
-          ? calculateAdvancePayment()
+          ? getFormattedAmount(calculateAdvancePayment())
           : cart?.discountedTotal;
 
       const order = (await generateRazorpayOrder(
@@ -84,8 +86,7 @@ function PaymentSummary({
       };
 
       const options = {
-        key:
-          process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_zmm6GMCAMYUaLC",
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount: amount * 100,
         currency: "INR",
         name: "TORQ Rides",
@@ -123,6 +124,7 @@ function PaymentSummary({
                   quantity: item.quantity,
                   pickupLocation: item.pickupLocation,
                   dropoffLocation: item.dropoffLocation,
+                  duration: item.duration,
                 })),
               });
 
@@ -168,6 +170,7 @@ function PaymentSummary({
       return;
     }
 
+    setError(null);
     setApplyingCoupon(true);
     try {
       await applyCoupon(couponCode.trim().toUpperCase());
@@ -221,28 +224,39 @@ function PaymentSummary({
               </Button>
             </div>
           ) : (
-            <div className="flex space-x-2">
-              <div className="relative flex-1">
-                <Input
-                  placeholder="Enter coupon code"
-                  value={couponCode}
-                  onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                  className="pr-10"
-                  disabled={applyingCoupon}
-                />
-                <TagIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <div className="space-y-2">
+              <div className="flex space-x-2">
+                <div className="relative flex-1">
+                  <Input
+                    placeholder="Enter coupon code"
+                    value={couponCode}
+                    onChange={(e) =>
+                      setCouponCode(e.target.value.toUpperCase())
+                    }
+                    className="pr-10"
+                    disabled={applyingCoupon}
+                  />
+                  <TagIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                </div>
+                <Button
+                  onClick={handleApplyCoupon}
+                  disabled={applyingCoupon || !couponCode.trim()}
+                  className="bg-yellow-primary hover:bg-yellow-600 text-white"
+                >
+                  {applyingCoupon ? (
+                    <Loader2Icon className="w-4 h-4 animate-spin" />
+                  ) : (
+                    "Apply"
+                  )}
+                </Button>
               </div>
-              <Button
-                onClick={handleApplyCoupon}
-                disabled={applyingCoupon || !couponCode.trim()}
-                className="bg-yellow-primary hover:bg-yellow-600 text-white"
-              >
-                {applyingCoupon ? (
-                  <Loader2Icon className="w-4 h-4 animate-spin" />
-                ) : (
-                  "Apply"
+              <div>
+                {error && (
+                  <p className="text-red-500 bg-red-50 rounded-xl p-2 ">
+                    {error}
+                  </p>
                 )}
-              </Button>
+              </div>
             </div>
           )}
         </div>
@@ -252,24 +266,47 @@ function PaymentSummary({
         <div className="space-y-3">
           <div className="flex justify-between">
             <span>Total Rent</span>
-            <span className="font-semibold">₹{cart.rentTotal}</span>
+            <span className="font-semibold">
+              ₹{getFormattedAmount(cart.rentTotal)}
+            </span>
           </div>
-          <div className="flex justify-between">
-            <span>Total Security Deposit</span>
-            <span className="font-semibold">₹{cart.securityDepositTotal}</span>
-          </div>
+
           {cart?.couponId?.toString().length > 0 && (
             <div className="flex justify-between">
               <span>Discount</span>
               <span className="font-semibold text-red-500">
-                - ₹{cart.cartTotal - cart.discountedTotal}
+                - ₹{getFormattedAmount(cart.cartTotal - cart.discountedTotal)}
               </span>
             </div>
           )}
+
+          <div className="flex justify-between">
+            <span>Total Tax</span>
+            <span className="font-semibold">
+              ₹{getFormattedAmount(cart.totalTax)}
+            </span>
+          </div>
+
+          <Separator />
+
+          <div className="flex justify-between">
+            <span>Final Rent</span>
+            <span className="font-semibold">
+              ₹
+              {getFormattedAmount(
+                cart.discountedTotal - cart.securityDepositTotal
+              )}
+            </span>
+          </div>
+
+          <div className="flex justify-between">
+            <span>Total Security Deposit</span>
+            <span className="font-semibold">₹{cart.securityDepositTotal}</span>
+          </div>
           <Separator />
           <div className="flex justify-between text-lg font-bold">
             <span>Grand Total</span>
-            <span>₹{cart.discountedTotal}</span>
+            <span>₹{getFormattedAmount(cart.discountedTotal)}</span>
           </div>
         </div>
 
@@ -283,7 +320,8 @@ function PaymentSummary({
                 <div>
                   <p className="font-medium">Partial Payment</p>
                   <p className="text-sm text-gray-500">
-                    Pay ₹{calculateAdvancePayment()} now (Advance 20% of rent)
+                    Pay ₹{getFormattedAmount(calculateAdvancePayment())} now
+                    (Advance 20% of rent)
                   </p>
                 </div>
               </Label>
@@ -294,7 +332,7 @@ function PaymentSummary({
                 <div>
                   <p className="font-medium">Full Payment</p>
                   <p className="text-sm text-gray-500">
-                    Pay full amount ₹{cart.discountedTotal}
+                    Pay full amount ₹{getFormattedAmount(cart.discountedTotal)}
                   </p>
                 </div>
               </Label>
@@ -308,16 +346,20 @@ function PaymentSummary({
             <span className="font-medium dark:text-black">Amount to Pay</span>
             <span className="text-2xl font-bold text-yellow-600">
               ₹
-              {paymentMethod === "partial"
-                ? calculateAdvancePayment()
-                : cart.discountedTotal}
+              {getFormattedAmount(
+                paymentMethod === "partial"
+                  ? calculateAdvancePayment()
+                  : cart.discountedTotal
+              )}
             </span>
           </div>
           {paymentMethod === "partial" && (
             <p className="text-sm text-gray-600 mt-1">
               Pay remaining Rent + Deposit (₹
-              {cart.discountedTotal - calculateAdvancePayment()}) at the time of
-              pickup
+              {getFormattedAmount(
+                cart.discountedTotal - calculateAdvancePayment()
+              )}
+              ) at the time of pickup
             </p>
           )}
         </div>
@@ -366,15 +408,23 @@ function PaymentSummary({
         >
           Pay ₹
           {paymentMethod === "partial"
-            ? `${calculateAdvancePayment()} and Reserve Booking`
-            : `${cart.cartTotal} and Confirm Booking`}
+            ? `${getFormattedAmount(
+                calculateAdvancePayment()
+              )} and Reserve Booking`
+            : `${getFormattedAmount(cart.cartTotal)} and Confirm Booking`}
         </Button>
 
         {/* Payment Methods */}
         <div className="pt-4 border-t">
           <h4 className="font-medium mb-3 text-center">
             100% Secure Payment By
-            <Image src="/razorpay_icon.png" alt="razorpay" width={100} height={30} className="mx-auto"/>
+            <Image
+              src="/razorpay_icon.png"
+              alt="razorpay"
+              width={100}
+              height={30}
+              className="mx-auto"
+            />
           </h4>
         </div>
       </CardContent>

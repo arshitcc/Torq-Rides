@@ -73,7 +73,7 @@ export default function MyBookingsPage() {
     null
   );
   const [errorMessage, setErrorMessage] = useState("");
-  const itemsPerPage = 5;
+  const itemsPerPage = 10;
 
   // Redirect logic moved to useEffect to avoid setState in render
   useEffect(() => {
@@ -91,9 +91,9 @@ export default function MyBookingsPage() {
     });
   }, [isAuthenticated, user, currentPage, getAllBookings, router]);
 
-  const handleCancelBooking = async (bookingId: string) => {
+  const handleCancelBooking = async (bookingId: string, cancellationReason: string) => {
     try {
-      await cancelBooking(bookingId);
+      await cancelBooking(bookingId, cancellationReason);
       toast.success("Booking Cancelled successfully");
     } catch (error: AxiosError | any) {
       toast.error(
@@ -121,6 +121,7 @@ export default function MyBookingsPage() {
           pickupLocation: item.pickupLocation,
           dropoffLocation: item.dropoffLocation,
           quantity: item.quantity,
+          duration: item.duration,
         })),
       });
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -135,8 +136,7 @@ export default function MyBookingsPage() {
       };
 
       const options = {
-        key:
-          process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "rzp_test_zmm6GMCAMYUaLC",
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount: amount * 100,
         currency: "INR",
         name: "TORQ Rides",
@@ -174,6 +174,7 @@ export default function MyBookingsPage() {
                   quantity: item.quantity,
                   pickupLocation: item.pickupLocation,
                   dropoffLocation: item.dropoffLocation,
+                  duration: item.duration,
                 })),
               });
 

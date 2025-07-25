@@ -39,11 +39,7 @@ import {
 } from "lucide-react";
 import { useMotorcycleStore } from "@/store/motorcycle-store";
 import { useDebounceValue } from "usehooks-ts";
-import {
-  AvailableMotorcycleCategories,
-  AvailableMotorcycleMakes,
-  MotorcycleCategory,
-} from "@/types";
+import { AvailableMotorcycleCategories, MotorcycleCategory } from "@/types";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useSearchParams } from "next/navigation";
 import { Label } from "@/components/ui/label";
@@ -166,6 +162,7 @@ export default function MotorcyclesPage() {
 
     filters.sort = selectedSort;
 
+    window.scrollTo({ top: 0, behavior: "smooth" });
     getAllMotorcycles(filters);
   };
 
@@ -195,7 +192,7 @@ export default function MotorcyclesPage() {
   }, [debouncedSearchTerm, currentPage, selectedSort, cities]);
 
   const totalPages = Math.ceil(metadata?.total / itemsPerPage) || 1;
-  const makes = savedFilters?.makes || AvailableMotorcycleMakes;
+  const makes = savedFilters?.makes;
   const categories = savedFilters.categories || AvailableMotorcycleCategories;
   const branches = savedFilters.distinctCities.sort((a, b) =>
     a.localeCompare(b)
@@ -623,7 +620,7 @@ export default function MotorcyclesPage() {
                         <div className="relative h-56 overflow-hidden">
                           <Image
                             src={
-                              motorcycle?.images[0]?.url || "/logo/logo.png"
+                              motorcycle?.images[0]?.url || "/placeholder.svg"
                             }
                             alt={`${motorcycle.make} ${motorcycle.vehicleModel}`}
                             fill
@@ -633,10 +630,30 @@ export default function MotorcyclesPage() {
                           <Badge className="absolute bottom-3 right-3 px-3 py-1 text-sm font-semibold bg-yellow-50 text-yellow-primary">
                             ₹{motorcycle.rentPerDay}/day
                           </Badge>
+
+                          {/* Color and Variant badges */}
+                          <div className="absolute top-3 left-3 flex flex-col gap-1">
+                            {motorcycle.color && (
+                              <Badge
+                                variant="outline"
+                                className="text-xs bg-white/90 text-gray-800"
+                              >
+                                {motorcycle.color}
+                              </Badge>
+                            )}
+                            {motorcycle.variant && (
+                              <Badge
+                                variant="outline"
+                                className="text-xs bg-white/90 text-gray-800 border-gray-300"
+                              >
+                                {motorcycle.variant}
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                       </CardHeader>
-                      <CardContent className="p-0">
-                        <CardTitle className="text-xl text-center font-semibold mb-4">
+                      <CardContent className="p-4">
+                        <CardTitle className="text-xl text-center font-semibold mb-4 line-clamp-2  min-h-[calc(2*2rem)]  ">
                           {motorcycle.make} {motorcycle.vehicleModel}
                         </CardTitle>
                         <div className="grid grid-cols-2 gap-4 justify-items-center text-sm text-gray-600">

@@ -9,6 +9,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -23,23 +24,26 @@ import {
   Booking,
 } from "@/types";
 import { EditIcon } from "lucide-react";
+import { useState } from "react";
 
 interface UpdateStatusDialogProps {
   open: boolean;
   setOpen: React.Dispatch<React.SetStateAction<boolean>>;
   booking: Booking;
+  selectedBooking: Booking | null;
   setSelectedBooking: (booking: Booking | null) => void;
   newBookingStatus: string;
   newPaymentStatus: string;
   setNewBookingStatus: (status: string) => void;
   setNewPaymentStatus: (status: string) => void;
-  handleUpdateStatus: () => Promise<void>;
+  handleUpdateStatus: (cancellationReason?: string) => Promise<void>;
 }
 
 function UpdateStatusDialog({
   open,
   setOpen,
   booking,
+  selectedBooking,
   setSelectedBooking,
   newBookingStatus,
   setNewBookingStatus,
@@ -47,6 +51,7 @@ function UpdateStatusDialog({
   setNewPaymentStatus,
   handleUpdateStatus,
 }: UpdateStatusDialogProps) {
+  const [cancellationReason, setCancellationReason] = useState("");
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -69,7 +74,8 @@ function UpdateStatusDialog({
             Update Booking Status
           </DialogTitle>
           <DialogDescription>
-            Change the status of booking #{booking._id?.slice(-8).toUpperCase()}
+            Change the status of booking #
+            {selectedBooking?._id?.slice(-8).toUpperCase()}
           </DialogDescription>
         </DialogHeader>
         <div className="py-4 flex gap-4">
@@ -111,6 +117,17 @@ function UpdateStatusDialog({
             </Select>
           </div>
         </div>
+
+        {newBookingStatus === "CANCELLED" && (
+          <div className="space-y-2">
+            <Label>Cancellation Reason</Label>
+            <Input
+              value={cancellationReason}
+              placeholder="Mention the reason for cancellation.(Minimum 5 characters)"
+              onChange={(e) => setCancellationReason(e.target.value)}
+            />
+          </div>
+        )}
         <DialogFooter>
           <DialogClose
             onClick={() => setSelectedBooking(null)}
@@ -121,7 +138,9 @@ function UpdateStatusDialog({
           <Button
             onClick={() => {
               setOpen(false);
-              handleUpdateStatus();
+              const reason = cancellationReason;
+              setCancellationReason("");
+              handleUpdateStatus(reason);
             }}
             className="bg-yellow-500 hover:bg-yellow-600 text-white"
           >

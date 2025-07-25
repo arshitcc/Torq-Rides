@@ -9,10 +9,16 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Card, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { differenceInDays, format } from "date-fns";
+import { format } from "date-fns";
 import Image from "next/image";
 import {
   CalendarIcon,
@@ -23,8 +29,16 @@ import {
   UserIcon,
   MailIcon,
   ShieldAlertIcon,
+  TagIcon,
 } from "lucide-react";
-import { Booking, BookingStatusEnum, PaymentStatusEnum } from "@/types";
+import {
+  Booking,
+  BookingStatusEnum,
+  PaymentStatusEnum,
+  UserRolesEnum,
+} from "@/types";
+import { getBookingPeriod } from "@/lib/utils";
+import { getPaymentStatusColor, getStatusColor } from "../filters";
 
 interface BookingDetailsDialogProps {
   booking: Booking;
@@ -37,39 +51,9 @@ export function BookingDetailsDialog({
 }: BookingDetailsDialogProps) {
   const [open, setOpen] = useState(false);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "CONFIRMED":
-        return "bg-green-100 text-green-800 border-green-200";
-      case "PENDING":
-        return "bg-yellow-100 text-yellow-800 border-yellow-200";
-      case "CANCELLED":
-        return "bg-red-100 text-red-800 border-red-200";
-      case "COMPLETED":
-        return "bg-blue-100 text-blue-800 border-blue-200";
-      default:
-        return "bg-gray-100 text-gray-800 border-gray-200";
-    }
-  };
-
-  const getPaymentStatusColor = (status: string) => {
-    switch (status) {
-      case "FULLY-PAID":
-        return "bg-green-100 text-green-800";
-      case "PARTIAL-PAID":
-        return "bg-yellow-100 text-yellow-800";
-      case "UNPAID":
-        return "bg-red-100 text-red-800";
-      case "REFUNDED":
-      case "FULLY-REFUNDED":
-      case "PARTIAL-REFUNDED":
-        return "bg-blue-100 text-blue-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
-  const isCancelled = booking.status === BookingStatusEnum.CANCELLED;
+  const isCancelled =
+    booking.status === BookingStatusEnum.CANCELLED ||
+    booking.status === BookingStatusEnum.CANCELLATION_REQUESTED;
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -89,7 +73,7 @@ export function BookingDetailsDialog({
           {/* Booking Overview */}
           <Card>
             <CardContent className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 justify-items-center gap-4">
                 <div className="flex items-center gap-3 text-center">
                   <CalendarIcon className="h-5 w-5 text-gray-500" />
                   <div>
@@ -102,9 +86,15 @@ export function BookingDetailsDialog({
                   </div>
                 </div>
                 <div className="flex items-center gap-3 text-center">
-                  <Badge className={getStatusColor(booking.status)}>
-                    {booking.status}
-                  </Badge>
+                  <TagIcon className="h-5 w-5 text-gray-500" />
+                  <div>
+                    <p className="text-sm font-medium text-gray-500">
+                      Booking Status
+                    </p>
+                    <Badge className={getStatusColor(booking.status)}>
+                      {booking.status}
+                    </Badge>
+                  </div>
                 </div>
                 <div className="flex items-center gap-3 text-center">
                   <CreditCardIcon className="h-5 w-5 text-gray-500" />
@@ -124,7 +114,27 @@ export function BookingDetailsDialog({
           </Card>
 
           {isCancelled && (
-            <Card className="border-orange-300 bg-orange-50/50">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-xl">
+                  Cancellation Information
+                </CardTitle>
+                <CardDescription>
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold">Cancellation Reason</span>
+                    <span className="font-medium text-red-600">
+                      {booking.cancellationReason}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="font-semibold">Cancelled by :</span>
+                    <span className="font-medium text-red-600">
+                      {booking.cancelledBy.role}
+                    </span>
+                  </div>
+                </CardDescription>
+              </CardHeader>
               <CardContent className="p-6">
                 <h3 className="text-lg font-semibold mb-4 flex items-center gap-2 text-orange-800">
                   <ShieldAlertIcon className="h-5 w-5" />
@@ -132,25 +142,19 @@ export function BookingDetailsDialog({
                 </h3>
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Paid Amount</span>
+                    <span className="text-muted-foreground">Paid Amount</span>
                     <span className="font-medium text-green-600">
                       ₹{booking.paidAmount?.toLocaleString() ?? "0"}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Cancellation Charge</span>
+                    <span className="text-muted-foreground">
+                      Cancellation Charge
+                    </span>
                     <span className="font-medium text-red-600">
                       - ₹{booking.cancellationCharge?.toLocaleString() ?? "0"}
                     </span>
                   </div>
-                  {booking.cancellationReason?.length > 0 && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Cancellation Reason</span>
-                      <span className="font-medium text-red-600">
-                        {booking.cancellationReason}
-                      </span>
-                    </div>
-                  )}
                   <Separator />
                   <div className="flex justify-between items-center text-lg font-semibold">
                     <span>
@@ -198,56 +202,65 @@ export function BookingDetailsDialog({
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
-                      <div className="flex items-center gap-2">
-                        <CalendarIcon className="h-4 w-4 text-gray-500" />
-                        <div>
-                          <p className="text-sm text-gray-500">Pickup Date</p>
-                          <p className="font-medium">
-                            {format(new Date(item.pickupDate), "PPP")}
-                          </p>
-                        </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-y-2 mt-3 items-center">
+                      <div className="w-full text-center">
+                        <p className="text-sm text-gray-500">Pickup Date</p>
+                        <p className="font-medium">
+                          {format(new Date(item.pickupDate), "PPP")}
+                        </p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <CalendarIcon className="h-4 w-4 text-gray-500" />
-                        <div>
-                          <p className="text-sm text-gray-500">Return Date</p>
-                          <p className="font-medium">
-                            {format(new Date(item.dropoffDate), "PPP")}
-                          </p>
-                        </div>
+                      <div className="w-full text-center">
+                        <p className="text-sm text-gray-500">Pickup Location</p>
+                        <p className="font-medium">{item.pickupLocation}</p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <ClockIcon className="h-4 w-4 text-gray-500" />
-                        <div>
-                          <p className="text-sm text-gray-500">Duration</p>
-                          <p className="font-medium">
-                            {differenceInDays(
-                              new Date(item.dropoffDate),
-                              new Date(item.pickupDate)
-                            ) + 1}{" "}
-                            days
-                          </p>
-                        </div>
+                      <div className="w-full text-center">
+                        <p className="text-sm text-gray-500">Return Date</p>
+                        <p className="font-medium">
+                          {format(new Date(item.dropoffDate), "PPP")}
+                        </p>
+                      </div>
+                      <div className="w-full text-center">
+                        <p className="text-sm text-gray-500">Return Location</p>
+                        <p className="font-medium">{item.dropoffLocation}</p>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
-                      <div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-y-2 mt-3 items-center">
+                      <div className="w-full text-center">
+                        <p className="text-sm text-gray-500">Duration</p>
+                        <p className="font-medium">{item.duration}</p>
+                      </div>
+                      <div className="w-full text-center">
                         <p className="text-sm text-gray-500">Quantity</p>
                         <p className="font-medium">{item.quantity} unit(s)</p>
                       </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Rate per Day</p>
+                      <div className="w-full text-center">
+                        <p className="text-sm text-gray-500">Rent per Day</p>
                         <p className="font-medium">
                           ₹{item.motorcycle.rentPerDay.toLocaleString()}
                         </p>
                       </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Rent Amount</p>
-                        <p className="font-semibold text-green-600">
-                          ₹{item.motorcycle.rentPerDay * item.quantity}
+                      <div className="w-full text-center">
+                        <p className="text-sm text-gray-500">
+                          Extra Charges <br />
+                          for {getBookingPeriod({ ...item }).extraHours} hours
                         </p>
+                        <p className="font-medium">
+                          ₹
+                          {getBookingPeriod({ ...item }).extraHours <= 4
+                            ? 0.1 * item.motorcycle.rentPerDay
+                            : item.motorcycle.rentPerDay}
+                        </p>
+                      </div>
+                      <div className="w-full text-center">
+                        <p className="text-sm text-gray-500">Total Rent</p>
+                        <p className="font-semibold">₹{item.rentAmount}</p>
+                      </div>
+                      <div className="w-full text-center">
+                        <p className="text-sm text-gray-500">
+                          Total Tax ({item.taxPercentage}%)
+                        </p>
+                        <p className="font-semibold">₹{item.totalTax}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -265,31 +278,32 @@ export function BookingDetailsDialog({
               </h3>
               <div className="space-y-3">
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Rent Total</span>
-                  <span className="font-medium">
-                    ₹{booking.rentTotal.toLocaleString()}
-                  </span>
+                  <span className="text-muted-foreground">Total Rent</span>
+                  <span className="font-medium">₹{booking.rentTotal}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Security Deposit</span>
-                  <span className="font-medium">
-                    ₹{booking.securityDepositTotal.toLocaleString()}
-                  </span>
+                  <span className="text-muted-foreground">Total Tax</span>
+                  <span className="font-medium">₹{booking.totalTax}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Cart Total</span>
-                  <span className="font-medium">
-                    ₹{booking.cartTotal.toLocaleString()}
+                  <span className="text-muted-foreground">
+                    Security Deposit
                   </span>
+                  <span className="font-medium">
+                    ₹{booking.securityDepositTotal}
+                  </span>
+                </div>
+                <Separator />
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Cart Total</span>
+                  <span className="font-medium">₹{booking.cartTotal}</span>
                 </div>
                 {booking.discountedTotal !== booking.cartTotal && (
                   <div className="flex justify-between items-center text-green-600">
                     <span>Discount Applied ({booking.coupon?.promoCode})</span>
                     <span className="font-medium">
                       -₹
-                      {(
-                        booking.cartTotal - booking.discountedTotal
-                      ).toLocaleString()}
+                      {booking.cartTotal - booking.discountedTotal}
                     </span>
                   </div>
                 )}
@@ -297,18 +311,22 @@ export function BookingDetailsDialog({
                 <div className="flex justify-between items-center text-lg font-semibold">
                   <span>Final Amount</span>
                   <span className="text-green-600">
-                    ₹{booking.discountedTotal.toLocaleString()}
+                    ₹{booking.discountedTotal}
                   </span>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600">Paid Amount</span>
-                  <span className="font-medium text-green-600">
-                    ₹{booking.paidAmount?.toLocaleString()}
-                  </span>
-                </div>
+                {booking.paidAmount > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">Paid Amount</span>
+                    <span className="font-medium text-green-600">
+                      ₹{booking.paidAmount}
+                    </span>
+                  </div>
+                )}
                 {booking.remainingAmount > 0 && (
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-600">Remaining Amount</span>
+                    <span className="text-muted-foreground">
+                      Remaining Amount
+                    </span>
                     <span
                       className={`font-medium text-red-600 ${
                         booking.status === BookingStatusEnum.CANCELLED
@@ -316,7 +334,7 @@ export function BookingDetailsDialog({
                           : ""
                       }`}
                     >
-                      ₹{booking.remainingAmount.toLocaleString()}
+                      ₹{booking.remainingAmount}
                     </span>
                   </div>
                 )}
@@ -329,20 +347,43 @@ export function BookingDetailsDialog({
             <CardContent className="p-6">
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <CreditCardIcon className="h-5 w-5" />
-                Payment Information
+                Payment Attempts
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-500">Payment Provider</p>
-                  <p className="font-medium">{booking.paymentProvider}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-500">Payment ID</p>
-                  <p className="font-medium font-mono text-sm">
-                    {booking.paymentId}
-                  </p>
-                </div>
-              </div>
+              {booking.payments.filter((b) => b.status !== "unpaid").length >
+                0 &&
+                booking.payments
+                  .filter((b) => b.status !== "unpaid")
+                  .map((p) => (
+                    <div
+                      key={p.paymentId}
+                      className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-100 dark:bg-[#302f2f] rounded-lg px-4 py-2 mb-2"
+                    >
+                      <div>
+                        <p className="text-sm text-gray-500">
+                          Payment Provider
+                        </p>
+                        <p className="font-medium">{p.provider}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Payment ID</p>
+                        <p className="font-medium font-mono text-sm">
+                          {p.paymentId}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Payment Amount</p>
+                        <p className="font-medium font-mono text-sm">
+                          {p.amount}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-500">Payment Status</p>
+                        <p className="font-medium font-mono text-sm">
+                          {p.status}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
             </CardContent>
           </Card>
 

@@ -10,11 +10,8 @@ import { toast } from "sonner";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   type MotorcycleCategory,
-  type MotorcycleMake,
   UserRolesEnum,
   UserRoles,
-  User,
-  AvailableInCities,
 } from "@/types";
 import type { AxiosError } from "axios";
 import { useMotorcycleLogStore } from "@/store/motorcycle-log-store";
@@ -82,13 +79,13 @@ function DashboardComponent() {
   const [motorcyclesCurrentPage, setMotorcyclesCurrentPage] = useState(1);
   const [usersCurrentPage, setUsersCurrentPage] = useState(1);
   const itemsPerPage = 9;
-  const [selectedMake, setSelectedMake] = useState<
-    MotorcycleMake | "All Makes"
-  >("All Makes");
+  const [selectedMake, setSelectedMake] = useState<string | "All Makes">(
+    "All Makes"
+  );
   const [selectedCategory, setSelectedCategory] = useState<
     MotorcycleCategory | "All Categories"
   >("All Categories");
-  const [branch, setBranch] = useState<AvailableInCities | "All Branches">(
+  const [branch, setBranch] = useState<string | "All Branches">(
     "All Branches"
   );
   const [searchTerm, setSearchTerm] = useState("");

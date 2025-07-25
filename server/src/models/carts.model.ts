@@ -11,12 +11,19 @@ export interface ICartItem {
   pickupTime: string;
   dropoffTime: string;
   motorcycle?: IMotorcycle;
+  duration: string;
+  taxPercentage: number;
+  totalTax: number;
+  totalHours: number;
+  rentAmount: number;
+  discountedRentAmount: number;
 }
 
 export interface ICart extends mongoose.Document {
   customerId: mongoose.Types.ObjectId;
   items: ICartItem[];
   couponId: mongoose.Types.ObjectId | null;
+  totalTax: number;
 }
 
 const cartSchema = new mongoose.Schema<ICart>(
@@ -64,6 +71,30 @@ const cartSchema = new mongoose.Schema<ICart>(
             enum: AvailableInCities,
             required: true,
           },
+          duration: {
+            type: String,
+            required: true,
+          },
+          totalHours: {
+            type: Number,
+            required: true,
+          },
+          rentAmount: {
+            type: Number,
+            required: true,
+          },
+          discountedRentAmount: {
+            type: Number,
+            min: 0,
+          },
+          taxPercentage: {
+            type: Number,
+            required: true,
+          },
+          totalTax: {
+            type: Number,
+            required: true,
+          },
         },
       ],
       default: [],
@@ -72,6 +103,10 @@ const cartSchema = new mongoose.Schema<ICart>(
       type: mongoose.Schema.Types.ObjectId,
       ref: "PromoCode",
       default: null,
+    },
+    totalTax: {
+      type: Number,
+      default: 0,
     },
   },
   { timestamps: true },

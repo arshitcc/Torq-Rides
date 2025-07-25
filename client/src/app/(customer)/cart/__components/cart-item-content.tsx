@@ -14,14 +14,23 @@ import {
 } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { Cart, CartItem } from "@/types";
+import { getFormattedAmount } from "@/lib/utils";
 
 interface CartItemContentProps {
   item: CartItem;
   cart: Cart;
   calculateItemBreakup: (item: CartItem) => {
-    days: number;
-    dailyRate: number;
+    rentPerDay: number;
     quantity: number;
+    days: number;
+    extraHours: number;
+    extraHoursCharges: number;
+    duration: string;
+    taxPercentage: number;
+    calculatedRent: number;
+    totalTax: number;
+    totalDiscount: number;
+    totalItemRent: number;
     subtotal: number;
     securityDepositPerBike: number;
     securityDepositTotal: number;
@@ -36,6 +45,7 @@ function CartItemContent({
   calculateItemBreakup,
   handleRemoveItem,
 }: CartItemContentProps) {
+  const breakup = calculateItemBreakup(item);
   return (
     <CardContent className="p-0">
       <div className="flex flex-col md:flex-row items-center gap-2 px-0 md:px-2">
@@ -90,12 +100,17 @@ function CartItemContent({
             </div>
           </div>
 
+          <p className="font-semibold pt-1">Duration: {item.duration}</p>
+
           {/* Trip Includes */}
           <div className="mb-4">
             <p className="font-medium mb-2">Your Trip Includes</p>
             <ul className="text-sm text-muted-foreground space-y-1">
               <li>• Original DL must be shown at pickup.</li>
-              <li>• One original ID proof will be submitted at pickup.</li>
+              <li>
+                • One original ID proof will be submitted at{" "}
+                <span className="font-bold">{item.pickupLocation}</span> branch.
+              </li>
               <li>
                 • {item.motorcycle.kmsLimitPerDay} Free Kms, Fuel Excluded.
               </li>
@@ -113,22 +128,20 @@ function CartItemContent({
 
           {/* Pricing */}
           <div className="flex justify-between items-center pt-4 border-t">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 items-center space-x-4">
-              <div className="text-center">
-                <p className="text-sm text-gray-500">Total Rent</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 items-center space-x-4">
+              <div className="text-center w-full h-full">
+                <p className="text-sm text-gray-500">Final Rent</p>
                 <p className="font-semibold">
-                  ₹
-                  {item.motorcycle.rentPerDay *
-                    (differenceInDays(item.dropoffDate, item.pickupDate)+1)}
+                  ₹{getFormattedAmount(breakup.subtotal)}
                 </p>
               </div>
-              <div className="text-center">
+              <div className="text-center w-full h-full">
                 <p className="text-sm text-gray-500">Security Deposit</p>
                 <p className="font-semibold">
                   ₹{item.motorcycle.securityDeposit * item.quantity}
                 </p>
               </div>
-              <div className="text-center">
+              <div className="text-center w-full h-full">
                 <p className="text-sm text-gray-500">Quantity</p>
                 <p className="font-semibold">{item.quantity}</p>
               </div>
@@ -140,7 +153,7 @@ function CartItemContent({
                     Show Breakup
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-md">
+                <DialogContent className="max-w-md max-h-[70vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Price Breakup</DialogTitle>
                   </DialogHeader>
@@ -149,49 +162,93 @@ function CartItemContent({
                       <h4 className="font-semibold mb-2">
                         {item.motorcycle.make} {item.motorcycle.vehicleModel}
                       </h4>
-                      {(() => {
-                        const breakup = calculateItemBreakup(item);
-                        return (
-                          <div className="space-y-2">
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span>Daily Rate:</span>
+                          <span>₹{breakup.rentPerDay}</span>
+                        </div>
+
+                        <div className="flex justify-between">
+                          <span>Number of Days:</span>
+                          <span>{breakup.days}</span>
+                        </div>
+                        <Separator />
+                        <div className="flex justify-end">
+                          <span>
+                            ₹
+                            {getFormattedAmount(
+                              breakup.rentPerDay * breakup.days
+                            )}
+                          </span>
+                        </div>
+                        <Separator />
+                        {breakup.extraHours > 0 && (
+                          <>
                             <div className="flex justify-between">
-                              <span>Daily Rate:</span>
-                              <span>₹{breakup.dailyRate}</span>
+                              <span>Extra Hours:</span>
+                              <span>{breakup.extraHours}</span>
                             </div>
                             <div className="flex justify-between">
-                              <span>Number of Days:</span>
-                              <span>{breakup.days}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>Quantity:</span>
-                              <span>{breakup.quantity}</span>
+                              <span>Extra Hours Charges:</span>
+                              <span>₹{breakup.extraHoursCharges}</span>
                             </div>
                             <Separator />
-                            <div className="flex justify-between">
-                              <span>Subtotal Rent:</span>
-                              <span>₹{breakup.subtotal}</span>
-                            </div>
-                            <Separator />
-                            <div className="flex justify-between">
-                              <span>Security Deposit per Bike:</span>
-                              <span>₹{breakup.securityDepositPerBike}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>Quantity:</span>
-                              <span>{breakup.quantity}</span>
-                            </div>
-                            <Separator />
-                            <div className="flex justify-between">
-                              <span>Security Deposit Total:</span>
-                              <span>₹{breakup.securityDepositTotal}</span>
-                            </div>
-                            <Separator />
-                            <div className="flex justify-between font-bold">
-                              <span>Total:</span>
-                              <span>₹{breakup.total}</span>
-                            </div>
+                          </>
+                        )}
+
+                        <div className="flex justify-between">
+                          <span>Rent Cost per Bike:</span>
+                          <span>₹{breakup.calculatedRent}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Bike Quantity:</span>
+                          <span>{breakup.quantity}</span>
+                        </div>
+                        <Separator />
+                        <div className="flex justify-between">
+                          <span>Rent:</span>
+                          <span>
+                            ₹{getFormattedAmount(breakup.totalItemRent)}
+                          </span>
+                        </div>
+                        {breakup.totalDiscount > 0 && (
+                          <div className="flex justify-between text-red-500">
+                            <span>Discount:</span>
+                            <span>
+                              -₹
+                              {getFormattedAmount(breakup.totalDiscount)}
+                            </span>
                           </div>
-                        );
-                      })()}
+                        )}
+                        <div className="flex justify-between">
+                          <span>Tax ({breakup.taxPercentage}% GST):</span>
+                          <span>₹{breakup.totalTax}</span>
+                        </div>
+                        <Separator />
+                        <div className="flex justify-between font-bold">
+                          <span>Subtotal Rent :</span>
+                          <span>₹{getFormattedAmount(breakup.subtotal)}</span>
+                        </div>
+                        <Separator />
+                        <div className="flex justify-between">
+                          <span>Security Deposit per Bike:</span>
+                          <span>₹{breakup.securityDepositPerBike}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Quantity:</span>
+                          <span>{breakup.quantity}</span>
+                        </div>
+                        <Separator />
+                        <div className="flex justify-between font-bold">
+                          <span>Security Deposit Total:</span>
+                          <span>₹{breakup.securityDepositTotal}</span>
+                        </div>
+                        <Separator />
+                        <div className="flex justify-between font-bold font-sans">
+                          <span>Total:</span>
+                          <span>₹{breakup.total}</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </DialogContent>

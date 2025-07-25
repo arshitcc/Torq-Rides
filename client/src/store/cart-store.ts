@@ -50,8 +50,8 @@ export const initialCartState = {
   dropoffLocation: "",
   pickupDate: new Date(),
   dropoffDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
-  pickupTime: "9:00 AM",
-  dropoffTime: "6:00 PM",
+  pickupTime: "09:00",
+  dropoffTime: "18:00",
 };
 
 export const useCartStore = create<CartState>()(

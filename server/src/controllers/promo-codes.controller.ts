@@ -237,7 +237,7 @@ const applyCoupon = asyncHandler(async (req: CustomRequest, res: Response) => {
   const coupon = aggregatedCoupon[0];
 
   if (!coupon) {
-    throw new ApiError(404, "Invalid coupon code");
+    throw new ApiError(404, "Coupon is Invalid or Expired");
   }
 
   // get the user cart
@@ -248,7 +248,7 @@ const applyCoupon = asyncHandler(async (req: CustomRequest, res: Response) => {
     throw new ApiError(
       400,
       "Add items worth INR " +
-        (coupon.minimumCartValue - userCart.cartTotal) +
+        (coupon.minimumCartValue - userCart.cartTotal).toFixed(2) +
         "/- or more to apply this coupon",
     );
   }

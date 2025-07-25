@@ -42,7 +42,7 @@
 
 // const bikesSalesData = [
 //   { name: "Cruiser", value: 35, color: "#8884d8" },
-//   { name: "Sports", value: 25, color: "#82ca9d" },
+//   { name: "Superbike", value: 25, color: "#82ca9d" },
 //   { name: "Adventure", value: 20, color: "#ffc658" },
 //   { name: "Touring", value: 15, color: "#ff7300" },
 //   { name: "Scooter", value: 5, color: "#00ff00" },

@@ -38,6 +38,8 @@ interface BookingCancellationTemplate {
   booking: IBooking;
 }
 
+const formatCurrency = (amount: number) => `₹${amount.toLocaleString("en-IN")}`;
+
 const emailVerificationTemplate = ({
   username,
   emailVerificationToken,
@@ -205,7 +207,41 @@ const bookingConfirmationTemplate = ({
 const bookingCancellationTemplate = ({
   username,
   booking,
-}: BookingCancellationTemplate) => {};
+}: BookingCancellationTemplate): Content => {
+  const intro =
+    booking.refundAmount > 0
+      ? `We have successfully processed the cancellation for your booking #${booking._id?.toString().slice(-6).toUpperCase()}. A refund is on its way.`
+      : `We have successfully processed the cancellation for your booking #${booking._id?.toString().slice(-6).toUpperCase()}.`;
+
+  const outro = [
+    "The motorcycle(s) from this booking are now available for others.",
+    "We hope to see you again soon for your next adventure!",
+    `If you have any questions, just reply to this email—we’re here to help!`,
+  ];
+
+  return {
+    body: {
+      name: username,
+      intro: intro,
+      dictionary: {
+        "Cancellation Reason": booking.cancellationReason || "Not provided",
+        "Total Amount Paid": formatCurrency(booking.paidAmount),
+        "Cancellation Charges": formatCurrency(booking.cancellationCharge || 0),
+        "Refundable Amount": formatCurrency(booking.refundAmount),
+      },
+      action: {
+        instructions:
+          "Your refund will be processed back to your original payment method within 5-7 business days. You can view your updated booking status here:",
+        button: {
+          color: "#D9534F",
+          text: "View My Bookings",
+          link: `${CLIENT_URL}/my-bookings`,
+        },
+      },
+      outro: outro,
+    },
+  };
+};
 
 const sendEmail = async (mailConfig: MailConfig) => {
   const mailGenerator = new MailGen({
@@ -263,4 +299,5 @@ export {
   emailVerificationTemplate,
   resetPasswordTemplate,
   bookingConfirmationTemplate,
+  bookingCancellationTemplate,
 };

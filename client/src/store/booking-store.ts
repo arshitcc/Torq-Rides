@@ -51,7 +51,10 @@ interface BookingState {
   // API functions
   getAllBookings: (params?: any) => Promise<void>;
   modifyBooking: (bookingId: string, data: any) => Promise<void>;
-  cancelBooking: (bookingId: string) => Promise<void>;
+  cancelBooking: (
+    bookingId: string,
+    cancellationReason: string
+  ) => Promise<void>;
 
   addBookingByAdmin: (data: AddBookingFormData) => Promise<void>;
   updateBookingByAdmin: (
@@ -111,7 +114,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
     } catch (error: AxiosError | any) {
       set({
         loading: false,
-        error: error.response?.data?.message || "Failed to fetch bookings",
+        error: error.response?.data?.message || "Failed to get bookings",
       });
       throw error;
     } finally {
@@ -145,10 +148,13 @@ export const useBookingStore = create<BookingState>((set, get) => ({
     }
   },
 
-  cancelBooking: async (bookingId) => {
+  cancelBooking: async (bookingId, cancellationReason) => {
     set({ loading: true, error: null });
     try {
-      const response = await bookingAPI.cancelBooking(bookingId);
+      const response = await bookingAPI.cancelBooking(
+        bookingId,
+        cancellationReason
+      );
       const updatedBooking = response.data.data;
 
       set((state) => ({
@@ -247,7 +253,22 @@ export const useBookingStore = create<BookingState>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const response = await bookingAPI.generateRazorpayOrder(mode, bookingId);
-      const order = response.data.data;
+      const { order, booking } = response.data.data;
+      set((state) => {
+        if (bookingId) {
+          return {
+            bookings: state.bookings.map((b) =>
+              b._id === bookingId ? booking : b
+            ),
+            loading: false,
+          };
+        } else {
+          return {
+            bookings: [booking, ...state.bookings],
+            loading: false,
+          };
+        }
+      });
       return order;
     } catch (error: AxiosError | any) {
       set({
@@ -267,9 +288,7 @@ export const useBookingStore = create<BookingState>((set, get) => ({
       const response = await bookingAPI.verifyRazorpayOrder(data);
       const order = response.data.data;
       set((state) => ({
-        bookings: state.bookings.map((b) =>
-          b._id === data.bookingId ? order : b
-        ),
+        bookings: state.bookings.map((b) => (b._id === order._id ? order : b)),
         loading: false,
       }));
       return order;

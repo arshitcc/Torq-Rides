@@ -258,7 +258,7 @@ const refreshAccessToken = asyncHandler(
     });
 
     if (!user) {
-      throw new ApiError(401, "Invalid Token");
+      throw new ApiError(401, "Session Expired !! Please login again");
     }
 
     const { accessToken: newAccessToken, refreshToken: newRefreshToken } =

@@ -16,7 +16,7 @@ export interface IPromoCode extends mongoose.Document {
   owner: mongoose.Types.ObjectId;
 }
 
-const promoCodeSchema = new mongoose.Schema(
+export const promoCodeSchema = new mongoose.Schema(
   {
     name: {
       type: String,

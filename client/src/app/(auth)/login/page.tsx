@@ -23,7 +23,7 @@ import { toast } from "sonner";
 import { useAuthStore } from "@/store/auth-store";
 import { loginSchema, type LoginFormData } from "@/schemas/users.schema";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2Icon } from "lucide-react";
 import { useEffect } from "react";
 import { useCartStore } from "@/store/cart-store";
@@ -31,6 +31,8 @@ import { AxiosError } from "axios";
 import { UserRolesEnum } from "@/types";
 
 export default function LoginPage() {
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get("redirectUrl");
   const { login, loading, isAuthenticated, error, setError, user } =
     useAuthStore();
   const { getUserCart } = useCartStore();
@@ -39,11 +41,11 @@ export default function LoginPage() {
   useEffect(() => {
     setError(null);
     if (isAuthenticated) {
-      router.push("/");
+      router.push(redirectUrl || "/");
     }
 
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, router, redirectUrl, setError]);
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -57,8 +59,10 @@ export default function LoginPage() {
     try {
       setError(null);
       await login(data);
-      if (user?.role === UserRolesEnum.CUSTOMER) getUserCart();
-      router.push("/");
+      if (user?.role === UserRolesEnum.CUSTOMER) {
+        await getUserCart();
+      }
+      router.push(redirectUrl || "/");
     } catch (error: AxiosError | any) {
       toast.error(error.response?.data?.message || "Login failed");
     }
@@ -138,7 +142,9 @@ export default function LoginPage() {
             <p className="text-sm text-gray-600">
               Don't have an account?{" "}
               <Link
-                href="/signup"
+                href={
+                  redirectUrl ? `/signup?redirectUrl=${redirectUrl}` : "/signup"
+                }
                 className="text-primary hover:underline hover:text-yellow-700"
               >
                 Sign up

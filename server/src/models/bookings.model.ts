@@ -3,15 +3,16 @@ import { ICartItem } from "./carts.model";
 import { AvailableInCities } from "./motorcycles.model";
 import {
   AvailablePaymentProviders,
+  AvailableUserRoles,
   PaymentProviderEnum,
+  UserRolesEnum,
 } from "../constants/constants";
-import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2";
-import { CANCELLATION_CHARGE } from "../utils/env";
 
 export const BookingStatusEnum = {
   PENDING: "PENDING",
   RESERVED: "RESERVED",
   CONFIRMED: "CONFIRMED",
+  CANCELLATION_REQUESTED: "CANCELLATION REQUESTED",
   STARTED: "STARTED",
   CANCELLED: "CANCELLED",
   COMPLETED: "COMPLETED",
@@ -21,6 +22,7 @@ export const PaymentStatusEnum = {
   PARTIAL_PAID: "PARTIAL-PAID",
   FULLY_PAID: "FULLY-PAID",
   UNPAID: "UNPAID",
+  REFUND_IN_PROGRESS: "REFUND-IN-PROGRESS",
   REFUND_INITIATED: "REFUND-INITIATED",
   FULLY_REFUNDED: "REFUNDED",
 } as const;
@@ -31,6 +33,13 @@ export const AvailablePaymentStatus = Object.values(PaymentStatusEnum);
 export type BookingStatus = (typeof AvailableBookingStatus)[number];
 export type PaymentStatus = (typeof AvailablePaymentStatus)[number];
 
+export interface IPaymentTransaction {
+  paymentId: string;
+  amount: number;
+  provider: AvailablePaymentProviders;
+  status: string;
+}
+
 export interface IBooking extends mongoose.Document {
   customerId: mongoose.Types.ObjectId;
   status: BookingStatus;
@@ -39,18 +48,29 @@ export interface IBooking extends mongoose.Document {
   securityDepositTotal: number;
   cartTotal: number;
   discountedTotal: number;
+  totalTax: number;
   paidAmount: number;
   remainingAmount: number;
-  customer: { fullname: string; email: string };
-  cancellationReason: string;
-  cancellationCharge: number;
+  customer: { fullname: string; email: string; phone: string };
+  cancellationReason?: string;
+  cancellationCharge?: number;
   refundAmount: number;
   couponId: mongoose.Types.ObjectId | null;
   items: ICartItem[];
   paymentProvider: AvailablePaymentProviders;
-  paymentId: string;
+  payments: IPaymentTransaction[];
   paymentStatus: PaymentStatus;
+  cancelledBy: {
+    role: AvailableUserRoles;
+  };
 }
+
+const paymentTransactionSchema = new mongoose.Schema<IPaymentTransaction>({
+  paymentId: { type: String, required: true },
+  amount: { type: Number, required: true },
+  provider: { type: String, enum: AvailablePaymentProviders, required: true },
+  status: { type: String, required: true, default: "unpaid" },
+});
 
 const bookingSchema = new mongoose.Schema<IBooking>(
   {
@@ -85,6 +105,10 @@ const bookingSchema = new mongoose.Schema<IBooking>(
       type: Number,
       required: true,
     },
+    totalTax: {
+      type: Number,
+      default: 0,
+    },
     paidAmount: {
       type: Number,
       required: true,
@@ -98,15 +122,21 @@ const bookingSchema = new mongoose.Schema<IBooking>(
     },
     cancellationCharge: {
       type: Number,
-      default: 0,
+    },
+    cancelledBy: {
+      role: {
+        type: String,
+        enum: AvailableUserRoles,
+        required: true,
+      },
     },
     refundAmount: {
       type: Number,
-      default: 0,
     },
     couponId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "PromoCode",
+      default: null,
     },
     items: {
       type: [
@@ -141,9 +171,39 @@ const bookingSchema = new mongoose.Schema<IBooking>(
             enum: AvailableInCities,
             required: true,
           },
+          dropoffLocation: {
+            type: String,
+            enum: AvailableInCities,
+            required: true,
+          },
           motorcycle: {
             make: String,
             vehicleModel: String,
+            variant: String,
+            color: String,
+          },
+          duration: {
+            type: String,
+            required: true,
+          },
+          rentAmount: {
+            type: Number,
+            required: true,
+          },
+          discountedRentAmount: {
+            type: Number,
+          },
+          totalHours: {
+            type: Number,
+            required: true,
+          },
+          taxPercentage: {
+            type: Number,
+            required: true,
+          },
+          totalTax: {
+            type: Number,
+            required: true,
           },
         },
       ],
@@ -154,23 +214,19 @@ const bookingSchema = new mongoose.Schema<IBooking>(
       default: PaymentProviderEnum.UNKNOWN,
       required: true,
     },
-    paymentId: {
-      type: String,
-      required: true,
-    },
+    payments: { type: [paymentTransactionSchema], default: [] },
     paymentStatus: {
       type: String,
       enum: AvailablePaymentStatus,
       default: PaymentStatusEnum.UNPAID,
     },
     customer: {
-      fullname: String,
-      email: String,
+      fullname: { type: String, required: true },
+      email: { type: String, required: true },
+      phone: { type: String },
     },
   },
   { timestamps: true },
 );
-
-bookingSchema.plugin(mongooseAggregatePaginate);
 
 export const Booking = mongoose.model<IBooking>("Booking", bookingSchema);

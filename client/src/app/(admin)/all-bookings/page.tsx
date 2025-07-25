@@ -58,8 +58,6 @@ import { UserRolesEnum, Booking } from "@/types";
 import { AxiosError } from "axios";
 import { BookingDetailsDialog } from "@/app/(customer)/my-bookings/__components/booking-details-dialog";
 import { getStatusColor } from "@/app/(customer)/my-bookings/filters";
-import { AddBookingDialog } from "./__components/add-booking-dialog";
-import { UpdateBookingDialog } from "./__components/update-booking-dialog";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -132,7 +130,7 @@ export default function AllBookingsPage() {
     setIsAddDialogOpen(true);
   };
 
-  const handleUpdateStatus = async () => {
+  const handleUpdateStatus = async (cancellationReason?: string) => {
     if (
       !selectedBooking ||
       !newBookingStatus?.trim() ||
@@ -144,6 +142,7 @@ export default function AllBookingsPage() {
       await modifyBooking(selectedBooking._id, {
         status: newBookingStatus,
         paymentStatus: newPaymentStatus,
+        cancellationReason,
       });
       toast.success("Booking Updated Successfully");
       setSelectedBooking(null);
@@ -354,6 +353,7 @@ export default function AllBookingsPage() {
                             </Button> */}
                             <UpdateStatusDialog
                               booking={booking}
+                              selectedBooking={selectedBooking}
                               open={isUpdateStatusDialogOpen}
                               setOpen={setIsUpdateStatusDialogOpen}
                               handleUpdateStatus={handleUpdateStatus}
@@ -441,16 +441,6 @@ export default function AllBookingsPage() {
           </Pagination>
         )}
 
-        {/* {selectedBooking && (
-          <UpdateBookingDialog
-            isOpen={isUpdateDialogOpen}
-            onClose={() => setIsUpdateDialogOpen(false)}
-            onSubmit={handleUpdateSubmit}
-            booking={selectedBooking}
-            isLoading={loading}
-          />
-        )} */}
-
         <AlertDialog
           open={isCancelDialogOpen}
           onOpenChange={setIsCancelDialogOpen}
@@ -496,8 +486,7 @@ export default function AllBookingsPage() {
               <Button
                 type="submit"
                 form="cancel-form"
-                variant="destructive"
-                className="text-white"
+                className="text-white bg-red-600 hover:bg-red-600"
                 disabled={loading}
               >
                 {loading ? (
@@ -527,7 +516,7 @@ export default function AllBookingsPage() {
               <AlertDialogCancel>Cancel</AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleConfirmDelete}
-                className="bg-red-600 hover:bg-red-700"
+                className="bg-red-600 hover:bg-red-700 text-white"
               >
                 {loading ? (
                   <Loader2Icon className="animate-spin" />

@@ -20,6 +20,7 @@ import ProcessingPayment from "./__components/processing-payment";
 import CartItemContent from "./__components/cart-item-content";
 import FailedPayment from "./__components/failed-payment";
 import PaymentSummary from "./__components/payment-summary";
+import { getBookingPeriod, getFormattedAmount } from "@/lib/utils";
 
 // Payment processing states
 export type PaymentState = "cart" | "processing" | "success" | "failed";
@@ -36,6 +37,7 @@ export interface BookingDetails {
     dropoffDate: Date;
     pickupLocation: string;
     dropoffLocation: string;
+    duration : string;
   }>;
 }
 
@@ -92,28 +94,72 @@ export default function CartPage() {
 
   const calculateAdvancePayment = () => {
     if (!cart) return 0;
-
-    return (cart.rentTotal * 0.2); // 20% advance
+    return (cart.discountedTotal - cart.securityDepositTotal) * 0.2; // 20% advance
   };
 
   const calculateItemBreakup = (item: CartItem) => {
-    const days =
-      differenceInDays(new Date(item.dropoffDate), new Date(item.pickupDate)) +
-      1;
-    const dailyRate = item.motorcycle.rentPerDay;
+    const { totalHours, duration, days, extraHours } = getBookingPeriod({
+      ...item,
+    });
+
+    /**
+        const dailyRate = item.motorcycle.rentPerDay;
+        const days = Math.floor(item.totalHours / 24);
+        const st = dailyRate * days;
+        const extraHours = item.totalHours % 24;
+
+        let extraHoursCharges = 0;
+        if (extraHours) {
+          if (extraHours > 0 && extraHours <= 4) {
+            extraHoursCharges = 0.1 * rentPerDay;
+          } else if (extraHours > 4) {
+            extraHoursCharges = rentPerDay;
+          }
+        }
+        const st += extraHoursCharges;
+        const qty = item.quantity;
+
+     * 
+     */
+    const rentPerDay = item.motorcycle.rentPerDay;
     const quantity = item.quantity;
-    const subtotal = days * dailyRate * quantity;
+
+    const fullDays = Math.floor(totalHours / 24);
+
+    let calculatedRent = fullDays * rentPerDay;
+    let extraHoursCharges = 0;
+
+    if (extraHours) {
+      if (extraHours > 0 && extraHours <= 4) {
+        extraHoursCharges = 0.1 * rentPerDay; // 10% for up to 4 extra hours
+      } else if (extraHours > 4) {
+        extraHoursCharges = rentPerDay; // Full day rent for more than 4 extra hours
+      }
+      calculatedRent += extraHoursCharges;
+    }
+
+    const subtotal = item.discountedRentAmount + item.totalTax;
     const securityDepositPerBike = item.motorcycle.securityDeposit;
-    const securityDepositTotal = item.motorcycle.securityDeposit * quantity;
+    const securityDepositTotal = securityDepositPerBike * quantity;
 
     return {
+      rentPerDay,
       days,
-      dailyRate,
+      extraHours,
+      extraHoursCharges,
+      calculatedRent,
       quantity,
-      subtotal,
+      totalItemRent : item.rentAmount,
+      duration,
+      subtotal: getFormattedAmount(subtotal),
+      taxPercentage: item.taxPercentage,
+      totalTax: getFormattedAmount(item.totalTax),
+      totalDiscount: getFormattedAmount(
+        item.rentAmount - item.discountedRentAmount
+      ),
       securityDepositPerBike,
       securityDepositTotal,
-      total: subtotal + securityDepositTotal,
+      total: getFormattedAmount(subtotal + securityDepositTotal),
     };
   };
 
@@ -154,10 +200,6 @@ export default function CartPage() {
   // Rest of the original cart component code remains the same...
   if (!user || user.role !== UserRolesEnum.CUSTOMER) {
     return null;
-  }
-
-  if (loading) {
-    return <Loading />;
   }
 
   if (!cart || !cart.items || cart.items.length === 0) {

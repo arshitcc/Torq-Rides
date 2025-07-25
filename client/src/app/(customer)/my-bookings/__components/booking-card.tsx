@@ -143,12 +143,6 @@ function BookingCard({
                       </div>
                       <div>
                         <p className="text-sm font-medium text-gray-500">
-                          Location
-                        </p>
-                        <p className="text-sm">{booking.location}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">
                           Payment Provider
                         </p>
                         <p className="text-sm">{booking.paymentProvider}</p>

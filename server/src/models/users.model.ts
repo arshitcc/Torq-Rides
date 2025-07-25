@@ -42,7 +42,7 @@ export interface IUser extends mongoose.Document {
   password: string;
   loginType: string;
   avatar: File;
-  role: string;
+  role: AvailableUserRoles;
   isEmailVerified: boolean;
   emailVerificationToken: string | undefined;
   emailVerificationExpiry: Date | undefined;

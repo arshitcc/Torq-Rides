@@ -13,7 +13,7 @@ export const addMotorcycleSchema = z.object({
   description: z.string().min(10, "Description must be at least 10 characters"),
   categories: z.array(
     z.enum(
-      ["TOURING", "SPORTS", "CRUISER", "ADVENTURE", "SCOOTER", "SUPERBIKE"],
+      ["TOURING", "CRUISER", "ADVENTURE", "SCOOTER", "SUPERBIKE", "ELECTRIC"],
       {
         required_error: "Category is required",
       }
@@ -49,7 +49,7 @@ export const updateMotorcycleSchema = z.object({
     .min(10, "Description must be at least 10 characters")
     .optional(),
   category: z
-    .enum(["TOURING", "SPORTS", "CRUISER", "ADVENTURE", "SCOOTER"])
+    .enum(["TOURING", "SUPERBIKE", "CRUISER", "ADVENTURE", "SCOOTER"])
     .optional(),
   variant: z.string().min(1, "Variant is required").optional(),
   color: z.string().min(1, "Color is required").optional(),

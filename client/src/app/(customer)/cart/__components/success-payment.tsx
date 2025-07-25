@@ -82,12 +82,9 @@ function SuccessfulPayment({
                           </p>
                           X{" "}
                           <span className="text-sm text-gray-600 dark:text-gray-300">
-                            {differenceInDays(
-                              motorcycle.dropoffDate,
-                              motorcycle.pickupDate
-                            ) + 1}
+                            {motorcycle.duration}
                           </span>
-                          X <span>{motorcycle.quantity}</span>
+                          X <span>{motorcycle.quantity} N</span>
                         </div>
                         <Badge variant="secondary">Confirmed</Badge>
                       </div>

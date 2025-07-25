@@ -5,7 +5,9 @@ import { CustomRequest, User } from "../models/users.model";
 import { Request, Response } from "express";
 import {
   AvailableBookingStatus,
+  AvailablePaymentStatus,
   Booking,
+  BookingStatus,
   BookingStatusEnum,
   PaymentStatusEnum,
 } from "../models/bookings.model";
@@ -23,7 +25,11 @@ import {
   COMPANY_NAME,
   RAZORPAY_KEY_SECRET,
 } from "../utils/env";
-import { bookingConfirmationTemplate, sendEmail } from "../utils/mail";
+import {
+  bookingCancellationTemplate,
+  bookingConfirmationTemplate,
+  sendEmail,
+} from "../utils/mail";
 import logger from "../loggers/winston.logger";
 import { differenceInDays } from "date-fns";
 
@@ -33,7 +39,7 @@ const handleBooking = async (
   amount: number,
 ) => {
   const order = await Booking.findOne({
-    paymentId: bookingPaymentId,
+    "payments.paymentId": bookingPaymentId,
   });
 
   if (!order) {
@@ -54,8 +60,18 @@ const handleBooking = async (
 
   order.paidAmount += amount;
   order.remainingAmount = order.discountedTotal - order.paidAmount;
+  order.payments = order.payments.map((p) =>
+    p.paymentId === bookingPaymentId
+      ? {
+          ...p,
+          amount,
+          provider: PaymentProviderEnum.RAZORPAY,
+          status: "paid",
+        }
+      : p,
+  );
 
-  if (order.remainingAmount <= 0) {
+  if (order.remainingAmount <= 0.01) {
     order.status = BookingStatusEnum.CONFIRMED;
     order.paymentStatus = PaymentStatusEnum.FULLY_PAID;
     order.remainingAmount = 0;
@@ -67,15 +83,7 @@ const handleBooking = async (
   await order.save({ validateBeforeSave: false });
 
   if (wasNewBooking) {
-    const cart = await Cart.findOne({ customerId: req.user._id });
-
-    if (!cart) {
-      throw new ApiError(404, "Cart does not exist");
-    }
-
-    const userCart = await getCart(req.user._id as string);
-
-    const bulkStockUpdates = userCart.items.map((item: ICartItem) => ({
+    const bulkStockUpdates = order.items.map((item: ICartItem) => ({
       updateOne: {
         filter: {
           _id: item.motorcycleId,
@@ -92,12 +100,14 @@ const handleBooking = async (
       because with bulkWrite() there is only one network round trip to the MongoDB server.
     */
 
-    await Motorcycle.bulkWrite(bulkStockUpdates, { skipValidation: true });
+    if (bulkStockUpdates.length > 0) {
+      await Motorcycle.bulkWrite(bulkStockUpdates, { skipValidation: true });
+    }
 
-    cart.items = []; // empty the cart
-    cart.couponId = null;
-
-    await cart.save({ validateBeforeSave: false });
+    await Cart.findOneAndUpdate(
+      { customerId: req.user._id },
+      { $set: { items: [], couponId: null } },
+    );
   }
 
   const populatedOrderArr = await Booking.aggregate([
@@ -124,6 +134,7 @@ const handleBooking = async (
         bookingDate: { $first: "$bookingDate" },
         rentTotal: { $first: "$rentTotal" },
         securityDepositTotal: { $first: "$securityDepositTotal" },
+        totalTax: { $first: "$totalTax" },
         cartTotal: { $first: "$cartTotal" },
         discountedTotal: { $first: "$discountedTotal" },
         paidAmount: { $first: "$paidAmount" },
@@ -131,7 +142,7 @@ const handleBooking = async (
         couponId: { $first: "$couponId" },
         items: { $push: "$items" },
         paymentProvider: { $first: "$paymentProvider" },
-        paymentId: { $first: "$paymentId" },
+        payments: { $first: "$payments" },
         paymentStatus: { $first: "$paymentStatus" },
         customer: { $first: "$customer" },
         createdAt: { $first: "$createdAt" },
@@ -151,13 +162,9 @@ const handleBooking = async (
   }
 
   const populatedOrder = populatedOrderArr[0];
-
   sendEmail({
     email: req.user?.email,
-    subject: `${COMPANY_NAME} - Booking Confirmation for Order - #${populatedOrder._id
-      .toString()
-      .slice(-8)
-      .toUpperCase()}`,
+    subject: `${COMPANY_NAME} - Booking Confirmation #${populatedOrder._id.toString().slice(-6).toUpperCase()}`,
     template: bookingConfirmationTemplate({
       username: req.user?.username,
       booking: populatedOrder,
@@ -167,74 +174,52 @@ const handleBooking = async (
   return populatedOrder;
 };
 
-export const getbooking = async (
-  id: string,
-  pageNum: number,
-  limit: number,
-  skip: number,
-  role: string,
-) => {
-  let pipeline = [];
-
-  if (role === UserRolesEnum.CUSTOMER)
-    pipeline.push({
-      $match: {
-        customerId: new mongoose.Types.ObjectId(id),
-      },
-    });
-  else
-    pipeline.push({
+const getBooking = async (bookingId: string) => {
+  const bookingAggregation = await Booking.aggregate([
+    { $match: { _id: new mongoose.Types.ObjectId(bookingId) } },
+    {
       $lookup: {
         from: "users",
         localField: "customerId",
         foreignField: "_id",
         as: "customer",
       },
-    });
-
-  const bookingAggregation = await Booking.aggregate([
-    // 1) JOIN user
-    ...pipeline,
+    },
     { $addFields: { customer: { $arrayElemAt: ["$customer", 0] } } },
-
-    // 2) UNWIND the items array
     { $unwind: "$items" },
-
-    // 3) JOIN each motorcycle, dropping its maintenanceLogs
     {
       $lookup: {
         from: "motorcycles",
-        let: { mid: "$items.motorcycleId" },
-        pipeline: [
-          { $match: { $expr: { $eq: ["$_id", "$$mid"] } } },
-          { $project: { maintenanceLogs: 0 } },
-        ],
+        localField: "items.motorcycleId",
+        foreignField: "_id",
         as: "items.motorcycle",
       },
     },
-    // flatten the lookup array
     {
       $addFields: {
         "items.motorcycle": { $arrayElemAt: ["$items.motorcycle", 0] },
       },
     },
-
-    // 4) RE‑GROUP back to one document per booking
     {
       $group: {
         _id: "$_id",
         customerId: { $first: "$customerId" },
         status: { $first: "$status" },
         paymentProvider: { $first: "$paymentProvider" },
-        paymentId: { $first: "$paymentId" },
+        payments: { $first: "$payments" },
         bookingDate: { $first: "$bookingDate" },
         paymentStatus: { $first: "$paymentStatus" },
         rentTotal: { $first: "$rentTotal" },
         securityDepositTotal: { $first: "$securityDepositTotal" },
+        totalTax: { $first: "$totalTax" },
         cartTotal: { $first: "$cartTotal" },
         discountedTotal: { $first: "$discountedTotal" },
         paidAmount: { $first: "$paidAmount" },
         remainingAmount: { $first: "$remainingAmount" },
+        cancellationCharge: { $first: "$cancellationCharge" },
+        cancellationReason: { $first: "$cancellationReason" },
+        cancelledBy: { $first: "$cancelledBy" },
+        refundAmount: { $first: "$refundAmount" },
         createdAt: { $first: "$createdAt" },
         updatedAt: { $first: "$updatedAt" },
         customer: { $first: "$customer" },
@@ -242,69 +227,40 @@ export const getbooking = async (
         couponId: { $first: "$couponId" },
       },
     },
-
-    // 5) LOOKUP coupon to get discountValue
-    {
-      $lookup: {
-        from: "promocodes",
-        localField: "couponId",
-        foreignField: "_id",
-        as: "coupon",
-      },
-    },
-    { $addFields: { coupon: { $arrayElemAt: ["$coupon", 0] } } },
-
-    { $sort: { bookingDate: -1 } },
-    {
-      $facet: {
-        metadata: [{ $count: "total" }, { $addFields: { page: pageNum } }],
-        data: [{ $skip: skip }, { $limit: limit }],
-      },
-    },
+    { $project: { "customer.password": 0, "customer.refreshToken": 0 } },
   ]);
 
-  return (
-    bookingAggregation[0] ?? {
-      _id: null,
-      items: [],
-      cartTotal: 0,
-      discountedTotal: 0,
-      rentTotal: 0,
-      securityDepositTotal: 0,
-    }
-  );
+  if (!bookingAggregation.length) {
+    throw new ApiError(404, "Booking not found");
+  }
+
+  return bookingAggregation[0];
 };
 
 const getAllBookings = asyncHandler(
   async (req: CustomRequest, res: Response) => {
-    const { page, offset } = req.query;
-
-    const pageNum = Number.isNaN(Number(page)) ? 1 : Math.max(Number(page), 1);
-    const limit = Number.isNaN(Number(offset))
-      ? 10
-      : Math.max(Number(offset), 1);
+    const {
+      page = 1,
+      offset = 10,
+      status,
+      customerId,
+      bookingDate,
+    } = req.query;
+    const pageNum = Math.max(Number(page), 1);
+    const limit = Math.max(Number(offset), 1);
     const skip = (pageNum - 1) * limit;
 
     const matchStage: Record<string, any> = {};
 
-    const { status, customerId, bookingDate } = req.query;
-
-    if (status) matchStage.status = status;
+    if (AvailableBookingStatus.includes(status as BookingStatus))
+      matchStage.status = status;
     if (bookingDate) matchStage.bookingDate = bookingDate;
-    if (customerId) {
-      if (req.user.role !== UserRolesEnum.CUSTOMER) {
-        matchStage.customerId = new mongoose.Types.ObjectId(
-          customerId.toString(),
-        );
-      } else {
-        matchStage.customerId = new mongoose.Types.ObjectId(
-          req.user._id?.toString(),
-        );
-      }
-    } else if (req.user.role === UserRolesEnum.CUSTOMER) {
+    if (req.user.role === UserRolesEnum.CUSTOMER) {
       matchStage.customerId = new mongoose.Types.ObjectId(
-        req.user._id?.toString(),
+        req.user._id as string,
       );
+    } else if (customerId) {
+      matchStage.customerId = new mongoose.Types.ObjectId(customerId as string);
     }
 
     let pipeline = [];
@@ -317,7 +273,9 @@ const getAllBookings = asyncHandler(
           from: "users",
           localField: "customerId",
           foreignField: "_id",
-          pipeline: [{ $project: { username: 1, fullname: 1 } }],
+          pipeline: [
+            { $project: { username: 1, fullname: 1, email: 1, phone: 1 } },
+          ],
           as: "customer",
         },
       });
@@ -346,7 +304,6 @@ const getAllBookings = asyncHandler(
           "items.motorcycle": { $arrayElemAt: ["$items.motorcycle", 0] },
         },
       },
-
       // 4) RE‑GROUP back to one document per booking
       {
         $group: {
@@ -354,17 +311,19 @@ const getAllBookings = asyncHandler(
           customerId: { $first: "$customerId" },
           status: { $first: "$status" },
           paymentProvider: { $first: "$paymentProvider" },
-          paymentId: { $first: "$paymentId" },
+          payments: { $first: "$payments" },
           bookingDate: { $first: "$bookingDate" },
           paymentStatus: { $first: "$paymentStatus" },
           rentTotal: { $first: "$rentTotal" },
           securityDepositTotal: { $first: "$securityDepositTotal" },
+          totalTax: { $first: "$totalTax" },
           cartTotal: { $first: "$cartTotal" },
           discountedTotal: { $first: "$discountedTotal" },
           paidAmount: { $first: "$paidAmount" },
           remainingAmount: { $first: "$remainingAmount" },
           cancellationCharge: { $first: "$cancellationCharge" },
           cancellationReason: { $first: "$cancellationReason" },
+          cancelledBy: { $first: "$cancelledBy" },
           refundAmount: { $first: "$refundAmount" },
           createdAt: { $first: "$createdAt" },
           updatedAt: { $first: "$updatedAt" },
@@ -382,6 +341,7 @@ const getAllBookings = asyncHandler(
         },
       },
       { $addFields: { coupon: { $arrayElemAt: ["$coupon", 0] } } },
+      { $project: { "customer.password": 0, "customer.refreshToken": 0 } }, // Exclude sensitive fields
       { $sort: { bookingDate: -1 } },
       {
         $facet: {
@@ -414,23 +374,18 @@ const modifyBooking = asyncHandler(
       throw new ApiError(404, "Booking not found");
     }
 
-    const { status, paymentStatus } = req.body;
+    const { status, paymentStatus, cancellationReason } = req.body;
 
-    if (status === BookingStatusEnum.CANCELLED) {
-      booking.status = "CANCELLED";
-      booking.cancellationReason = req.body.cancellationReason || "N/A";
-    } else if (status === BookingStatusEnum.COMPLETED) {
-      booking.status = BookingStatusEnum.COMPLETED;
-      booking.remainingAmount = 0;
-      booking.paidAmount = booking.discountedTotal;
-      booking.paymentStatus = PaymentStatusEnum.FULLY_PAID;
-    } else if (status === BookingStatusEnum.STARTED) {
-      booking.status = BookingStatusEnum.STARTED;
-    } else {
-      if (AvailableBookingStatus.includes(status)) {
-        booking.status = status;
-      }
+    if (
+      !AvailableBookingStatus.includes(status) ||
+      !AvailablePaymentStatus.includes(paymentStatus)
+    ) {
+      throw new ApiError(400, "Invalid Booking or Payment status");
     }
+
+    booking.status = status;
+    booking.paymentStatus = paymentStatus;
+    booking.cancellationReason = cancellationReason || "";
 
     if (paymentStatus === PaymentStatusEnum.FULLY_PAID) {
       booking.paymentStatus = paymentStatus;
@@ -481,7 +436,7 @@ const modifyBooking = asyncHandler(
           customerId: { $first: "$customerId" },
           status: { $first: "$status" },
           paymentProvider: { $first: "$paymentProvider" },
-          paymentId: { $first: "$paymentId" },
+          payments: { $first: "$payments" },
           bookingDate: { $first: "$bookingDate" },
           paymentStatus: { $first: "$paymentStatus" },
           rentTotal: { $first: "$rentTotal" },
@@ -492,6 +447,7 @@ const modifyBooking = asyncHandler(
           remainingAmount: { $first: "$remainingAmount" },
           cancellationCharge: { $first: "$cancellationCharge" },
           cancellationReason: { $first: "$cancellationReason" },
+          cancelledBy: { $first: "$cancelledBy" },
           refundAmount: { $first: "$refundAmount" },
           createdAt: { $first: "$createdAt" },
           updatedAt: { $first: "$updatedAt" },
@@ -540,13 +496,16 @@ const cancelBooking = asyncHandler(
       throw new ApiError(403, "Unauthorized action");
     }
 
+    if (booking.status === BookingStatusEnum.CANCELLATION_REQUESTED) {
+      throw new ApiError(400, "Cancellation request already sent.");
+    }
+
     if (booking.status === BookingStatusEnum.CANCELLED) {
       throw new ApiError(400, "Booking is already cancelled.");
     }
 
     const minimumBookingDate: Date = booking.items.reduce<Date>(
       (minDate, item) => {
-        // ensure both sides are Date objects
         const pd =
           item.pickupDate instanceof Date
             ? item.pickupDate
@@ -565,11 +524,11 @@ const cancelBooking = asyncHandler(
     let cancellationChargePercentage = 0;
 
     if (daysUntilPickup < 3) {
-      cancellationChargePercentage = 1; // 100%
-    } else if (daysUntilPickup >= 3 && daysUntilPickup <= 7) {
-      cancellationChargePercentage = 0.5; // 50%
+      cancellationChargePercentage = 1;
+    } else if (daysUntilPickup >= 3 && daysUntilPickup < 7) {
+      cancellationChargePercentage = 0.5;
     } else {
-      cancellationChargePercentage = 0; // 0% but minimum cancellation charge will be applied
+      cancellationChargePercentage = 0;
     }
 
     let cancellationCharge = 0;
@@ -581,7 +540,7 @@ const cancelBooking = asyncHandler(
       );
     } else if (booking.paymentStatus === PaymentStatusEnum.FULLY_PAID) {
       cancellationCharge = Math.max(
-        booking.rentTotal * cancellationChargePercentage,
+        (booking.rentTotal + booking.totalTax) * cancellationChargePercentage,
         Number(CANCELLATION_CHARGE),
       );
     }
@@ -592,10 +551,14 @@ const cancelBooking = asyncHandler(
       refundableAmount = 0;
     }
 
-    booking.status = BookingStatusEnum.CANCELLED;
-    booking.paymentStatus = PaymentStatusEnum.REFUND_INITIATED;
+    const { cancellationReason } = req.body;
+
+    booking.status = BookingStatusEnum.CANCELLATION_REQUESTED;
+    booking.paymentStatus = PaymentStatusEnum.REFUND_IN_PROGRESS;
     booking.cancellationCharge = cancellationCharge;
     booking.refundAmount = refundableAmount;
+    booking.cancellationReason = cancellationReason;
+    booking.cancelledBy = { role: req.user.role };
     await booking.save({ validateBeforeSave: false });
 
     const bulkStockUpdates = booking.items.map((item: ICartItem) => ({
@@ -614,28 +577,7 @@ const cancelBooking = asyncHandler(
       await Motorcycle.bulkWrite(bulkStockUpdates);
     }
 
-    if (refundableAmount > 0 && razorpayInstance) {
-      const refundOptions = {
-        amount: Math.round(refundableAmount * 100),
-        speed: "normal",
-        notes: {
-          reason: "Booking cancellation by customer.",
-          bookingId: booking._id?.toString(),
-        },
-      };
-
-      try {
-        await razorpayInstance.payments.refund(
-          booking.paymentId,
-          refundOptions,
-        );
-      } catch (error: any) {
-        logger.error(
-          `Razorpay refund failed for booking ${bookingId}: ${error.message}`,
-        );
-        // TODO : Implement a mechanism to flag this booking for manual refund processing
-      }
-    }
+    // TODO : Mechanism to Refund through Payment Provider
 
     const updatedBooking = await Booking.aggregate([
       {
@@ -667,7 +609,7 @@ const cancelBooking = asyncHandler(
           customerId: { $first: "$customerId" },
           status: { $first: "$status" },
           paymentProvider: { $first: "$paymentProvider" },
-          paymentId: { $first: "$paymentId" },
+          payments: { $first: "$payments" },
           bookingDate: { $first: "$bookingDate" },
           paymentStatus: { $first: "$paymentStatus" },
           rentTotal: { $first: "$rentTotal" },
@@ -678,6 +620,7 @@ const cancelBooking = asyncHandler(
           remainingAmount: { $first: "$remainingAmount" },
           cancellationCharge: { $first: "$cancellationCharge" },
           cancellationReason: { $first: "$cancellationReason" },
+          cancelledBy: { $first: "$cancelledBy" },
           refundAmount: { $first: "$refundAmount" },
           createdAt: { $first: "$createdAt" },
           updatedAt: { $first: "$updatedAt" },
@@ -696,6 +639,17 @@ const cancelBooking = asyncHandler(
       },
       { $addFields: { coupon: { $arrayElemAt: ["$coupon", 0] } } },
     ]);
+
+    const populatedOrder = updatedBooking[0];
+
+    sendEmail({
+      email: req.user?.email,
+      subject: `${COMPANY_NAME} - Booking Cancelled #${populatedOrder._id.toString().slice(-6).toUpperCase()}`,
+      template: bookingCancellationTemplate({
+        username: req.user?.username,
+        booking: populatedOrder,
+      }),
+    });
 
     return res
       .status(200)
@@ -724,8 +678,7 @@ const generateRazorpayOrder = asyncHandler(
 
     let amount: number;
     let receiptId: string | undefined;
-    let orderItems: ICartItem[];
-    let booking: any;
+    let bookingPayload: any;
 
     if (bookingId) {
       const existingBooking = await Booking.findById(bookingId);
@@ -745,7 +698,7 @@ const generateRazorpayOrder = asyncHandler(
 
       amount = existingBooking.remainingAmount;
       receiptId = existingBooking._id?.toString();
-      booking = existingBooking;
+      bookingPayload = existingBooking;
     } else {
       if (!mode) {
         throw new ApiError(
@@ -754,37 +707,33 @@ const generateRazorpayOrder = asyncHandler(
         );
       }
 
-      const cart = await Cart.findOne({
-        customerId: req.user._id,
-      });
-
-      if (!cart || !cart.items?.length) {
-        throw new ApiError(400, "Your cart is empty");
-      }
       const userCart = await getCart(req.user._id as string);
-      const totalDiscountedPrice = userCart.discountedTotal;
+      if (!userCart || !userCart.items?.length) {
+        throw new ApiError(400, "Your cart is empty.");
+      }
 
-      amount = mode === "p" ? 0.2 * userCart.rentTotal : totalDiscountedPrice;
+      amount =
+        mode === "p"
+          ? 0.2 * userCart.discountedRentTotal
+          : userCart.discountedTotal;
       receiptId = nanoid(10);
-      orderItems = cart.items;
 
       /* 
         Create an order while we generate razorpay session 
         In case payment is done and there is some network issue in the payment verification API
         We will at least have a record of the order
       */
-
-      booking = {
-        customerId: req.user._id,
+      bookingPayload = {
+        customerId: req.user._id as mongoose.Types.ObjectId,
         status: BookingStatusEnum.PENDING,
-        items: orderItems,
+        items: userCart.items,
         rentTotal: userCart.rentTotal,
         securityDepositTotal: userCart.securityDepositTotal,
-        convenienceFee: userCart.convenienceFee,
+        totalTax: userCart.totalTax,
         cartTotal: userCart.cartTotal,
-        discountedTotal: totalDiscountedPrice ?? 0,
+        discountedTotal: userCart.discountedTotal,
         paidAmount: 0,
-        remainingAmount: totalDiscountedPrice,
+        remainingAmount: userCart.discountedTotal,
         paymentProvider: PaymentProviderEnum.RAZORPAY,
         couponId: userCart.coupon?._id,
         customer: {
@@ -816,11 +765,91 @@ const generateRazorpayOrder = asyncHandler(
           );
       }
 
-      booking.paymentId = razorpayOrder.id;
-      if (bookingId) {
-        await booking.save({ validateBeforeSave: false });
+      if (bookingPayload.payments) {
+        bookingPayload.payments.push({
+          paymentId: razorpayOrder.id,
+          amount,
+          provider: PaymentProviderEnum.RAZORPAY,
+          status: "unpaid",
+        });
       } else {
-        const newBooking = await Booking.create(booking);
+        bookingPayload.payments = [
+          {
+            paymentId: razorpayOrder.id,
+            amount,
+            provider: PaymentProviderEnum.RAZORPAY,
+            status: "unpaid",
+          },
+        ];
+      }
+
+      let booking: any;
+
+      if (bookingId) {
+        await bookingPayload.save({ validateBeforeSave: false });
+        const updatedBooking = await Booking.aggregate([
+          {
+            $match: {
+              _id: new mongoose.Types.ObjectId(bookingId),
+            },
+          },
+          { $unwind: "$items" },
+          {
+            $lookup: {
+              from: "motorcycles",
+              let: { mid: "$items.motorcycleId" },
+              pipeline: [
+                { $match: { $expr: { $eq: ["$_id", "$$mid"] } } },
+                { $project: { maintenanceLogs: 0 } },
+              ],
+              as: "items.motorcycle",
+            },
+          },
+          // flatten the lookup array
+          {
+            $addFields: {
+              "items.motorcycle": { $arrayElemAt: ["$items.motorcycle", 0] },
+            },
+          },
+          {
+            $group: {
+              _id: "$_id",
+              customerId: { $first: "$customerId" },
+              status: { $first: "$status" },
+              paymentProvider: { $first: "$paymentProvider" },
+              payments: { $first: "$payments" },
+              bookingDate: { $first: "$bookingDate" },
+              paymentStatus: { $first: "$paymentStatus" },
+              rentTotal: { $first: "$rentTotal" },
+              securityDepositTotal: { $first: "$securityDepositTotal" },
+              cartTotal: { $first: "$cartTotal" },
+              discountedTotal: { $first: "$discountedTotal" },
+              paidAmount: { $first: "$paidAmount" },
+              remainingAmount: { $first: "$remainingAmount" },
+              cancellationCharge: { $first: "$cancellationCharge" },
+              cancellationReason: { $first: "$cancellationReason" },
+              cancelledBy: { $first: "$cancelledBy" },
+              refundAmount: { $first: "$refundAmount" },
+              createdAt: { $first: "$createdAt" },
+              updatedAt: { $first: "$updatedAt" },
+              customer: { $first: "$customer" },
+              items: { $push: "$items" },
+              couponId: { $first: "$couponId" },
+            },
+          },
+          {
+            $lookup: {
+              from: "promocodes",
+              localField: "couponId",
+              foreignField: "_id",
+              as: "coupon",
+            },
+          },
+          { $addFields: { coupon: { $arrayElemAt: ["$coupon", 0] } } },
+        ]);
+        booking = updatedBooking[0];
+      } else {
+        const newBooking = await Booking.create(bookingPayload);
         if (!newBooking) {
           // This is a critical failure: a charge was created but not saved in our DB.
           // This needs logging for manual intervention.
@@ -832,15 +861,78 @@ const generateRazorpayOrder = asyncHandler(
             "Server error: Could not record the booking after payment initialization.",
           );
         }
+
+        const updatedBooking = await Booking.aggregate([
+          {
+            $match: {
+              _id: new mongoose.Types.ObjectId(newBooking._id?.toString()),
+            },
+          },
+          { $unwind: "$items" },
+          {
+            $lookup: {
+              from: "motorcycles",
+              let: { mid: "$items.motorcycleId" },
+              pipeline: [
+                { $match: { $expr: { $eq: ["$_id", "$$mid"] } } },
+                { $project: { maintenanceLogs: 0 } },
+              ],
+              as: "items.motorcycle",
+            },
+          },
+          // flatten the lookup array
+          {
+            $addFields: {
+              "items.motorcycle": { $arrayElemAt: ["$items.motorcycle", 0] },
+            },
+          },
+          {
+            $group: {
+              _id: "$_id",
+              customerId: { $first: "$customerId" },
+              status: { $first: "$status" },
+              paymentProvider: { $first: "$paymentProvider" },
+              payments: { $first: "$payments" },
+              bookingDate: { $first: "$bookingDate" },
+              paymentStatus: { $first: "$paymentStatus" },
+              rentTotal: { $first: "$rentTotal" },
+              securityDepositTotal: { $first: "$securityDepositTotal" },
+              cartTotal: { $first: "$cartTotal" },
+              discountedTotal: { $first: "$discountedTotal" },
+              paidAmount: { $first: "$paidAmount" },
+              remainingAmount: { $first: "$remainingAmount" },
+              cancellationCharge: { $first: "$cancellationCharge" },
+              cancellationReason: { $first: "$cancellationReason" },
+              cancelledBy: { $first: "$cancelledBy" },
+              refundAmount: { $first: "$refundAmount" },
+              createdAt: { $first: "$createdAt" },
+              updatedAt: { $first: "$updatedAt" },
+              customer: { $first: "$customer" },
+              items: { $push: "$items" },
+              couponId: { $first: "$couponId" },
+            },
+          },
+          {
+            $lookup: {
+              from: "promocodes",
+              localField: "couponId",
+              foreignField: "_id",
+              as: "coupon",
+            },
+          },
+          { $addFields: { coupon: { $arrayElemAt: ["$coupon", 0] } } },
+        ]);
+        booking = updatedBooking[0];
       }
 
       // order successful
 
-      return res
-        .status(201)
-        .json(
-          new ApiResponse(201, true, "Razorpay order generated", razorpayOrder),
-        );
+      return res.status(201).json(
+        new ApiResponse(201, true, "Razorpay order generated", {
+          order: razorpayOrder,
+          booking,
+        }),
+      );
     } catch (err: any) {
       const status = err.statusCode ?? 500;
       const message = err.error?.reason ?? err.message ?? "Unknown error";

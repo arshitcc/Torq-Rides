@@ -11,10 +11,15 @@ import { Button } from "@/components/ui/button";
 import { Booking, PaymentStatusEnum } from "@/types";
 import { differenceInDays, format } from "date-fns";
 import { Loader2, ShieldCheck } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 
 interface CancelBookingDialogProps {
   booking: Booking;
-  onConfirmCancel: (bookingId: string) => Promise<void>;
+  onConfirmCancel: (
+    bookingId: string,
+    cancellationReason: string
+  ) => Promise<void>;
   children: React.ReactNode;
 }
 
@@ -26,6 +31,8 @@ export function CancelBookingDialog({
   const [isOpen, setIsOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
   const [isCancelled, setIsCancelled] = useState(false);
+  const [cancellationReason, setCancellationReason] = useState("");
+  const [error, setError] = useState("");
 
   const minimumBookingDate: Date = booking.items.reduce<Date>(
     (minDate, item) => {
@@ -49,7 +56,7 @@ export function CancelBookingDialog({
 
   if (daysUntilPickup < 3) {
     cancellationChargePercentage = 1; // 100%
-  } else if (daysUntilPickup >= 3 && daysUntilPickup <= 7) {
+  } else if (daysUntilPickup >= 3 && daysUntilPickup < 7) {
     cancellationChargePercentage = 0.5; // 50%
   } else {
     cancellationChargePercentage = 0; // 0% but minimum cancellation charge will be applied
@@ -57,14 +64,14 @@ export function CancelBookingDialog({
 
   let cancellationCharge = 0;
 
-  if (booking.paymentStatus === PaymentStatusEnum.PARTIAL) {
+  if (booking.paymentStatus === PaymentStatusEnum.PARTIAL_PAID) {
     cancellationCharge = Math.max(
       booking.paidAmount * cancellationChargePercentage,
       Number(process.env.NEXT_PUBLIC_CANCELLATION_CHARGE) || 199
     );
   } else if (booking.paymentStatus === PaymentStatusEnum.FULLY_PAID) {
     cancellationCharge = Math.max(
-      booking.rentTotal * cancellationChargePercentage,
+      (booking.rentTotal + booking.totalTax) * cancellationChargePercentage,
       Number(process.env.NEXT_PUBLIC_CANCELLATION_CHARGE) || 199
     );
   }
@@ -76,13 +83,17 @@ export function CancelBookingDialog({
   }
 
   const handleCancel = async () => {
+    setError("");
+    if (!cancellationReason?.trim() || cancellationReason?.trim().length <= 5) {
+      setError("Please enter cancellation reason");
+      return;
+    }
     setIsCancelling(true);
     try {
-      await onConfirmCancel(booking._id);
+      await onConfirmCancel(booking._id, cancellationReason);
       setIsCancelled(true);
     } catch (error) {
-      // Error toast is handled in the parent component
-      setIsOpen(false); // Close dialog on error
+      setIsOpen(false);
     } finally {
       setIsCancelling(false);
     }
@@ -125,7 +136,7 @@ export function CancelBookingDialog({
           <>
             <AlertDialogHeader>
               <AlertDialogTitle>Confirm Cancellation</AlertDialogTitle>
-              <div className="text-sm text-gray-600 pt-2 space-y-3">
+              <div className="text-sm pt-2 space-y-3 text-muted-foreground">
                 <p>
                   You are about to cancel your booking for the{" "}
                   <strong>
@@ -156,6 +167,16 @@ export function CancelBookingDialog({
                     </span>
                   </p>
                 </div>
+
+                <div className="space-y-2">
+                  {error && <p className="text-red-600">{error}</p>}
+                  <Label>Cancellation Reason</Label>
+                  <Input
+                    value={cancellationReason}
+                    placeholder="Mention the reason for cancellation.(Minimum 5 characters)"
+                    onChange={(e) => setCancellationReason(e.target.value)}
+                  />
+                </div>
                 <p>Are you sure you want to proceed?</p>
               </div>
             </AlertDialogHeader>
@@ -170,7 +191,7 @@ export function CancelBookingDialog({
               <Button
                 onClick={handleCancel}
                 disabled={isCancelling}
-                className="bg-red-600 hover:bg-red-700"
+                className="bg-red-600 hover:bg-red-700 text-white"
               >
                 {isCancelling && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />

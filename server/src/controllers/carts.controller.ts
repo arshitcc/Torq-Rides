@@ -3,66 +3,145 @@ import { ApiResponse } from "../utils/api-response";
 import { ApiError } from "../utils/api-error";
 import { CustomRequest } from "../models/users.model";
 import { Response } from "express";
-import { Motorcycle } from "../models/motorcycles.model";
+import {
+  Motorcycle,
+  MotorcycleCategoryEnum,
+} from "../models/motorcycles.model";
 import { Cart, ICartItem } from "../models/carts.model";
 import mongoose from "mongoose";
+import { PromoCodeTypeEnum } from "../constants/constants";
+
+const getBookingPeriod = (
+  pickupDate: Date,
+  pickupTime: string,
+  dropoffDate: Date,
+  dropoffTime: string,
+) => {
+  const pickupDateTime = new Date(pickupDate);
+  const [pickupHours, pickupMinutes] = pickupTime.split(":").map(Number);
+  pickupDateTime.setHours(pickupHours, pickupMinutes, 0, 0);
+
+  const dropoffDateTime = new Date(dropoffDate);
+  const [dropoffHours, dropoffMinutes] = dropoffTime.split(":").map(Number);
+  dropoffDateTime.setHours(dropoffHours, dropoffMinutes, 0, 0);
+
+  const diff = dropoffDateTime.getTime() - pickupDateTime.getTime();
+
+  if (diff <= 0) {
+    return { totalHours: 0, duration: "0 days 0 hours" };
+  }
+
+  const totalHours = diff / (1000 * 60 * 60);
+  const days = Math.floor(totalHours / 24);
+  const hours = Math.ceil(totalHours % 24);
+
+  return {
+    totalHours,
+    duration: `${days} days ${hours} hours`,
+  };
+};
+
+const applyDiscountsAndCalculateTotals = (cart: any) => {
+  if (!cart || !cart.coupon) {
+    cart.items.forEach((item: ICartItem) => {
+      item.discountedRentAmount = item.rentAmount;
+    });
+    cart.rentTotal = cart.items.reduce(
+      (sum: number, item: ICartItem) => sum + item.rentAmount,
+      0,
+    );
+    cart.totalTax = cart.items.reduce(
+      (sum: number, item: ICartItem) => sum + item.totalTax,
+      0,
+    );
+    cart.discountedRentTotal = cart.rentTotal + cart.totalTax;
+    cart.discountedTotal =
+      cart.rentTotal + cart.totalTax + cart.securityDepositTotal;
+    return cart;
+  }
+
+  const { items, coupon } = cart;
+  const totalOriginalRent = items.reduce(
+    (sum: number, item: ICartItem) => sum + item.rentAmount,
+    0,
+  );
+
+  if (coupon.type === PromoCodeTypeEnum.PERCENTAGE) {
+    items.forEach((item: ICartItem) => {
+      const discount = item.rentAmount * (coupon.discountValue / 100);
+      item.discountedRentAmount = item.rentAmount - discount;
+      // Recalculate tax based on the discounted rent
+      item.totalTax = item.discountedRentAmount * (item.taxPercentage / 100);
+    });
+  } else if (coupon.type === PromoCodeTypeEnum.FLAT) {
+    let remainingDiscount = coupon.discountValue;
+    let remainingRent = totalOriginalRent;
+
+    items.forEach((item: ICartItem) => {
+      // Distribute discount proportionally
+      const proportion = item.rentAmount / remainingRent;
+      let discountForItem = remainingDiscount * proportion;
+
+      // Cap discount at the item's rent amount
+      if (discountForItem > item.rentAmount) {
+        discountForItem = item.rentAmount;
+      }
+
+      item.discountedRentAmount = item.rentAmount - discountForItem;
+      item.totalTax = item.discountedRentAmount * (item.taxPercentage / 100);
+
+      remainingDiscount -= discountForItem;
+      remainingRent -= item.rentAmount;
+    });
+
+    // Redistribute any leftover discount (if capping occurred)
+    if (remainingDiscount > 0) {
+      for (const item of items) {
+        if (remainingDiscount <= 0) break;
+        const availableDiscount = item.discountedRentAmount; // Can't discount below 0
+        const discountToApply = Math.min(remainingDiscount, availableDiscount);
+
+        item.discountedRentAmount -= discountToApply;
+        item.totalTax = item.discountedRentAmount * (item.taxPercentage / 100);
+        remainingDiscount -= discountToApply;
+      }
+    }
+  }
+
+  // Sum up the final totals from the modified items
+  cart.rentTotal = totalOriginalRent; // This remains the original total rent
+  const finalDiscountedRent = items.reduce(
+    (sum: number, item: ICartItem) => sum + item.discountedRentAmount,
+    0,
+  );
+  cart.totalTax = items.reduce(
+    (sum: number, item: ICartItem) => sum + item.totalTax,
+    0,
+  );
+  cart.discountedRentTotal = finalDiscountedRent + cart.totalTax;
+  cart.discountedTotal =
+    finalDiscountedRent + cart.totalTax + cart.securityDepositTotal;
+
+  return cart;
+};
 
 export const getCart = async (customerId: string) => {
   const cartAggregation = await Cart.aggregate([
-    // 1) Only this customer's cart
-    {
-      $match: {
-        customerId: new mongoose.Types.ObjectId(customerId),
-      },
-    },
-
-    // 2) Unwind items array so we can look up each motorcycle
-    { $unwind: "$items" },
-
-    // 3) Lookup the motorcycle document for each item
+    { $match: { customerId: new mongoose.Types.ObjectId(customerId) } },
+    { $unwind: { path: "$items", preserveNullAndEmptyArrays: true } },
     {
       $lookup: {
         from: "motorcycles",
-        let: { mid: "$items.motorcycleId" },
-        pipeline: [{ $match: { $expr: { $eq: ["$_id", "$$mid"] } } }],
-        as: "motorcycle",
+        localField: "items.motorcycleId",
+        foreignField: "_id",
+        as: "items.motorcycle",
       },
     },
-    // Simplify motorcycle array → single object
     {
       $addFields: {
-        "items.motorcycle": { $arrayElemAt: ["$motorcycle", 0] },
+        "items.motorcycle": { $arrayElemAt: ["$items.motorcycle", 0] },
       },
     },
-    // 4) Compute totalDays for each item
-    {
-      $addFields: {
-        "items.totalDays": {
-          $sum: [
-            {
-              $dateDiff: {
-                startDate: "$items.pickupDate",
-                endDate: "$items.dropoffDate",
-                unit: "day",
-              },
-            },
-            1,
-          ],
-        },
-      },
-    },
-
-    // 5) Group back to a single cart document, re‑assembling items[]
-    {
-      $group: {
-        _id: "$_id",
-        customerId: { $first: "$customerId" },
-        couponId: { $first: "$couponId" },
-        items: { $push: "$items" },
-      },
-    },
-
-    // 6) Optionally, lookup and attach full coupon data
     {
       $lookup: {
         from: "promocodes",
@@ -71,99 +150,52 @@ export const getCart = async (customerId: string) => {
         as: "coupon",
       },
     },
+    { $addFields: { coupon: { $arrayElemAt: ["$coupon", 0] } } },
     {
-      $addFields: {
-        coupon: { $arrayElemAt: ["$coupon", 0] },
-      },
-    },
-
-    // 7) Calculate cartTotal = sum(items.*)
-
-    {
-      $addFields: {
-        rentTotal: {
-          $sum: {
-            $map: {
-              input: "$items",
-              as: "it",
-              in: {
-                $multiply: [
-                  "$$it.motorcycle.rentPerDay",
-                  "$$it.quantity",
-                  "$$it.totalDays",
-                ],
-              },
-            },
-          },
-        },
+      $group: {
+        _id: "$_id",
+        customerId: { $first: "$customerId" },
+        couponId: { $first: "$couponId" },
+        coupon: { $first: "$coupon" },
+        items: { $push: "$items" },
         securityDepositTotal: {
           $sum: {
-            $map: {
-              input: "$items",
-              as: "it",
-              in: {
-                $multiply: ["$$it.motorcycle.securityDeposit", "$$it.quantity"],
-              },
-            },
+            $multiply: ["$items.motorcycle.securityDeposit", "$items.quantity"],
           },
         },
-      },
-    },
-
-    {
-      $addFields: {
-        cartTotal: {
-          $sum: ["$rentTotal", "$securityDepositTotal"],
-        },
-      },
-    },
-
-    // 8) Final projection
-    {
-      $project: {
-        _id: 1,
-        customerId: 1,
-        couponId: 1,
-        coupon: 1,
-        items: 1,
-        rentTotal: 1,
-        securityDepositTotal: 1,
-        cartTotal: 1,
       },
     },
   ]);
 
-  if (!cartAggregation.length) {
+  if (!cartAggregation.length || !cartAggregation[0]._id) {
     return {
       _id: null,
       items: [],
+      rentTotal: 0,
+      securityDepositTotal: 0,
+      totalTax: 0,
       cartTotal: 0,
       discountedTotal: 0,
     };
   }
 
-  const ct = cartAggregation[0];
-
-  if (!ct.couponId) {
-    ct.discountedTotal = ct.cartTotal;
-  } else {
-    if (ct.coupon.type === "FLAT") {
-      ct.discountedTotal =
-        ct.securityDepositTotal + ct.rentTotal - ct.coupon.discountValue;
-    } else {
-      ct.discountedTotal =
-        ct.securityDepositTotal +
-        ct.rentTotal -
-        ct.rentTotal * (ct.coupon.discountValue / 100);
-    }
+  // If cart is empty, items array will contain one empty object, filter it out
+  if (
+    cartAggregation[0].items.length === 1 &&
+    !cartAggregation[0].items[0].motorcycleId
+  ) {
+    cartAggregation[0].items = [];
   }
+  // Apply discount logic in code
+  const calculatedCart = applyDiscountsAndCalculateTotals(cartAggregation[0]);
 
-  await Cart.updateOne(
-    { _id: ct._id },
-    { $set: { discountedTotal: ct.discountedTotal } },
-  );
+  // Final calculation for cartTotal (pre-discount)
+  calculatedCart.cartTotal =
+    calculatedCart.rentTotal +
+    calculatedCart.totalTax +
+    calculatedCart.securityDepositTotal;
 
-  return ct;
+  return calculatedCart;
 };
 
 const getUserCart = asyncHandler(async (req: CustomRequest, res: Response) => {
@@ -184,9 +216,14 @@ const addOrUpdateMotorcycleToCart = asyncHandler(
       dropoffTime,
       pickupLocation,
       dropoffLocation,
-    }: ICartItem = req.body;
-
-    const cart = await Cart.findOne({ customerId: req.user._id });
+    }: Omit<
+      ICartItem,
+      | "duration"
+      | "taxPercentage"
+      | "totalTax"
+      | "rentAmount"
+      | "discountedRentAmount"
+    > = req.body;
 
     const { motorcycleId } = req.params;
 
@@ -210,57 +247,74 @@ const addOrUpdateMotorcycleToCart = asyncHandler(
       );
     }
 
+    const { totalHours, duration } = getBookingPeriod(
+      new Date(pickupDate),
+      pickupTime,
+      new Date(dropoffDate),
+      dropoffTime,
+    );
+
+    if (totalHours <= 0) {
+      throw new ApiError(400, "Drop-off must be after pickup.");
+    }
+
+    const fullDays = Math.floor(totalHours / 24);
+    const extraHours = totalHours % 24;
+
+    let calculatedRent = fullDays * motorcycle.rentPerDay;
+
+    if (extraHours > 0 && extraHours <= 4) {
+      calculatedRent += 0.1 * motorcycle.rentPerDay;
+    } else if (extraHours > 4) {
+      calculatedRent += motorcycle.rentPerDay;
+    }
+
+    const rentAmount = calculatedRent * quantity;
+    const taxPercentage = motorcycle.categories.includes(
+      MotorcycleCategoryEnum.ELECTRIC,
+    )
+      ? parseFloat(process.env.GST_ON_ELECTRIC!)
+      : parseFloat(process.env.GST_ON_NON_ELECTRIC!);
+    const totalTax = rentAmount * (taxPercentage / 100);
+
+    const cartItemPayload: ICartItem = {
+      motorcycleId: new mongoose.Types.ObjectId(motorcycleId),
+      quantity,
+      pickupDate: new Date(pickupDate),
+      dropoffDate: new Date(dropoffDate),
+      pickupTime,
+      dropoffTime,
+      pickupLocation,
+      dropoffLocation,
+      duration,
+      totalHours,
+      rentAmount,
+      taxPercentage,
+      totalTax,
+      discountedRentAmount: rentAmount,
+    };
+
+    const cart = await Cart.findOne({ customerId: req.user._id });
+
     if (!cart) {
       await Cart.create({
         customerId: req.user._id,
-        items: [
-          {
-            motorcycleId,
-            quantity,
-            pickupDate,
-            dropoffDate,
-            pickupTime,
-            dropoffTime,
-            pickupLocation,
-            dropoffLocation,
-          },
-        ],
+        items: [cartItemPayload],
       });
-
-      const cart = await getCart(req.user._id as string);
-
-      return res
-        .status(200)
-        .json(new ApiResponse(200, true, "Cart created successfully", cart));
-    }
-
-    const exisitngMotorcycle = cart.items?.find(
-      (item) => item.motorcycleId.toString() === motorcycleId.toString(),
-    );
-
-    if (exisitngMotorcycle) {
-      exisitngMotorcycle.quantity = Number(quantity);
-      if (pickupDate) exisitngMotorcycle.pickupDate = pickupDate;
-      if (dropoffDate) exisitngMotorcycle.dropoffDate = dropoffDate;
-      if (pickupTime) exisitngMotorcycle.pickupTime = pickupTime;
-      if (dropoffTime) exisitngMotorcycle.dropoffTime = dropoffTime;
-      if (pickupLocation) exisitngMotorcycle.pickupLocation = pickupLocation;
-      if (dropoffLocation) exisitngMotorcycle.dropoffLocation = dropoffLocation;
-      if (cart.couponId) cart.couponId = null;
     } else {
-      cart.items.push({
-        motorcycleId: new mongoose.Types.ObjectId(motorcycleId),
-        quantity,
-        pickupDate,
-        dropoffDate,
-        pickupTime,
-        dropoffTime,
-        pickupLocation,
-        dropoffLocation,
-      });
-    }
+      const existingItemIndex = cart.items.findIndex(
+        (item) => item.motorcycleId.toString() === motorcycleId.toString(),
+      );
 
-    await cart.save({ validateBeforeSave: false });
+      if (existingItemIndex > -1) {
+        cart.items[existingItemIndex] = cartItemPayload;
+      } else {
+        cart.items.push(cartItemPayload);
+      }
+
+      if (cart.couponId) cart.couponId = null;
+      await cart.save({ validateBeforeSave: false });
+    }
 
     const finalCart = await getCart(req.user._id as string);
 
@@ -282,7 +336,7 @@ const removeMotorcycleFromCart = asyncHandler(
 
     const updatedCart = await Cart.findOneAndUpdate(
       { customerId: req.user._id },
-      { $pull: { items: { motorcycleId: motorcycleId } } },
+      { $pull: { items: { motorcycleId } } },
       { new: true },
     );
 
@@ -294,11 +348,11 @@ const removeMotorcycleFromCart = asyncHandler(
 
     if (
       finalCart &&
+      finalCart.coupon &&
       finalCart?.cartTotal < finalCart?.coupon?.minimumCartValue
     ) {
       updatedCart.couponId = null;
       await updatedCart.save({ validateBeforeSave: false });
-      // fetch the latest updated cart
       finalCart = await getCart(req.user._id as string);
     }
 

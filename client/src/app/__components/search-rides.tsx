@@ -1,5 +1,6 @@
 "use client";
-import React from "react";
+
+import React, { useState, useEffect } from "react";
 import {
   Select,
   SelectTrigger,
@@ -20,27 +21,50 @@ import {
   PopoverTrigger,
   PopoverContent,
 } from "@/components/ui/popover";
-import { PopoverClose } from "@radix-ui/react-popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Calendar } from "@/components/ui/calendar";
 import { useForm } from "react-hook-form";
-import { format } from "date-fns";
-import { useState } from "react";
+import { format, isSameDay } from "date-fns";
 import { MapPinIcon, CalendarIcon, ClockIcon, SearchIcon } from "lucide-react";
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
 import { useCartStore } from "@/store/cart-store";
 import { useRouter } from "next/navigation";
 import { SearchRidesFormData, searchRidesSchema } from "@/schemas";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMotorcycleStore } from "@/store/motorcycle-store";
+import TimePickerPopover from "./select-time";
+
+const getInitialTimes = () => {
+  const now = new Date();
+  let pickupDate = new Date();
+  pickupDate.setHours(0, 0, 0, 0);
+  let pickupHour = now.getHours() + 1;
+
+  if (pickupHour >= 22) {
+    pickupHour = 9;
+    pickupDate.setDate(pickupDate.getDate() + 1);
+  }
+
+  if (pickupHour < 9) {
+    pickupHour = 9;
+  }
+  const pickupTime = `${String(pickupHour).padStart(2, "0")}:00`;
+
+  let dropoffHour = pickupHour + 4;
+  if (dropoffHour > 22) {
+    dropoffHour = 22;
+  }
+  const dropoffTime = `${String(dropoffHour).padStart(2, "0")}:00`;
+
+  return {
+    pickupDate,
+    dropoffDate: new Date(pickupDate),
+    pickupTime,
+    dropoffTime,
+  };
+};
 
 function SearchRides() {
-  const HOURS = Array.from({ length: 12 }, (_, i) => i + 1);
-  const MINUTES = ["00", "15", "30", "45"];
-  const PERIODS = ["AM", "PM"];
-
   const {
     setPickupDate,
     setDropoffDate,
@@ -53,22 +77,46 @@ function SearchRides() {
 
   const [pickupDateOpen, setPickupDateOpen] = useState(false);
   const [dropoffDateOpen, setDropoffDateOpen] = useState(false);
+  const [pickupTimeOpen, setPickupTimeOpen] = useState(false);
+  const [dropoffTimeOpen, setDropoffTimeOpen] = useState(false);
 
   const form = useForm<SearchRidesFormData>({
     resolver: zodResolver(searchRidesSchema),
     defaultValues: {
-      pickupDate: new Date(),
-      dropoffDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      pickupTime: "9:00 AM",
-      dropoffTime: "6:00 PM",
       pickupLocation: pickupLocation || "",
-      dropoffLocation: pickupLocation,
+      ...getInitialTimes(),
     },
   });
 
+  const watchedPickupDate = form.watch("pickupDate");
+  const watchedDropoffDate = form.watch("dropoffDate");
+  const watchedPickupTime = form.watch("pickupTime");
+
+  useEffect(() => {
+    if (
+      watchedPickupDate &&
+      watchedDropoffDate &&
+      isSameDay(watchedPickupDate, watchedDropoffDate) &&
+      watchedPickupTime
+    ) {
+      const [pickupHour] = watchedPickupTime.split(":").map(Number);
+      const [dropoffHour] = form
+        .getValues("dropoffTime")!
+        .split(":")
+        .map(Number);
+
+      if (dropoffHour < pickupHour + 4) {
+        // let newDropoffHour = pickupHour + 4;
+        // if (newDropoffHour > 22) newDropoffHour = 22;
+        // const newDropoffTime = `${String(newDropoffHour).padStart(2, "0")}:00`;
+        // form.setValue("dropoffTime", newDropoffTime);
+        form.setValue("dropoffTime", "");
+      }
+    }
+  }, [watchedPickupTime, watchedPickupDate, watchedDropoffDate, form]);
+
   const { filters } = useMotorcycleStore();
   const branches = filters.distinctCities;
-
   const router = useRouter();
 
   const onSubmit = (data: SearchRidesFormData) => {
@@ -76,18 +124,17 @@ function SearchRides() {
     setDropoffDate(data.dropoffDate);
     setPickupTime(data.pickupTime);
     setDropoffTime(data.dropoffTime);
-    setPickupLocation(data?.pickupLocation || "");
-    setDropoffLocation(data?.dropoffLocation || "");
-    router.push(`/motorcycles?location=${data?.pickupLocation}`);
+    setPickupLocation(data.pickupLocation || "");
+    setDropoffLocation(data.pickupLocation || "");
+    router.push(`/motorcycles?location=${data.pickupLocation}`);
   };
 
   return (
     <div>
-      {" "}
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
           <Card className="max-w-6xl mx-auto bg-white dark:bg-[#18181B] border border-gray-200 dark:border-gray-700 shadow">
-            <CardContent className=" flex flex-col gap-4">
+            <CardContent className="p-6 flex flex-col gap-4">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-2">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   {/* Pickup Location */}
@@ -101,15 +148,17 @@ function SearchRides() {
                           Pick Up Location
                         </FormLabel>
                         <Select
-                          {...field}
                           onValueChange={(value) => {
-                            field.onChange(value);
-                            form.setValue("dropoffLocation", value);
+                            field.onChange(value); // Update this field's value
+                            form.setValue("dropoffLocation", value); // Also update the dropoff location
                           }}
+                          value={field.value}
                         >
-                          <SelectTrigger className="w-full bg-white text-muted-foreground border-yellow-primary/30 focus:border-yellow-primary focus:ring-yellow-primary/20">
-                            <SelectValue placeholder="Select Pickup location" />
-                          </SelectTrigger>
+                          <FormControl>
+                            <SelectTrigger className="w-full bg-white text-muted-foreground border-yellow-primary/30 focus:border-yellow-primary focus:ring-yellow-primary/20">
+                              <SelectValue placeholder="Select Pickup location" />
+                            </SelectTrigger>
+                          </FormControl>
                           <SelectContent>
                             {branches.map((loc) => (
                               <SelectItem key={loc} value={loc}>
@@ -122,7 +171,6 @@ function SearchRides() {
                       </FormItem>
                     )}
                   />
-
                   {/* Pickup Date */}
                   <FormField
                     name="pickupDate"
@@ -145,13 +193,12 @@ function SearchRides() {
                                   !field.value && "text-muted-foreground"
                                 }`}
                               >
-                                {field.value ? (
-                                  format(new Date(field.value), "MMM dd, yyyy")
-                                ) : (
-                                  <>
-                                    <CalendarIcon /> {"Select date"}
-                                  </>
-                                )}
+                                {field.value
+                                  ? format(
+                                      new Date(field.value),
+                                      "MMM dd, yyyy"
+                                    )
+                                  : "Select date"}
                               </Button>
                             </FormControl>
                           </PopoverTrigger>
@@ -161,149 +208,45 @@ function SearchRides() {
                               selected={field.value}
                               onSelect={(date) => {
                                 field.onChange(date);
+                                if (
+                                  date &&
+                                  form.getValues("dropoffDate") < date
+                                ) {
+                                  form.setValue("dropoffDate", date);
+                                }
                                 setPickupDateOpen(false);
                               }}
-                              disabled={(date) => date <= new Date()}
+                              disabled={(date) =>
+                                date < new Date(new Date().setHours(0, 0, 0, 0))
+                              }
                             />
                           </PopoverContent>
                         </Popover>
                       </FormItem>
                     )}
                   />
-
                   {/* Pickup Time */}
                   <FormField
                     name="pickupTime"
                     control={form.control}
-                    render={({ field }) => {
-                      const [hour, setHour] = useState("9");
-                      const [minute, setMinute] = useState("00");
-                      const [period, setPeriod] = useState("AM");
-                      const canSet = hour && minute && period;
-                      const handleSet = () => {
-                        if (!canSet) return;
-                        if (
-                          (Number(hour) > 10 && period === "PM") ||
-                          (Number(hour) < 9 && period === "AM")
-                        ) {
-                          toast.error(
-                            "Our Business hours are between 9:00 AM to 10:00 PM"
-                          );
-                          setHour("9");
-                          setMinute("00");
-                          setPeriod("AM");
-                          return;
-                        }
-                        field.onChange(`${hour}:${minute} ${period}`);
-                      };
-
-                      return (
-                        <FormItem className="flex flex-col space-y-2">
-                          <FormLabel className="dark:text-white">
-                            <ClockIcon className="inline h-4 w-4 mr-1 text-yellow-primary" />
-                            Pick Up Time
-                          </FormLabel>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <FormControl>
-                                <Button
-                                  variant="outline"
-                                  className={`pl-3 text-left font-normal border-yellow-primary/30 ${
-                                    !field.value && "text-muted-foreground"
-                                  }`}
-                                >
-                                  {field.value ? (
-                                    <span>{field.value}</span>
-                                  ) : (
-                                    <span>Pick a time</span>
-                                  )}
-
-                                  <ClockIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </Button>
-                              </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent
-                              className="w-auto p-0 bg-transparent"
-                              align="start"
-                            >
-                              <Card className="border-yellow-primary/30">
-                                <CardContent className="grid grid-cols-3 divide-x">
-                                  <ScrollArea className="h-40">
-                                    <div className="flex flex-col p-2 space-y-1">
-                                      {HOURS.map((h) => {
-                                        const hs = String(h);
-                                        return (
-                                          <button
-                                            key={h}
-                                            onClick={() => setHour(hs)}
-                                            className={`cursor-pointer p-1 rounded-md text-center ${
-                                              hour === hs
-                                                ? "bg-yellow-primary text-white"
-                                                : ""
-                                            }`}
-                                          >
-                                            {hs}
-                                          </button>
-                                        );
-                                      })}
-                                    </div>
-                                  </ScrollArea>
-                                  <ScrollArea className="h-40">
-                                    <div className="flex flex-col p-2 space-y-1">
-                                      {MINUTES.map((m) => (
-                                        <button
-                                          key={m}
-                                          onClick={() => setMinute(m)}
-                                          className={`cursor-pointer p-1 rounded-md ${
-                                            minute === m
-                                              ? "bg-yellow-primary text-white"
-                                              : ""
-                                          }`}
-                                        >
-                                          {m}
-                                        </button>
-                                      ))}
-                                    </div>
-                                  </ScrollArea>
-                                  <ScrollArea className="my-auto">
-                                    <div className="flex flex-col p-2 space-y-1">
-                                      {PERIODS.map((p) => (
-                                        <button
-                                          key={p}
-                                          onClick={() => setPeriod(p)}
-                                          className={`cursor-pointer p-1 rounded-md ${
-                                            period === p
-                                              ? "bg-yellow-primary text-white"
-                                              : ""
-                                          }`}
-                                        >
-                                          {p}
-                                        </button>
-                                      ))}
-                                    </div>
-                                  </ScrollArea>
-                                </CardContent>
-                                <CardFooter className="flex justify-center">
-                                  <PopoverClose asChild>
-                                    <Button
-                                      size="sm"
-                                      disabled={!canSet}
-                                      onClick={handleSet}
-                                      className="bg-yellow-primary hover:bg-yellow-600 dark:text-white"
-                                    >
-                                      Set Time
-                                    </Button>
-                                  </PopoverClose>
-                                </CardFooter>
-                              </Card>
-                            </PopoverContent>
-                          </Popover>
-                        </FormItem>
-                      );
-                    }}
+                    render={({ field }) => (
+                      <FormItem className="space-y-2">
+                        <FormLabel className="dark:text-white">
+                          <ClockIcon className="inline h-4 w-4 mr-1 text-yellow-primary" />
+                          Pick Up Time
+                        </FormLabel>
+                        <TimePickerPopover
+                          field={field}
+                          isOpen={pickupTimeOpen}
+                          setIsOpen={setPickupTimeOpen}
+                          placeholder="Select pickup time"
+                          pickupDate={watchedPickupDate}
+                        />
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
                 </div>
-
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   {/* Drop Off Location */}
                   <FormField
@@ -315,14 +258,12 @@ function SearchRides() {
                           <MapPinIcon className="inline h-4 w-4 mr-1 text-yellow-primary" />
                           Drop Off Location
                         </FormLabel>
-                        <Select
-                          {...field}
-                          onValueChange={field.onChange}
-                          disabled
-                        >
-                          <SelectTrigger className="w-full bg-white text-muted-foreground border-yellow-primary/30 focus:border-yellow-primary focus:ring-yellow-primary/20">
-                            <SelectValue placeholder="Same as Pickup location" />
-                          </SelectTrigger>
+                        <Select value={field.value} disabled>
+                          <FormControl>
+                            <SelectTrigger className="w-full bg-white text-muted-foreground border-yellow-primary/30 focus:border-yellow-primary focus:ring-yellow-primary/20">
+                              <SelectValue placeholder="Same as Pickup location" />
+                            </SelectTrigger>
+                          </FormControl>
                           <SelectContent>
                             {branches.map((loc) => (
                               <SelectItem key={loc} value={loc}>
@@ -334,7 +275,7 @@ function SearchRides() {
                       </FormItem>
                     )}
                   />
-
+                  {/* Drop Off Date */}
                   <FormField
                     name="dropoffDate"
                     control={form.control}
@@ -356,13 +297,12 @@ function SearchRides() {
                                   !field.value && "text-muted-foreground"
                                 }`}
                               >
-                                {field.value ? (
-                                  format(new Date(field.value), "MMM dd, yyyy")
-                                ) : (
-                                  <>
-                                    <CalendarIcon /> {"Select date"}
-                                  </>
-                                )}
+                                {field.value
+                                  ? format(
+                                      new Date(field.value),
+                                      "MMM dd, yyyy"
+                                    )
+                                  : "Select date"}
                               </Button>
                             </FormControl>
                           </PopoverTrigger>
@@ -374,151 +314,39 @@ function SearchRides() {
                                 field.onChange(date);
                                 setDropoffDateOpen(false);
                               }}
-                              disabled={(date) => {
-                                const start = form.watch("pickupDate");
-                                return date < (start || new Date());
-                              }}
+                              disabled={(date) => date < watchedPickupDate}
                             />
                           </PopoverContent>
                         </Popover>
                       </FormItem>
                     )}
                   />
-
                   {/* Drop Off Time */}
                   <FormField
                     name="dropoffTime"
                     control={form.control}
-                    render={({ field }) => {
-                      const [hour, setHour] = useState("6");
-                      const [minute, setMinute] = useState("00");
-                      const [period, setPeriod] = useState("PM");
-                      const canSet = hour && minute && period;
-                      const handleSet = () => {
-                        if (!canSet) return;
-                        if (
-                          (Number(hour) > 10 && period === "PM") ||
-                          (Number(hour) < 9 && period === "AM")
-                        ) {
-                          toast.error(
-                            "Our Business hours are between 9:00 AM to 10:00 PM"
-                          );
-                          setHour("6");
-                          setMinute("00");
-                          setPeriod("PM");
-                          return;
-                        }
-                        field.onChange(`${hour}:${minute} ${period}`);
-                      };
-
-                      return (
-                        <FormItem className="flex flex-col space-y-2">
-                          <FormLabel className="dark:text-white">
-                            <ClockIcon className="inline h-4 w-4 mr-1 text-yellow-primary" />
-                            Drop Off Time
-                          </FormLabel>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <FormControl>
-                                <Button
-                                  variant="outline"
-                                  className={`pl-3 text-left font-normal border-yellow-primary/30 ${
-                                    !field.value && "text-muted-foreground"
-                                  }`}
-                                >
-                                  {field.value ? (
-                                    <span>{field.value}</span>
-                                  ) : (
-                                    <span>Pick a time</span>
-                                  )}
-
-                                  <ClockIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </Button>
-                              </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent
-                              className="w-auto p-0 bg-transparent"
-                              align="start"
-                            >
-                              <Card className="border-yellow-primary/30">
-                                <CardContent className="grid grid-cols-3 divide-x">
-                                  <ScrollArea className="h-40">
-                                    <div className="flex flex-col p-2 space-y-1">
-                                      {HOURS.map((h) => {
-                                        const hs = String(h);
-                                        return (
-                                          <button
-                                            key={h}
-                                            onClick={() => setHour(hs)}
-                                            className={`cursor-pointer p-1 rounded-md text-center ${
-                                              hour === hs
-                                                ? "bg-yellow-primary text-white"
-                                                : ""
-                                            }`}
-                                          >
-                                            {hs}
-                                          </button>
-                                        );
-                                      })}
-                                    </div>
-                                  </ScrollArea>
-                                  <ScrollArea className="h-40">
-                                    <div className="flex flex-col p-2 space-y-1">
-                                      {MINUTES.map((m) => (
-                                        <button
-                                          key={m}
-                                          onClick={() => setMinute(m)}
-                                          className={`cursor-pointer p-1 rounded-md ${
-                                            minute === m
-                                              ? "bg-yellow-primary text-white"
-                                              : ""
-                                          }`}
-                                        >
-                                          {m}
-                                        </button>
-                                      ))}
-                                    </div>
-                                  </ScrollArea>
-                                  <ScrollArea className="my-auto">
-                                    <div className="flex flex-col p-2 space-y-1">
-                                      {PERIODS.map((p) => (
-                                        <button
-                                          key={p}
-                                          onClick={() => setPeriod(p)}
-                                          className={`cursor-pointer p-1 rounded-md ${
-                                            period === p
-                                              ? "bg-yellow-primary text-white"
-                                              : ""
-                                          }`}
-                                        >
-                                          {p}
-                                        </button>
-                                      ))}
-                                    </div>
-                                  </ScrollArea>
-                                </CardContent>
-                                <CardFooter className="flex justify-center">
-                                  <PopoverClose asChild>
-                                    <Button
-                                      size="sm"
-                                      disabled={!canSet}
-                                      onClick={handleSet}
-                                      className="bg-yellow-primary hover:bg-yellow-600 dark:text-white"
-                                    >
-                                      Set Time
-                                    </Button>
-                                  </PopoverClose>
-                                </CardFooter>
-                              </Card>
-                            </PopoverContent>
-                          </Popover>
-                        </FormItem>
-                      );
-                    }}
+                    render={({ field }) => (
+                      <FormItem className="space-y-2">
+                        <FormLabel className="dark:text-white">
+                          <ClockIcon className="inline h-4 w-4 mr-1 text-yellow-primary" />
+                          Drop Off Time
+                        </FormLabel>
+                        <TimePickerPopover
+                          field={field}
+                          isOpen={dropoffTimeOpen}
+                          setIsOpen={setDropoffTimeOpen}
+                          placeholder="Select dropoff time"
+                          isDropoff={true}
+                          pickupDate={watchedPickupDate}
+                          dropoffDate={watchedDropoffDate}
+                          pickupTime={watchedPickupTime}
+                        />
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
                 </div>
               </div>
-
               <div className="mt-8 text-center">
                 <Button
                   type="submit"
@@ -536,5 +364,4 @@ function SearchRides() {
     </div>
   );
 }
-
 export default SearchRides;

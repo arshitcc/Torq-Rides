@@ -28,15 +28,18 @@ const getAllMotorcycles = asyncHandler(
 
     if (make) matchState.make = make;
     if (vehicleModel) matchState.vehicleModel = vehicleModel;
+
     if (categories)
       matchState.categories = {
         $in: categories?.toString().split(","),
       };
+
     if (minPrice && maxPrice)
       matchState.rentPerDay = {
         $gte: Number(minPrice),
         $lte: Number(maxPrice),
       };
+
     if (minPrice || maxPrice) {
       matchState.rentPerDay = {};
       if (minPrice) matchState.rentPerDay.$gte = Number(minPrice);

@@ -36,6 +36,7 @@ interface MotorcycleState {
 
   // API functions
   getAllMotorcycles: (params?: any) => Promise<void>;
+  fetchMoreMotorcycles: (params?: any) => Promise<void>;
   addMotorcycle: (data: FormData) => Promise<void>;
   getMotorcycleById: (motorcycleId: string) => Promise<Motorcycle>;
   updateMotorcycleDetails: (motorcycleId: string, data: any) => Promise<void>;
@@ -72,7 +73,7 @@ export const useMotorcycleStore = create<MotorcycleState>((set, get) => ({
     categories: [],
     distinctCities: [],
     selectedCities: [],
-    selectedMake: "",
+    selectedMake: "All Makes",
     selectedCategory: "All Categories",
   },
   motorcycles: [],
@@ -103,6 +104,26 @@ export const useMotorcycleStore = create<MotorcycleState>((set, get) => ({
       set({
         loading: false,
         error: error.response?.data?.message || "Failed to fetch motorcycles",
+      });
+      throw error;
+    }
+  },
+
+  fetchMoreMotorcycles: async (params) => {
+    set({ error: null });
+    try {
+      const response = await motorcycleAPI.getAllMotorcycles(params);
+      const { data, metadata } = response.data.data;
+      set((state) => ({
+        motorcycles: [...state.motorcycles, ...(data || [])],
+        metadata: metadata?.[0],
+        loading: false,
+      }));
+    } catch (error: AxiosError | any) {
+      set({
+        loading: false,
+        error:
+          error.response?.data?.message || "Failed to fetch more motorcycles",
       });
       throw error;
     }

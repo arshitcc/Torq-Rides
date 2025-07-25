@@ -9,11 +9,11 @@ export const MotorcycleStatusEnum = {
 
 export const MotorcycleCategoryEnum = {
   TOURING: "TOURING",
-  SPORTS: "SPORTS",
   CRUISER: "CRUISER",
   ADVENTURE: "ADVENTURE",
   SCOOTER: "SCOOTER",
   SUPERBIKE: "SUPERBIKE",
+  ELECTRIC: "ELECTRIC",
 } as const;
 
 export const AvailableInCitiesEnum = {

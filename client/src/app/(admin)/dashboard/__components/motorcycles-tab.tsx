@@ -24,16 +24,8 @@ import {
   PaginationPrevious,
 } from "@/components/ui/pagination";
 import { Label } from "@/components/ui/label";
-import {
-  AvailableInCities,
-  Motorcycle,
-  MotorcycleCategory,
-  MotorcycleMake,
-} from "@/types";
-import {
-  SearchIcon,
-  PlusIcon,
-} from "lucide-react";
+import { Motorcycle, MotorcycleCategory } from "@/types";
+import { SearchIcon, PlusIcon } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import MotorcyclesTableRow from "./motorcycles/motorcycles-table-row";
@@ -49,14 +41,14 @@ interface MotorcyclesTabProps {
   totalMotorcyclesPages: number;
   searchTerm: string;
   setSearchTerm: (term: string) => void;
-  selectedMake: MotorcycleMake | "All Makes";
-  setSelectedMake: (make: MotorcycleMake | "All Makes") => void;
+  selectedMake: string | "All Makes";
+  setSelectedMake: (make: string | "All Makes") => void;
   selectedCategory: MotorcycleCategory | "All Categories";
   setSelectedCategory: (
     category: MotorcycleCategory | "All Categories"
   ) => void;
-  branch: AvailableInCities | "All Branches";
-  setBranch: (branch: AvailableInCities | "All Branches") => void;
+  branch: string | "All Branches";
+  setBranch: (branch: string | "All Branches") => void;
   filters: any;
 }
 
@@ -123,9 +115,7 @@ export default function MotorcyclesTab({
             </Label>
             <Select
               value={selectedMake}
-              onValueChange={(value) =>
-                setSelectedMake(value as MotorcycleMake | "All Makes")
-              }
+              onValueChange={(value) => setSelectedMake(value)}
             >
               <SelectTrigger
                 id="make-select"
@@ -148,12 +138,7 @@ export default function MotorcyclesTab({
             <Label className="block text-sm font-medium text-gray-700 mb-1">
               Branch
             </Label>
-            <Select
-              value={branch}
-              onValueChange={(value) =>
-                setBranch(value as AvailableInCities | "All Branches")
-              }
-            >
+            <Select value={branch} onValueChange={setBranch}>
               <SelectTrigger
                 id="branch-select"
                 className="dark:text-white w-full"

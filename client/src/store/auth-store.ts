@@ -131,6 +131,7 @@ export const useAuthStore = create<AuthState>()(
         set({ loading: true, error: null });
         try {
           await authAPI.logout();
+          window.localStorage.clear();
           set({ user: null, isAuthenticated: false });
         } catch (error: AxiosError | any) {
           set({ error: error.response?.data?.message || "Logout failed" });

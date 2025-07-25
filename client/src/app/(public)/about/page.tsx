@@ -50,23 +50,16 @@ const values = [
 
 const team = [
   {
-    name: "Rajesh Kumar",
+    name: "Mishu Ahluwalia",
     role: "Founder & CEO",
-    image: "/placeholder.svg?height=200&width=200",
-    description: "Passionate rider with 15+ years in the automotive industry",
+    image: "/home/team/mishu.jpeg",
+    description: "Passionate Biker & Serial Entrepreneur with more than 25 years of experience",
   },
   {
-    name: "Priya Sharma",
-    role: "Operations Manager",
-    image: "/placeholder.svg?height=200&width=200",
-    description: "Expert in fleet management and customer service excellence",
-  },
-  {
-    name: "Arjun Patel",
-    role: "Technical Head",
-    image: "/placeholder.svg?height=200&width=200",
-    description:
-      "Motorcycle enthusiast ensuring all bikes are in perfect condition",
+    name: "Rishi Kochhar",
+    role: "Co-Founder & COO",
+    image: "/home/team/rishi.jpeg",
+    description: "Passionate Biker & Dealer Principal for Suzuki Motorcycles, 15+ years of experience",
   },
 ];
 
@@ -121,7 +114,7 @@ export default function AboutPage() {
       </section>
 
       {/* Our Values */}
-      <section className="py-16 bg-[#121212]">
+      <section className="py-16 bg-white dark:bg-[#121212]">
         <div className="container mx-auto px-4">
           <div className="text-center mb-12">
             <h2 className="text-4xl font-bold mb-4">Our Values</h2>
@@ -156,16 +149,16 @@ export default function AboutPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
             {team.map((member, index) => (
               <Card key={index} className="text-center">
                 <CardContent className="pt-6">
-                  <div className="relative w-32 h-32 mx-auto mb-4">
+                  <div className="relative w-70 h-100 mx-auto mb-4">
                     <Image
                       src={member.image || "/placeholder.svg"}
                       alt={member.name}
                       fill
-                      className="object-cover rounded-full"
+                      className="object-fit rounded-xl"
                     />
                   </div>
                   <h3 className="text-xl font-semibold mb-1">{member.name}</h3>
@@ -179,7 +172,7 @@ export default function AboutPage() {
       </section>
 
       {/* Statistics */}
-      <section className="py-16 bg-[#18181B] text-white">
+      <section className="py-16 bg-white dark:bg-[#18181B]">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-center">
             <div>

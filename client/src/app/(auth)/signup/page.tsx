@@ -22,23 +22,27 @@ import {
 import { toast } from "sonner";
 import { signupSchema, type SignupFormData } from "@/schemas/users.schema";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
 import { AxiosError } from "axios";
 import { Loader2Icon } from "lucide-react";
 import { useEffect } from "react";
 
 export default function SignupPage() {
-  const { register, loading, isAuthenticated } = useAuthStore();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get("redirectUrl");
+  const { register, loading, isAuthenticated, setError, error } =
+    useAuthStore();
   const router = useRouter();
 
   useEffect(() => {
+    setError(null);
     if (isAuthenticated) {
-      router.push("/");
+      router.push(redirectUrl || "/");
     }
 
     window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, redirectUrl, router, setError]);
 
   const form = useForm<SignupFormData>({
     resolver: zodResolver(signupSchema),
@@ -51,10 +55,11 @@ export default function SignupPage() {
   });
 
   const onSubmit = async (data: SignupFormData) => {
+    setError(null);
     try {
       await register(data);
       toast.success("Account created successfully!");
-      router.push("/login");
+      router.push(redirectUrl ? `/login?redirectUrl=${redirectUrl}` : "/login");
     } catch (error: AxiosError | any) {
       toast.error("Error", {
         description:
@@ -74,6 +79,11 @@ export default function SignupPage() {
         <CardContent>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              {error && (
+                <p className="text-red-500 bg-red-100 rounded-lg p-4 text-md">
+                  {error}
+                </p>
+              )}
               <FormField
                 control={form.control}
                 name="email"
@@ -148,7 +158,9 @@ export default function SignupPage() {
             <p className="text-sm text-gray-600">
               Already have an account?{" "}
               <Link
-                href="/login"
+                href={
+                  redirectUrl ? `/login?redirectUrl=${redirectUrl}` : "/login"
+                }
                 className="text-primary hover:underline hover:text-yellow-700"
               >
                 Login

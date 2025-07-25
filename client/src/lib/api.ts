@@ -113,7 +113,7 @@ export const bookingAPI = {
   modifyBooking: (bookingId: string, data: any) =>
     api.put(`/bookings/${bookingId}`, data),
 
-  cancelBooking: (bookingId: string) => api.delete(`/bookings/${bookingId}`),
+  cancelBooking: (bookingId: string, cancellationReason: string) => api.delete(`/bookings/${bookingId}`, { data: { cancellationReason } }),
 
   addBookingByAdmin: (data: AddBookingFormData) => api.post("/bookings", data),
 

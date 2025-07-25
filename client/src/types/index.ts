@@ -73,10 +73,11 @@ export const MotorcycleStatusEnum = {
 
 export const MotorcycleCategoryEnum = {
   TOURING: "TOURING",
-  SPORTS: "SPORTS",
+  SUPERBIKE: "SUPERBIKE",
   CRUISER: "CRUISER",
   ADVENTURE: "ADVENTURE",
   SCOOTER: "SCOOTER",
+  ELECTRIC: "ELECTRIC",
 } as const;
 
 export const BookingStatusEnum = {
@@ -84,56 +85,31 @@ export const BookingStatusEnum = {
   RESERVED: "RESERVED",
   CONFIRMED: "CONFIRMED",
   STARTED: "STARTED",
+  CANCELLATION_REQUESTED: "CANCELLATION REQUESTED",
   CANCELLED: "CANCELLED",
   COMPLETED: "COMPLETED",
 } as const;
 
 export const PaymentStatusEnum = {
-  PARTIAL: "PARTIAL-PAID",
+  PARTIAL_PAID: "PARTIAL-PAID",
   FULLY_PAID: "FULLY-PAID",
   UNPAID: "UNPAID",
   REFUND_INITIATED: "REFUND-INITIATED",
+  REFUND_IN_PROGRESS: "REFUND-IN-PROGRESS",
   FULLY_REFUNDED: "REFUNDED",
-} as const;
-
-export const AvailableInCitiesEnum = {
-  JANAKPURI: "JANAKPURI",
-  GURUGRAM_MGROAD: "GURUGRAM-MGROAD",
-  GURUGRAM_FARIDABAD: "GURUGRAM-FARIDABAD",
-  DELHI: "DELHI",
-  NOIDA: "NOIDA",
-  NEW_DELHI: "NEW DELHI",
-} as const;
-
-export const AvailableMotorcycleMakesEnum = {
-  ROYAL_ENFIELD: "Royal Enfield",
-  KTM: "KTM",
-  BMW: "BMW",
-  YAMAHA: "Yamaha",
-  HONDA: "Honda",
-  SUZUKI: "Suzuki",
-  KAWASAKI: "Kawasaki",
-  TVS: "TVS",
-  HERO: "Hero",
 } as const;
 
 export const AvailableMotorcycleStatus = Object.values(MotorcycleStatusEnum);
 export const AvailableMotorcycleCategories = Object.values(
   MotorcycleCategoryEnum
 );
-export const AvailableMotorcycleMakes = Object.values(
-  AvailableMotorcycleMakesEnum
-);
 export const AvailableBookingStatus = Object.values(BookingStatusEnum);
 export const AvailablePaymentStatus = Object.values(PaymentStatusEnum);
-export const AvailableInCities = Object.values(AvailableInCitiesEnum);
 
 export type MotorcycleStatus = (typeof AvailableMotorcycleStatus)[number];
 export type MotorcycleCategory = (typeof AvailableMotorcycleCategories)[number];
-export type MotorcycleMake = (typeof AvailableMotorcycleMakes)[number];
 export type BookingStatus = (typeof AvailableBookingStatus)[number];
 export type PaymentStatus = (typeof AvailablePaymentStatus)[number];
-export type AvailableInCities = (typeof AvailableInCities)[number];
 
 export type Motorcycle = {
   _id: string;
@@ -142,7 +118,7 @@ export type Motorcycle = {
   rentPerDay: number;
   description: string;
   categories: MotorcycleCategory[];
-  availableInCities: { branch: AvailableInCities; quantity: number }[];
+  availableInCities: { branch: string; quantity: number }[];
   specs: {
     engine: number;
     power: number;
@@ -160,8 +136,12 @@ export type Motorcycle = {
   updatedAt: Date;
 };
 
-export type CustomerMotorcycle = Omit<Motorcycle, "registrationNumber">;
-export type AdminMotorcycle = Motorcycle;
+export interface PaymentTransaction {
+  paymentId: string;
+  amount: number;
+  provider: PaymentProviders;
+  status: string;
+}
 
 export type Booking = {
   _id: string;
@@ -174,16 +154,18 @@ export type Booking = {
   discountedTotal: number;
   paidAmount: number;
   remainingAmount: number;
-  location: AvailableInCities;
+  totalTax: number;
   customer: User;
-  isAvailable: boolean;
   items: CartItem[];
   paymentProvider: PaymentProviders;
-  paymentId: string;
+  payments: PaymentTransaction[];
   paymentStatus: PaymentStatus;
   couponId: string;
   cancellationCharge: number;
   cancellationReason: string;
+  cancelledBy: {
+    role: UserRoles;
+  };
   refundAmount: number;
   coupon?: PromoCode;
   createdAt: Date;
@@ -227,6 +209,12 @@ export type CartItem = {
   pickupLocation: string;
   dropoffLocation: string;
   motorcycle: Motorcycle;
+  duration: string;
+  taxPercentage: number;
+  totalTax: number;
+  totalHours: number;
+  rentAmount: number;
+  discountedRentAmount: number;
 };
 
 export type Cart = {
@@ -235,10 +223,12 @@ export type Cart = {
   items: CartItem[];
   couponId: string;
   coupon: PromoCode;
-  rentTotal: number;
   securityDepositTotal: number;
-  cartTotal: number;
+  rentTotal: number;
+  totalTax: number;
+  discountedRentTotal: number;
   discountedTotal: number;
+  cartTotal: number;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -247,7 +237,7 @@ export type MotorcycleLog = {
   _id: string;
   motorcycleId: string;
   registrationNumber: string;
-  branch: AvailableInCities;
+  branch: string;
   dateIn: Date;
   serviceCentreName: string;
   thingsToDo: {
