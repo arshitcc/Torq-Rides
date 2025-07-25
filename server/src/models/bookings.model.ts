@@ -127,7 +127,6 @@ const bookingSchema = new mongoose.Schema<IBooking>(
       role: {
         type: String,
         enum: AvailableUserRoles,
-        required: true,
       },
     },
     refundAmount: {
