@@ -5,12 +5,7 @@ import { useParams, usePathname, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   Form,
@@ -225,9 +220,13 @@ export default function MotorcycleDetailPage() {
                   className="object-fit transform transition-transform duration-500 group-hover:scale-110"
                 />
                 <div className="absolute top-4 right-4 space-x-3">
-                  <Badge>{motorcycle?.categories[0]}</Badge>
+                  <Badge className="text-xs bg-yellow-500 text-white">
+                    {motorcycle?.categories[0]}
+                  </Badge>
                   {motorcycle && motorcycle?.categories?.length > 1 && (
-                    <Badge>{motorcycle?.categories[1]}</Badge>
+                    <Badge className="text-xs bg-yellow-500 text-white">
+                      {motorcycle?.categories[1]}
+                    </Badge>
                   )}
                 </div>
               </div>
@@ -273,7 +272,9 @@ export default function MotorcycleDetailPage() {
                 </div>
                 <div className="flex flex-col sm:grid grid-cols-3 gap-4 text-sm dark:text-white">
                   <div className="bg-gray-100 dark:bg-[#18181B] border-2 p-4 rounded-xl flex flex-row md:flex-col justify-between text-center">
-                    <div className="dark:text-white">Deposit</div>
+                    <div className="dark:text-white text-muted-foreground">
+                      Deposit
+                    </div>
                     <div className="font-medium">
                       ₹ {motorcycle?.securityDeposit}
                     </div>

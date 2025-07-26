@@ -55,6 +55,11 @@ import {
 } from "@/components/ui/dialog";
 import { sortTypes } from "@/data";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  FiltersSkeleton,
+  LocationsSkeleton,
+  SortBySkeleton,
+} from "./__components/filters-skeleton";
 
 export default function MotorcyclesPage() {
   const {
@@ -224,7 +229,7 @@ export default function MotorcyclesPage() {
           />
         </div>
 
-        <div className="flex justify-between gap-5 md:hidden py-1">
+        <div className="flex justify-between gap-5 md:hidden p-2">
           <div className="w-1/2">
             <Dialog open={sortDialogOpen} onOpenChange={setSortDialogOpen}>
               <DialogTrigger asChild>
@@ -271,10 +276,217 @@ export default function MotorcyclesPage() {
                   Filters
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-md space-y-4">
+              <DialogContent className="max-w-sm max-h-100 overflow-y-auto space-y-4">
                 <DialogHeader>
                   <DialogTitle>Filter Motorcycles</DialogTitle>
                 </DialogHeader>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label
+                      htmlFor="min-price"
+                      className="block text-sm font-medium text-gray-400 mb-1"
+                    >
+                      Min Price
+                    </Label>
+                    <Input
+                      id="min-price"
+                      min={0}
+                      placeholder="e.g., 500"
+                      className="dark:text-white"
+                      value={minPrice > 0 ? minPrice : ""}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        if (!isNaN(val) && val >= 0) setMinPrice(val);
+                        else setMinPrice(0); // Reset or handle invalid input
+                      }}
+                    />
+                  </div>
+                  {/* Max Price */}
+                  <div>
+                    <Label
+                      htmlFor="max-price"
+                      className="block text-sm font-medium text-gray-400 mb-1"
+                    >
+                      Max Price
+                    </Label>
+                    <Input
+                      id="max-price"
+                      min={0}
+                      placeholder="e.g., 2000"
+                      className="dark:text-white"
+                      value={maxPrice > 0 ? maxPrice : ""}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        if (!isNaN(val) && val >= 0) setMaxPrice(val);
+                        else setMaxPrice(0); // Reset or handle invalid input
+                      }}
+                    />
+                  </div>
+                  {/* Make Select */}
+                  <div>
+                    <Label
+                      htmlFor="make-select"
+                      className="block text-sm font-medium text-gray-400 mb-1"
+                    >
+                      Make
+                    </Label>
+                    <Select
+                      value={selectedMake}
+                      onValueChange={setSelectedMake}
+                    >
+                      <SelectTrigger
+                        id="make-select"
+                        className="w-full dark:text-white"
+                      >
+                        <SelectValue placeholder="Select Make" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-lg shadow-lg">
+                        <SelectItem value="All Makes">All Makes</SelectItem>
+                        {makes.map((m) => (
+                          <SelectItem key={m} value={m}>
+                            {m}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {/* Category Select */}
+                  <div>
+                    <Label
+                      htmlFor="category-select"
+                      className="block text-sm font-medium text-gray-400 mb-1"
+                    >
+                      Category
+                    </Label>
+                    <Select
+                      value={selectedCategory}
+                      onValueChange={(value) =>
+                        setSelectedCategory(
+                          value as MotorcycleCategory | "All Categories"
+                        )
+                      }
+                    >
+                      <SelectTrigger
+                        id="category-select"
+                        className="w-full dark:text-white"
+                      >
+                        <SelectValue placeholder="Select Category" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-lg shadow-lg">
+                        <SelectItem value={"All Categories"}>
+                          All Categories
+                        </SelectItem>
+                        {categories.map((c) => (
+                          <SelectItem key={c} value={c}>
+                            {c}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                {/* Action Buttons */}
+                <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-gray-100">
+                  <DialogClose asChild>
+                    <Button
+                      className="w-full sm:w-auto bg-yellow-primary text-white"
+                      onClick={applyFilters}
+                    >
+                      Apply Filters
+                    </Button>
+                  </DialogClose>
+                  <DialogClose asChild>
+                    <Button
+                      variant="outline"
+                      onClick={clearFilters}
+                      className="w-full sm:w-auto"
+                    >
+                      <FilterXIcon className="h-4 w-4 mr-2" />
+                      Clear Filters
+                    </Button>
+                  </DialogClose>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </div>
+      </section>
+
+      <div className="grid grid-cols-8 gap-6">
+        <div className="hidden md:flex sm:flex-col col-span-0 sm:col-span-2 space-y-4 sticky top-24 self-start">
+          {loading ? (
+            <SortBySkeleton />
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <ArrowDownNarrowWideIcon className="h-4 w-4 mr-2" />
+                  Sort By
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <RadioGroup
+                  value={selectedSort}
+                  onValueChange={setSelectedSort}
+                >
+                  {sortTypes.map((type) => (
+                    <div
+                      key={type.label}
+                      className="flex items-center gap-3 mb-2"
+                    >
+                      <RadioGroupItem value={type.label} id={type.label} />
+                      <Label htmlFor={type.label}>{type.value}</Label>
+                    </div>
+                  ))}
+                </RadioGroup>
+              </CardContent>
+            </Card>
+          )}
+          {loading ? (
+            <LocationsSkeleton />
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MapPinIcon className="h-4 w-4 mr-2" />
+                  Locations
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {branches &&
+                  branches.map((branch) => (
+                    <div key={branch} className="flex gap-4">
+                      <Checkbox
+                        checked={cities.includes(branch)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setCurrentPage(1);
+                            setCities([...cities, branch]);
+                          } else {
+                            setCurrentPage(1);
+                            setCities(cities.filter((b) => b !== branch));
+                          }
+                        }}
+                        className="data-[state=checked]:border-transparent data-[state=checked]:bg-yellow-500"
+                      />
+                      <Label>{branch}</Label>
+                    </div>
+                  ))}
+              </CardContent>
+            </Card>
+          )}
+          {loading ? (
+            <FiltersSkeleton />
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <SlidersHorizontalIcon className="h-4 w-4 mr-2" />
+                  Filters
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Min Price */}
                 <div>
                   <Label
                     htmlFor="min-price"
@@ -376,212 +588,25 @@ export default function MotorcyclesPage() {
                   </Select>
                 </div>
                 {/* Action Buttons */}
-                <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 mt-4 pt-4 border-t border-gray-100">
-                  <DialogClose asChild>
-                    <Button
-                      variant="outline"
-                      onClick={clearFilters}
-                      className="w-full sm:w-auto"
-                    >
-                      <FilterXIcon className="h-4 w-4 mr-2" />
-                      Clear Filters
-                    </Button>
-                  </DialogClose>
-                  <DialogClose asChild>
-                    <Button
-                      className="w-full sm:w-auto bg-yellow-primary text-white"
-                      onClick={applyFilters}
-                    >
-                      Apply Filters
-                    </Button>
-                  </DialogClose>
+                <div className="flex flex-col-reverse justify-end gap-3 mt-4 pt-4 border-t border-gray-100">
+                  <Button
+                    variant="outline"
+                    onClick={clearFilters}
+                    className="w-full sm:w-auto cursor-pointer dark:text-white dark:hover:text-white rounded-lg"
+                  >
+                    <FilterXIcon className="h-4 w-4 mr-2" />
+                    Clear Filters
+                  </Button>
+                  <Button
+                    className="w-full sm:w-auto bg-yellow-primary cursor-pointer text-white"
+                    onClick={applyFilters}
+                  >
+                    Apply Filters
+                  </Button>
                 </div>
-              </DialogContent>
-            </Dialog>
-          </div>
-        </div>
-      </section>
-
-      <div className="grid grid-cols-8 gap-6">
-        <div className="hidden md:flex sm:flex-col col-span-0 sm:col-span-2 space-y-4 sticky top-24 self-start">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ArrowDownNarrowWideIcon className="h-4 w-4 mr-2" />
-                Sort By
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <RadioGroup value={selectedSort} onValueChange={setSelectedSort}>
-                {sortTypes.map((type) => (
-                  <div
-                    key={type.label}
-                    className="flex items-center gap-3 mb-2"
-                  >
-                    <RadioGroupItem value={type.label} id={type.label} />
-                    <Label htmlFor={type.label}>{type.value}</Label>
-                  </div>
-                ))}
-              </RadioGroup>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MapPinIcon className="h-4 w-4 mr-2" />
-                Locations
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {branches &&
-                branches.map((branch) => (
-                  <div key={branch} className="flex gap-4">
-                    <Checkbox
-                      checked={cities.includes(branch)}
-                      onCheckedChange={(checked) => {
-                        if (checked) {
-                          setCurrentPage(1);
-                          setCities([...cities, branch]);
-                        } else {
-                          setCurrentPage(1);
-                          setCities(cities.filter((b) => b !== branch));
-                        }
-                      }}
-                      className="data-[state=checked]:border-transparent data-[state=checked]:bg-yellow-500"
-                    />
-                    <Label>{branch}</Label>
-                  </div>
-                ))}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <SlidersHorizontalIcon className="h-4 w-4 mr-2" />
-                Filters
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Min Price */}
-              <div>
-                <Label
-                  htmlFor="min-price"
-                  className="block text-sm font-medium text-gray-400 mb-1"
-                >
-                  Min Price
-                </Label>
-                <Input
-                  id="min-price"
-                  min={0}
-                  placeholder="e.g., 500"
-                  className="dark:text-white"
-                  value={minPrice > 0 ? minPrice : ""}
-                  onChange={(e) => {
-                    const val = Number(e.target.value);
-                    if (!isNaN(val) && val >= 0) setMinPrice(val);
-                    else setMinPrice(0); // Reset or handle invalid input
-                  }}
-                />
-              </div>
-              {/* Max Price */}
-              <div>
-                <Label
-                  htmlFor="max-price"
-                  className="block text-sm font-medium text-gray-400 mb-1"
-                >
-                  Max Price
-                </Label>
-                <Input
-                  id="max-price"
-                  min={0}
-                  placeholder="e.g., 2000"
-                  className="dark:text-white"
-                  value={maxPrice > 0 ? maxPrice : ""}
-                  onChange={(e) => {
-                    const val = Number(e.target.value);
-                    if (!isNaN(val) && val >= 0) setMaxPrice(val);
-                    else setMaxPrice(0); // Reset or handle invalid input
-                  }}
-                />
-              </div>
-              {/* Make Select */}
-              <div>
-                <Label
-                  htmlFor="make-select"
-                  className="block text-sm font-medium text-gray-400 mb-1"
-                >
-                  Make
-                </Label>
-                <Select value={selectedMake} onValueChange={setSelectedMake}>
-                  <SelectTrigger
-                    id="make-select"
-                    className="w-full dark:text-white"
-                  >
-                    <SelectValue placeholder="Select Make" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-lg shadow-lg">
-                    <SelectItem value="All Makes">All Makes</SelectItem>
-                    {makes.map((m) => (
-                      <SelectItem key={m} value={m}>
-                        {m}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {/* Category Select */}
-              <div>
-                <Label
-                  htmlFor="category-select"
-                  className="block text-sm font-medium text-gray-400 mb-1"
-                >
-                  Category
-                </Label>
-                <Select
-                  value={selectedCategory}
-                  onValueChange={(value) =>
-                    setSelectedCategory(
-                      value as MotorcycleCategory | "All Categories"
-                    )
-                  }
-                >
-                  <SelectTrigger
-                    id="category-select"
-                    className="w-full dark:text-white"
-                  >
-                    <SelectValue placeholder="Select Category" />
-                  </SelectTrigger>
-                  <SelectContent className="rounded-lg shadow-lg">
-                    <SelectItem value={"All Categories"}>
-                      All Categories
-                    </SelectItem>
-                    {categories.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {/* Action Buttons */}
-              <div className="flex flex-col-reverse justify-end gap-3 mt-4 pt-4 border-t border-gray-100">
-                <Button
-                  variant="outline"
-                  onClick={clearFilters}
-                  className="w-full sm:w-auto cursor-pointer dark:text-white dark:hover:text-white rounded-lg"
-                >
-                  <FilterXIcon className="h-4 w-4 mr-2" />
-                  Clear Filters
-                </Button>
-                <Button
-                  className="w-full sm:w-auto bg-yellow-primary cursor-pointer text-white"
-                  onClick={applyFilters}
-                >
-                  Apply Filters
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </div>
         {loading ? (
           <div className="col-span-8 sm:col-span-6">
@@ -632,7 +657,7 @@ export default function MotorcyclesPage() {
                           </Badge>
 
                           {/* Color and Variant badges */}
-                          <div className="absolute top-3 left-3 flex flex-col gap-1">
+                          {/* <div className="absolute top-3 left-3 flex flex-col gap-1">
                             {motorcycle.color && (
                               <Badge
                                 variant="outline"
@@ -649,6 +674,19 @@ export default function MotorcyclesPage() {
                                 {motorcycle.variant}
                               </Badge>
                             )}
+                          </div> */}
+
+                          <div className="absolute top-3 left-3 flex flex-col gap-1">
+                            {motorcycle.categories
+                              ?.slice(0, 2)
+                              .map((category, index) => (
+                                <Badge
+                                  key={index}
+                                  className="text-xs bg-yellow-500 text-white"
+                                >
+                                  {category}
+                                </Badge>
+                              ))}
                           </div>
                         </div>
                       </CardHeader>
