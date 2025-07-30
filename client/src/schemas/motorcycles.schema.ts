@@ -9,11 +9,21 @@ export const addMotorcycleSchema = z.object({
       quantity: z.number().min(1, "Quantity must be at least 1"),
     })
   ),
-  rentPerDay: z.number().min(0, "Rent per day must be positive"),
+  pricePerDayMonThu: z.number().min(0, "Weekday price must be positive"),
+  pricePerDayFriSun: z.number().min(0, "Weekend price must be positive"),
+  pricePerWeek: z.number().min(0, "Weekly price must be positive"),
   description: z.string().min(10, "Description must be at least 10 characters"),
   categories: z.array(
     z.enum(
-      ["TOURING", "CRUISER", "ADVENTURE", "SCOOTER", "SUPERBIKE", "ELECTRIC"],
+      [
+        "TOURING",
+        "CRUISER",
+        "ADVENTURE",
+        "SCOOTER",
+        "SUPERBIKE",
+        "ELECTRIC",
+        "OTHER",
+      ],
       {
         required_error: "Category is required",
       }
@@ -43,13 +53,29 @@ export const updateMotorcycleSchema = z.object({
       })
     )
     .optional(),
-  rentPerDay: z.number().min(0, "Rent per day must be positive").optional(),
+  pricePerDayMonThu: z
+    .number()
+    .min(0, "Weekday price must be positive")
+    .optional(),
+  pricePerDayFriSun: z
+    .number()
+    .min(0, "Weekend price must be positive")
+    .optional(),
+  pricePerWeek: z.number().min(0, "Weekly price must be positive").optional(),
   description: z
     .string()
     .min(10, "Description must be at least 10 characters")
     .optional(),
   category: z
-    .enum(["TOURING", "SUPERBIKE", "CRUISER", "ADVENTURE", "SCOOTER"])
+    .enum([
+      "TOURING",
+      "SUPERBIKE",
+      "CRUISER",
+      "ADVENTURE",
+      "SCOOTER",
+      "ELECTRIC",
+      "OTHER",
+    ])
     .optional(),
   variant: z.string().min(1, "Variant is required").optional(),
   color: z.string().min(1, "Color is required").optional(),
@@ -80,7 +106,6 @@ export const updateMotorcycleSchema = z.object({
         .optional(),
     })
     .optional(),
-  isAvailable: z.boolean().optional(),
 });
 
 export type AddMotorcycleFormData = z.infer<typeof addMotorcycleSchema>;

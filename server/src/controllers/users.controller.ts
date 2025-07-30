@@ -241,7 +241,7 @@ const refreshAccessToken = asyncHandler(
     const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
 
     if (!refreshToken) {
-      throw new ApiError(401, "Unauthorized request");
+      throw new ApiError(401, "Session Expired !! Please login again");
     }
 
     const decodedToken = jwt.verify(refreshToken, REFRESH_TOKEN_SECRET!) as {
@@ -249,7 +249,7 @@ const refreshAccessToken = asyncHandler(
     };
 
     if (!decodedToken) {
-      throw new ApiError(401, "Unauthorized Token");
+      throw new ApiError(401, "Unauthorized");
     }
 
     const user = await User.findOne({

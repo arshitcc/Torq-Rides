@@ -12,7 +12,7 @@ const authenticateUser = asyncHandler(
       req.headers.authorization?.replace("Bearer ", "");
 
     if (!token?.trim()) {
-      throw new ApiError(401, "Unauthorized request");
+      throw new ApiError(401, "Session Expired !! Please login again");
     }
 
     const decodedToken = jwt.verify(token, ACCESS_TOKEN_SECRET!) as {
@@ -20,7 +20,7 @@ const authenticateUser = asyncHandler(
     };
 
     if (!decodedToken) {
-      throw new ApiError(401, "Unauthorized Token");
+      throw new ApiError(401, "Unauthorized");
     }
 
     const user = await User.findById<IUser>(decodedToken._id).select(
@@ -40,7 +40,7 @@ const verifyPermission = (roles: string[] = []) =>
   asyncHandler(
     async (req: CustomRequest, res: Response, next: NextFunction) => {
       if (!req.user?._id) {
-        throw new ApiError(401, "Unauthorized request");
+        throw new ApiError(401, "Unauthorized");
       }
       if (roles.includes(req.user.role)) {
         next();

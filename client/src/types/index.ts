@@ -115,7 +115,9 @@ export type Motorcycle = {
   _id: string;
   make: string;
   vehicleModel: string;
-  rentPerDay: number;
+  pricePerDayMonThu: number;
+  pricePerDayFriSun: number;
+  pricePerWeek: number;
   description: string;
   categories: MotorcycleCategory[];
   availableInCities: { branch: string; quantity: number }[];

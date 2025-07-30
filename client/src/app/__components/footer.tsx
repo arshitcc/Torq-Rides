@@ -81,6 +81,11 @@ export function Footer() {
                   Contact
                 </Link>
               </li>
+              <li>
+                <Link href="/terms" className="text-gray-400 hover:underline">
+                  Terms and Conditions
+                </Link>
+              </li>
             </ul>
           </div>
 

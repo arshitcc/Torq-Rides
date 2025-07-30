@@ -29,6 +29,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { EditIcon, FileTextIcon, Trash2Icon } from "lucide-react";
 import { Motorcycle } from "@/types";
+import { getFormattedAmount } from "@/lib/utils";
 
 interface MotorcyclesTableRowProps {
   motorcycle: Motorcycle;
@@ -61,7 +62,12 @@ function MotorcyclesTableRow({
           </div>
         </div>
       </TableCell>
-      <TableCell>₹{motorcycle.rentPerDay}</TableCell>
+      <TableCell>
+        <div>
+          <p>Mon-Thu: ₹{getFormattedAmount(motorcycle.pricePerDayMonThu)}</p>
+          <p>Fri-Sun: ₹{getFormattedAmount(motorcycle.pricePerDayFriSun)}</p>
+        </div>
+      </TableCell>
       <TableCell className="text-center">
         {motorcycle.availableInCities.reduce(
           (acc, prev) => prev.quantity + acc,
@@ -133,7 +139,7 @@ function MotorcyclesTableRow({
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
                       <AlertDialogAction
                         onClick={() => handleDeleteMotorcycle(motorcycle._id)}
-                        className="bg-red-600 hover:bg-red-700"
+                        className="bg-red-600 hover:bg-red-700 text-white"
                       >
                         Delete
                       </AlertDialogAction>

@@ -37,7 +37,7 @@ export interface BookingDetails {
     dropoffDate: Date;
     pickupLocation: string;
     dropoffLocation: string;
-    duration : string;
+    duration: string;
   }>;
 }
 
@@ -49,7 +49,6 @@ export default function CartPage() {
 
   const [paymentMethod, setPaymentMethod] = useState("partial");
 
-  // Payment processing states
   const [paymentState, setPaymentState] = useState<PaymentState>("cart");
   const [bookingDetails, setBookingDetails] = useState<BookingDetails | null>(
     null
@@ -69,7 +68,6 @@ export default function CartPage() {
       return;
     }
 
-    // Fetch user's cart
     window.scrollTo({ top: 0, behavior: "smooth" });
     getUserCart();
   }, [user, router, getUserCart, isAuthenticated]);
@@ -98,68 +96,66 @@ export default function CartPage() {
   };
 
   const calculateItemBreakup = (item: CartItem) => {
-    const { totalHours, duration, days, extraHours } = getBookingPeriod({
-      ...item,
-    });
+    const {
+      duration,
+      weekdayCount,
+      weekendCount,
+      extraHours,
+      lastDayTypeForExtraHours,
+    } = getBookingPeriod(
+      new Date(item.pickupDate),
+      item.pickupTime,
+      new Date(item.dropoffDate),
+      item.dropoffTime
+    );
 
-    /**
-        const dailyRate = item.motorcycle.rentPerDay;
-        const days = Math.floor(item.totalHours / 24);
-        const st = dailyRate * days;
-        const extraHours = item.totalHours % 24;
-
-        let extraHoursCharges = 0;
-        if (extraHours) {
-          if (extraHours > 0 && extraHours <= 4) {
-            extraHoursCharges = 0.1 * rentPerDay;
-          } else if (extraHours > 4) {
-            extraHoursCharges = rentPerDay;
-          }
-        }
-        const st += extraHoursCharges;
-        const qty = item.quantity;
-
-     * 
-     */
-    const rentPerDay = item.motorcycle.rentPerDay;
+    const weekdayRate = item.motorcycle.pricePerDayMonThu;
+    const weekendRate = item.motorcycle.pricePerDayFriSun;
     const quantity = item.quantity;
 
-    const fullDays = Math.floor(totalHours / 24);
+    let calculatedRent = 0;
+    calculatedRent += weekdayCount * weekdayRate;
+    calculatedRent += weekendCount * weekendRate;
 
-    let calculatedRent = fullDays * rentPerDay;
     let extraHoursCharges = 0;
-
-    if (extraHours) {
-      if (extraHours > 0 && extraHours <= 4) {
-        extraHoursCharges = 0.1 * rentPerDay; // 10% for up to 4 extra hours
-      } else if (extraHours > 4) {
-        extraHoursCharges = rentPerDay; // Full day rent for more than 4 extra hours
+    if (extraHours > 0) {
+      const extraHourRate =
+        lastDayTypeForExtraHours === "weekday" ? weekdayRate : weekendRate;
+      if (extraHours <= 4) {
+        extraHoursCharges = extraHourRate * 0.1;
+      } else {
+        extraHoursCharges = extraHourRate;
       }
       calculatedRent += extraHoursCharges;
     }
 
-    const subtotal = item.discountedRentAmount + item.totalTax;
+    const totalItemRent = calculatedRent * quantity;
+    // Assuming discount logic is handled elsewhere and reflected in item.discountedRentAmount
+    const totalDiscount = totalItemRent - item.discountedRentAmount;
+    const totalTax = item.totalTax;
+    const subtotal = item.discountedRentAmount + totalTax;
     const securityDepositPerBike = item.motorcycle.securityDeposit;
     const securityDepositTotal = securityDepositPerBike * quantity;
+    const total = subtotal + securityDepositTotal;
 
     return {
-      rentPerDay,
-      days,
+      weekdayRate,
+      weekendRate,
+      weekdayCount,
+      weekendCount,
       extraHours,
       extraHoursCharges,
       calculatedRent,
       quantity,
-      totalItemRent : item.rentAmount,
+      totalItemRent,
       duration,
-      subtotal: getFormattedAmount(subtotal),
+      subtotal,
       taxPercentage: item.taxPercentage,
-      totalTax: getFormattedAmount(item.totalTax),
-      totalDiscount: getFormattedAmount(
-        item.rentAmount - item.discountedRentAmount
-      ),
+      totalTax,
+      totalDiscount,
       securityDepositPerBike,
       securityDepositTotal,
-      total: getFormattedAmount(subtotal + securityDepositTotal),
+      total,
     };
   };
 
@@ -249,7 +245,6 @@ export default function CartPage() {
                 >
                   <CartItemContent
                     item={item}
-                    cart={cart}
                     handleRemoveItem={handleRemoveItem}
                     calculateItemBreakup={calculateItemBreakup}
                   />

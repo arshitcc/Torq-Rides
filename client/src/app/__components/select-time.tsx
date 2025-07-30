@@ -9,10 +9,9 @@ import {
   PopoverContent,
 } from "@/components/ui/popover";
 import { ClockIcon } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useMemo } from "react";
 import { isToday, isSameDay } from "date-fns";
 
-// Generate business hours from 9:00 to 22:00
 const BUSINESS_HOURS = Array.from({ length: 14 }, (_, i) => {
   const hour = i + 9;
   return `${hour.toString().padStart(2, "0")}:00`;
@@ -44,33 +43,69 @@ const TimePickerPopover = ({
 
   // Memoize the calculation of available time slots
   const availableTimes = useMemo(() => {
-    let times = [...BUSINESS_HOURS];
+    // let times = [...BUSINESS_HOURS];
+    // const now = new Date();
+    // const currentHour = now.getHours();
+
+    // Logic for Pickup Time Picker
+    // if (!isDropoff && pickupDate && isToday(pickupDate)) {
+    //   // Filter out past hours for today's date
+    //   times = times.filter((time) => {
+    //     const [hour] = time.split(":").map(Number);
+    //     return hour > currentHour;
+    //   });
+    // }
+
+    // Logic for Dropoff Time Picker
+    // if (isDropoff && pickupDate && dropoffDate && pickupTime) {
+    //   // If pickup and dropoff are on the same day, enforce a 4-hour minimum duration
+    //   if (isSameDay(pickupDate, dropoffDate)) {
+    //     const [pickupHour] = pickupTime.split(":").map(Number);
+    //     const minDropoffHour = pickupHour + 4;
+    //     times = times.filter((time) => {
+    //       const [dropoffHour] = time.split(":").map(Number);
+    //       return dropoffHour >= minDropoffHour;
+    //     });
+    //   }
+    // }
+
+    // return times;
     const now = new Date();
     const currentHour = now.getHours();
 
-    // Logic for Pickup Time Picker
-    if (!isDropoff && pickupDate && isToday(pickupDate)) {
-      // Filter out past hours for today's date
-      times = times.filter((time) => {
-        const [hour] = time.split(":").map(Number);
-        return hour > currentHour;
-      });
-    }
-
-    // Logic for Dropoff Time Picker
-    if (isDropoff && pickupDate && dropoffDate && pickupTime) {
-      // If pickup and dropoff are on the same day, enforce a 4-hour minimum duration
-      if (isSameDay(pickupDate, dropoffDate)) {
-        const [pickupHour] = pickupTime.split(":").map(Number);
-        const minDropoffHour = pickupHour + 4;
-        times = times.filter((time) => {
-          const [dropoffHour] = time.split(":").map(Number);
-          return dropoffHour >= minDropoffHour;
+    // --- Logic for Pickup Time Picker ---
+    if (!isDropoff) {
+      if (pickupDate && isToday(pickupDate)) {
+        // For today, show times from the next hour, but not before 9 AM.
+        const startHour = Math.max(9, currentHour + 1);
+        return BUSINESS_HOURS.filter(time => {
+            const [hour] = time.split(':').map(Number);
+            return hour >= startHour;
         });
       }
+      // For any future pickup date, all business hours are available.
+      return BUSINESS_HOURS;
     }
 
-    return times;
+    // --- Logic for Dropoff Time Picker ---
+    if (isDropoff && pickupDate && dropoffDate && pickupTime) {
+        const nextDayAfterPickup = new Date(pickupDate);
+        nextDayAfterPickup.setDate(pickupDate.getDate() + 1);
+
+        // If dropoff is the day right after pickup, enforce time to ensure a 24h minimum rental.
+        if (isSameDay(dropoffDate, nextDayAfterPickup)) {
+            const [pickupHour] = pickupTime.split(':').map(Number);
+            return BUSINESS_HOURS.filter(time => {
+                const [dropoffHour] = time.split(':').map(Number);
+                return dropoffHour >= pickupHour;
+            });
+        }
+        // For dropoff dates more than one day after pickup, all business hours are available.
+        return BUSINESS_HOURS;
+    }
+
+    // Default case: return all business hours if props aren't ready
+    return BUSINESS_HOURS;
   }, [pickupDate, dropoffDate, pickupTime, isDropoff]);
 
   return (
@@ -101,7 +136,7 @@ const TimePickerPopover = ({
             <div className="mb-3">
               <h4 className="text-sm font-medium text-center">Select Time</h4>
               <p className="text-xs text-muted-foreground text-center">
-                Business hours: 9:00 - 22:00
+                Business hours: 9:00 - 21:00
               </p>
             </div>
             <div className="grid grid-cols-4 gap-2 max-w-xs">

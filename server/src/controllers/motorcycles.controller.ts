@@ -35,15 +35,15 @@ const getAllMotorcycles = asyncHandler(
       };
 
     if (minPrice && maxPrice)
-      matchState.rentPerDay = {
+      matchState.pricePerDayMonThu = {
         $gte: Number(minPrice),
         $lte: Number(maxPrice),
       };
 
     if (minPrice || maxPrice) {
-      matchState.rentPerDay = {};
-      if (minPrice) matchState.rentPerDay.$gte = Number(minPrice);
-      if (maxPrice) matchState.rentPerDay.$lte = Number(maxPrice);
+      matchState.pricePerDayMonThu = {};
+      if (minPrice) matchState.pricePerDayMonThu.$gte = Number(minPrice);
+      if (maxPrice) matchState.pricePerDayMonThu.$lte = Number(maxPrice);
     }
 
     const availableInCities = cities?.toString().split("$");
@@ -94,9 +94,9 @@ const getAllMotorcycles = asyncHandler(
       sort === "Newest"
         ? { createdAt: -1 }
         : sort === "LTH"
-          ? { rentPerDay: 1 }
+          ? { pricePerDayMonThu: 1 }
           : sort === "HTL"
-            ? { rentPerDay: -1 }
+            ? { pricePerDayMonThu: -1 }
             : sort === "Rating"
               ? { rating: -1 }
               : { updatedAt: -1 };
@@ -134,7 +134,9 @@ const addMotorcycle = asyncHandler(
     const {
       make,
       vehicleModel,
-      rentPerDay,
+      pricePerDayMonThu,
+      pricePerDayFriSun,
+      pricePerWeek,
       description,
       categories,
       specs,
@@ -181,7 +183,9 @@ const addMotorcycle = asyncHandler(
     const motorcycle = await Motorcycle.create({
       make,
       vehicleModel,
-      rentPerDay: Number(rentPerDay),
+      pricePerDayMonThu: Number(pricePerDayMonThu),
+      pricePerDayFriSun: Number(pricePerDayFriSun),
+      pricePerWeek: Number(pricePerWeek),
       description,
       color,
       variant,
@@ -303,7 +307,9 @@ const updateMotorcycleDetails = asyncHandler(
       color,
       categories,
       description,
-      rentPerDay,
+      pricePerDayMonThu,
+      pricePerDayFriSun,
+      pricePerWeek,
       securityDeposit,
       kmsLimitPerDay,
       extraKmsCharges,
@@ -331,7 +337,9 @@ const updateMotorcycleDetails = asyncHandler(
     motorcycle.color = color;
     motorcycle.categories = categories;
     motorcycle.description = description;
-    motorcycle.rentPerDay = Number(rentPerDay);
+    motorcycle.pricePerDayMonThu = Number(pricePerDayMonThu);
+    motorcycle.pricePerDayFriSun = Number(pricePerDayFriSun);
+    motorcycle.pricePerWeek = Number(pricePerWeek);
     motorcycle.securityDeposit = Number(securityDeposit);
     motorcycle.kmsLimitPerDay = Number(kmsLimitPerDay);
     motorcycle.extraKmsCharges = Number(extraKmsCharges);

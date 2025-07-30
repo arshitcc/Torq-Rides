@@ -28,16 +28,56 @@ const getBookingPeriod = (
   const diff = dropoffDateTime.getTime() - pickupDateTime.getTime();
 
   if (diff <= 0) {
-    return { totalHours: 0, duration: "0 days 0 hours" };
+    return {
+      totalHours: 0,
+      duration: "0 days 0 hours",
+      weekdayCount: 0,
+      weekendCount: 0,
+      extraHours: 0,
+      lastDayTypeForExtraHours: "weekday" as "weekday" | "weekend",
+    };
   }
 
   const totalHours = diff / (1000 * 60 * 60);
+  const fullDays = Math.floor(totalHours / 24);
+  const extraHours = totalHours % 24;
+
+  let weekdayCount = 0;
+  let weekendCount = 0;
+  let lastDayTypeForExtraHours: "weekday" | "weekend" = "weekday";
+
+  let currentDate = new Date(pickupDateTime);
+
+  for (let i = 0; i < fullDays; i++) {
+    const dayOfWeek = currentDate.getDay();
+    if (dayOfWeek >= 1 && dayOfWeek <= 4) {
+      weekdayCount++;
+    } else {
+      weekendCount++;
+    }
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  if (extraHours > 0) {
+    const dayOfExtraHours = currentDate.getDay();
+    if (dayOfExtraHours >= 1 && dayOfExtraHours <= 4) {
+      lastDayTypeForExtraHours = "weekday";
+    } else {
+      lastDayTypeForExtraHours = "weekend";
+    }
+  }
+
   const days = Math.floor(totalHours / 24);
   const hours = Math.ceil(totalHours % 24);
+  const duration = hours > 0 ? `${days} days ${hours} hours` : `${days} days`;
 
   return {
     totalHours,
-    duration: `${days} days ${hours} hours`,
+    duration,
+    weekdayCount,
+    weekendCount,
+    extraHours,
+    lastDayTypeForExtraHours,
   };
 };
 
@@ -126,6 +166,18 @@ const applyDiscountsAndCalculateTotals = (cart: any) => {
 };
 
 export const getCart = async (customerId: string) => {
+  await Cart.findOneAndUpdate(
+    { customerId: new mongoose.Types.ObjectId(customerId) },
+    {
+      $pull: {
+        items: {
+          pickupDate: { $lt: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+        },
+      },
+    },
+    { new: true },
+  );
+
   const cartAggregation = await Cart.aggregate([
     { $match: { customerId: new mongoose.Types.ObjectId(customerId) } },
     { $unwind: { path: "$items", preserveNullAndEmptyArrays: true } },
@@ -247,26 +299,52 @@ const addOrUpdateMotorcycleToCart = asyncHandler(
       );
     }
 
-    const { totalHours, duration } = getBookingPeriod(
+    const pickupDateTime = new Date(pickupDate);
+    const [pickupHours, pickupMinutes] = pickupTime.split(":").map(Number);
+    pickupDateTime.setHours(pickupHours, pickupMinutes, 0, 0);
+
+    const dropoffDateTime = new Date(dropoffDate);
+    const [dropoffHours, dropoffMinutes] = dropoffTime.split(":").map(Number);
+    dropoffDateTime.setHours(dropoffHours, dropoffMinutes, 0, 0);
+
+    const totalDurationHours =
+      (dropoffDateTime.getTime() - pickupDateTime.getTime()) / (1000 * 60 * 60);
+
+    if (totalDurationHours < 24) {
+      throw new ApiError(400, "Minimum booking duration is 24 hours.");
+    }
+
+    const {
+      duration,
+      totalHours,
+      weekdayCount,
+      weekendCount,
+      extraHours,
+      lastDayTypeForExtraHours,
+    } = getBookingPeriod(
       new Date(pickupDate),
       pickupTime,
       new Date(dropoffDate),
       dropoffTime,
     );
 
-    if (totalHours <= 0) {
-      throw new ApiError(400, "Drop-off must be after pickup.");
-    }
+    // Calculate rent based on weekday/weekend rates
+    let calculatedRent =
+      weekdayCount * motorcycle.pricePerDayMonThu +
+      weekendCount * motorcycle.pricePerDayFriSun;
 
-    const fullDays = Math.floor(totalHours / 24);
-    const extraHours = totalHours % 24;
+    // Add charges for partial days
+    if (extraHours > 0) {
+      const partialDayPrice =
+        lastDayTypeForExtraHours === "weekday"
+          ? motorcycle.pricePerDayMonThu
+          : motorcycle.pricePerDayFriSun;
 
-    let calculatedRent = fullDays * motorcycle.rentPerDay;
-
-    if (extraHours > 0 && extraHours <= 4) {
-      calculatedRent += 0.1 * motorcycle.rentPerDay;
-    } else if (extraHours > 4) {
-      calculatedRent += motorcycle.rentPerDay;
+      if (extraHours <= 4) {
+        calculatedRent += 0.1 * partialDayPrice;
+      } else {
+        calculatedRent += partialDayPrice;
+      }
     }
 
     const rentAmount = calculatedRent * quantity;

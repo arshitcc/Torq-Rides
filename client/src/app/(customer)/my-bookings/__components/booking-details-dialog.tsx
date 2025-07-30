@@ -202,7 +202,7 @@ export function BookingDetailsDialog({
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-y-2 mt-3 items-center">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-y-2 mt-3 items-center">
                       <div className="w-full text-center">
                         <p className="text-sm text-gray-500">Pickup Date</p>
                         <p className="font-medium">
@@ -214,6 +214,10 @@ export function BookingDetailsDialog({
                         <p className="font-medium">{item.pickupLocation}</p>
                       </div>
                       <div className="w-full text-center">
+                        <p className="text-sm text-gray-500">Pickup Time</p>
+                        <p className="font-medium">{item.pickupTime}</p>
+                      </div>
+                      <div className="w-full text-center">
                         <p className="text-sm text-gray-500">Return Date</p>
                         <p className="font-medium">
                           {format(new Date(item.dropoffDate), "PPP")}
@@ -223,9 +227,13 @@ export function BookingDetailsDialog({
                         <p className="text-sm text-gray-500">Return Location</p>
                         <p className="font-medium">{item.dropoffLocation}</p>
                       </div>
+                      <div className="w-full text-center">
+                        <p className="text-sm text-gray-500">Return Timing</p>
+                        <p className="font-medium">{item.dropoffTime}</p>
+                      </div>
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-y-2 mt-3 items-center">
+                    <div className="grid grid-cols-2 gap-y-2 mt-3 items-center">
                       <div className="w-full text-center">
                         <p className="text-sm text-gray-500">Duration</p>
                         <p className="font-medium">{item.duration}</p>
@@ -233,24 +241,6 @@ export function BookingDetailsDialog({
                       <div className="w-full text-center">
                         <p className="text-sm text-gray-500">Quantity</p>
                         <p className="font-medium">{item.quantity} unit(s)</p>
-                      </div>
-                      <div className="w-full text-center">
-                        <p className="text-sm text-gray-500">Rent per Day</p>
-                        <p className="font-medium">
-                          ₹{item.motorcycle.rentPerDay.toLocaleString()}
-                        </p>
-                      </div>
-                      <div className="w-full text-center">
-                        <p className="text-sm text-gray-500">
-                          Extra Charges <br />
-                          for {getBookingPeriod({ ...item }).extraHours} hours
-                        </p>
-                        <p className="font-medium">
-                          ₹
-                          {getBookingPeriod({ ...item }).extraHours <= 4
-                            ? 0.1 * item.motorcycle.rentPerDay
-                            : item.motorcycle.rentPerDay}
-                        </p>
                       </div>
                       <div className="w-full text-center">
                         <p className="text-sm text-gray-500">Total Rent</p>

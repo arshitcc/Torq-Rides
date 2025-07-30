@@ -136,6 +136,7 @@ export function Navbar() {
                       {bikeCategories.map((category) => (
                         <NavigationMenuLink key={category.href} asChild>
                           <Link
+                            target="_blank"
                             href={category.href}
                             className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-yellow-primary/10 hover:text-yellow-primary focus:bg-yellow-primary/10 focus:text-yellow-primary"
                           >
@@ -151,7 +152,7 @@ export function Navbar() {
                 </NavigationMenuItem>
 
                 {/* Cars Menu */}
-                <NavigationMenuItem>
+                {/* <NavigationMenuItem>
                   <NavigationMenuTrigger className="text-sm font-medium hover:text-yellow-primary">
                     <NavigationMenuLink
                       href="/cars"
@@ -177,7 +178,7 @@ export function Navbar() {
                       ))}
                     </div>
                   </NavigationMenuContent>
-                </NavigationMenuItem>
+                </NavigationMenuItem> */}
 
                 {/* Tours Menu */}
                 <NavigationMenuItem>

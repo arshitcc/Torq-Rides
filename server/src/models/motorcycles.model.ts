@@ -14,6 +14,7 @@ export const MotorcycleCategoryEnum = {
   SCOOTER: "SCOOTER",
   SUPERBIKE: "SUPERBIKE",
   ELECTRIC: "ELECTRIC",
+  OTHER: "OTHER",
 } as const;
 
 export const AvailableInCitiesEnum = {
@@ -41,7 +42,6 @@ export interface File {
 export interface IMotorcycle extends mongoose.Document {
   make: string;
   vehicleModel: string;
-  rentPerDay: number;
   description: string;
   categories: MotorcycleCategory[];
   availableInCities: { branch: AvailableInCities; quantity: number }[];
@@ -51,6 +51,10 @@ export interface IMotorcycle extends mongoose.Document {
     weight: number;
     seatHeight: number;
   };
+
+  pricePerDayMonThu: number;
+  pricePerDayFriSun: number;
+  pricePerWeek: number;
   variant: string;
   color: string;
   securityDeposit: number;
@@ -70,7 +74,15 @@ const motorcycleSchema = new mongoose.Schema<IMotorcycle>(
       type: String,
       required: true,
     },
-    rentPerDay: {
+    pricePerDayMonThu: {
+      type: Number,
+      required: true,
+    },
+    pricePerDayFriSun: {
+      type: Number,
+      required: true,
+    },
+    pricePerWeek: {
       type: Number,
       required: true,
     },

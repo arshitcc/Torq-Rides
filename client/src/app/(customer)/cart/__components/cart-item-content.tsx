@@ -18,11 +18,11 @@ import { getFormattedAmount } from "@/lib/utils";
 
 interface CartItemContentProps {
   item: CartItem;
-  cart: Cart;
   calculateItemBreakup: (item: CartItem) => {
-    rentPerDay: number;
-    quantity: number;
-    days: number;
+    weekdayRate: number;
+    weekendRate: number;
+    weekdayCount: number;
+    weekendCount: number;
     extraHours: number;
     extraHoursCharges: number;
     duration: string;
@@ -35,13 +35,13 @@ interface CartItemContentProps {
     securityDepositPerBike: number;
     securityDepositTotal: number;
     total: number;
+    quantity: number;
   };
   handleRemoveItem: (motorcycleId: string) => Promise<void>;
 }
 
 function CartItemContent({
   item,
-  cart,
   calculateItemBreakup,
   handleRemoveItem,
 }: CartItemContentProps) {
@@ -163,34 +163,47 @@ function CartItemContent({
                         {item.motorcycle.make} {item.motorcycle.vehicleModel}
                       </h4>
                       <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <span>Daily Rate:</span>
-                          <span>₹{breakup.rentPerDay}</span>
-                        </div>
+                        {breakup.weekdayCount > 0 && (
+                          <div className="flex justify-between">
+                            <span>
+                              Weekday ({breakup.weekdayCount} days × ₹
+                              {breakup.weekdayRate}):
+                            </span>
+                            <span>
+                              ₹
+                              {getFormattedAmount(
+                                breakup.weekdayCount * breakup.weekdayRate
+                              )}
+                            </span>
+                          </div>
+                        )}
 
-                        <div className="flex justify-between">
-                          <span>Number of Days:</span>
-                          <span>{breakup.days}</span>
-                        </div>
+                        {breakup.weekendCount > 0 && (
+                          <div className="flex justify-between">
+                            <span>
+                              Weekend ({breakup.weekendCount} days × ₹
+                              {breakup.weekendRate}):
+                            </span>
+                            <span>
+                              ₹
+                              {getFormattedAmount(
+                                breakup.weekendCount * breakup.weekendRate
+                              )}
+                            </span>
+                          </div>
+                        )}
+
                         <Separator />
-                        <div className="flex justify-end">
-                          <span>
-                            ₹
-                            {getFormattedAmount(
-                              breakup.rentPerDay * breakup.days
-                            )}
-                          </span>
-                        </div>
-                        <Separator />
+
                         {breakup.extraHours > 0 && (
                           <>
                             <div className="flex justify-between">
-                              <span>Extra Hours:</span>
-                              <span>{breakup.extraHours}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span>Extra Hours Charges:</span>
-                              <span>₹{breakup.extraHoursCharges}</span>
+                              <span>
+                                Extra Hours ({breakup.extraHours} hrs):
+                              </span>
+                              <span>
+                                ₹{getFormattedAmount(breakup.extraHoursCharges)}
+                              </span>
                             </div>
                             <Separator />
                           </>
@@ -198,7 +211,9 @@ function CartItemContent({
 
                         <div className="flex justify-between">
                           <span>Rent Cost per Bike:</span>
-                          <span>₹{breakup.calculatedRent}</span>
+                          <span>
+                            ₹{getFormattedAmount(breakup.calculatedRent)}
+                          </span>
                         </div>
                         <div className="flex justify-between">
                           <span>Bike Quantity:</span>
@@ -222,7 +237,7 @@ function CartItemContent({
                         )}
                         <div className="flex justify-between">
                           <span>Tax ({breakup.taxPercentage}% GST):</span>
-                          <span>₹{breakup.totalTax}</span>
+                          <span>₹{getFormattedAmount(breakup.totalTax)}</span>
                         </div>
                         <Separator />
                         <div className="flex justify-between font-bold">
@@ -232,7 +247,10 @@ function CartItemContent({
                         <Separator />
                         <div className="flex justify-between">
                           <span>Security Deposit per Bike:</span>
-                          <span>₹{breakup.securityDepositPerBike}</span>
+                          <span>
+                            ₹
+                            {getFormattedAmount(breakup.securityDepositPerBike)}
+                          </span>
                         </div>
                         <div className="flex justify-between">
                           <span>Quantity:</span>
@@ -241,12 +259,14 @@ function CartItemContent({
                         <Separator />
                         <div className="flex justify-between font-bold">
                           <span>Security Deposit Total:</span>
-                          <span>₹{breakup.securityDepositTotal}</span>
+                          <span>
+                            ₹{getFormattedAmount(breakup.securityDepositTotal)}
+                          </span>
                         </div>
                         <Separator />
                         <div className="flex justify-between font-bold font-sans">
                           <span>Total:</span>
-                          <span>₹{breakup.total}</span>
+                          <span>₹{getFormattedAmount(breakup.total)}</span>
                         </div>
                       </div>
                     </div>

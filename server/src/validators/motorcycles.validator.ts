@@ -38,11 +38,15 @@ const addOrUpdateMotorcycleValidators = () => {
       .isString()
       .withMessage("Model must be a valid data"),
 
-    body("rentPerDay")
-      .exists({ checkNull: true })
-      .withMessage("rentPerDay is required")
-      .isFloat({ min: 0 })
-      .withMessage("rentPerDay must be a positive number"),
+    body("pricePerDayMonThu")
+      .isNumeric()
+      .withMessage("Price per day (Mon-Thu) must be a number"),
+    body("pricePerDayFriSun")
+      .isNumeric()
+      .withMessage("Price per day (Fri-Sun) must be a number"),
+    body("pricePerWeek")
+      .isNumeric()
+      .withMessage("Price per week must be a number"),
 
     body("description")
       .exists({ checkNull: true })

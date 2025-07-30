@@ -40,7 +40,7 @@ const getInitialTimes = () => {
   pickupDate.setHours(0, 0, 0, 0);
   let pickupHour = now.getHours() + 1;
 
-  if (pickupHour >= 22) {
+  if (pickupHour >= 21) {
     pickupHour = 9;
     pickupDate.setDate(pickupDate.getDate() + 1);
   }
@@ -50,15 +50,26 @@ const getInitialTimes = () => {
   }
   const pickupTime = `${String(pickupHour).padStart(2, "0")}:00`;
 
-  let dropoffHour = pickupHour + 4;
-  if (dropoffHour > 22) {
-    dropoffHour = 22;
-  }
-  const dropoffTime = `${String(dropoffHour).padStart(2, "0")}:00`;
+  // let dropoffHour = pickupHour + 4;
+  // if (dropoffHour > 22) {
+  //   dropoffHour = 22;
+  // }
+  // const dropoffTime = `${String(dropoffHour).padStart(2, "0")}:00`;
+
+  // return {
+  //   pickupDate,
+  //   dropoffDate: new Date(pickupDate),
+  //   pickupTime,
+  //   dropoffTime,
+  // };
+
+  const dropoffDate = new Date(pickupDate);
+  dropoffDate.setDate(dropoffDate.getDate() + 1);
+  const dropoffTime = pickupTime;
 
   return {
     pickupDate,
-    dropoffDate: new Date(pickupDate),
+    dropoffDate,
     pickupTime,
     dropoffTime,
   };
@@ -84,6 +95,7 @@ function SearchRides() {
     resolver: zodResolver(searchRidesSchema),
     defaultValues: {
       pickupLocation: pickupLocation || "",
+      dropoffLocation: pickupLocation || "",
       ...getInitialTimes(),
     },
   });
@@ -93,27 +105,40 @@ function SearchRides() {
   const watchedPickupTime = form.watch("pickupTime");
 
   useEffect(() => {
-    if (
-      watchedPickupDate &&
-      watchedDropoffDate &&
-      isSameDay(watchedPickupDate, watchedDropoffDate) &&
-      watchedPickupTime
-    ) {
-      const [pickupHour] = watchedPickupTime.split(":").map(Number);
-      const [dropoffHour] = form
-        .getValues("dropoffTime")!
-        .split(":")
-        .map(Number);
+    const { pickupDate, dropoffDate, pickupTime } = form.getValues();
 
-      if (dropoffHour < pickupHour + 4) {
-        // let newDropoffHour = pickupHour + 4;
-        // if (newDropoffHour > 22) newDropoffHour = 22;
-        // const newDropoffTime = `${String(newDropoffHour).padStart(2, "0")}:00`;
-        // form.setValue("dropoffTime", newDropoffTime);
-        form.setValue("dropoffTime", "");
+    if (!pickupDate || !dropoffDate) {
+      return;
+    }
+    const minDropoffDate = new Date(pickupDate);
+    minDropoffDate.setDate(pickupDate.getDate() + 1);
+    minDropoffDate.setHours(0, 0, 0, 0);
+
+    const currentDropoffDate = new Date(dropoffDate);
+    currentDropoffDate.setHours(0, 0, 0, 0);
+
+    if (currentDropoffDate < minDropoffDate) {
+        form.setValue("dropoffDate", minDropoffDate);
+        return;
+    }
+
+    const dropoffTime = form.getValues("dropoffTime");
+    if (!pickupTime || !dropoffTime) {
+      return;
+    }
+
+    const nextDayAfterPickup = new Date(pickupDate);
+    nextDayAfterPickup.setDate(pickupDate.getDate() + 1);
+
+    if (isSameDay(dropoffDate, nextDayAfterPickup)) {
+      const [pickupHour] = pickupTime.split(':').map(Number);
+      const [dropoffHour] = dropoffTime.split(':').map(Number);
+
+      if (dropoffHour < pickupHour) {
+        form.setValue("dropoffTime", ""); 
       }
     }
-  }, [watchedPickupTime, watchedPickupDate, watchedDropoffDate, form]);
+  }, [watchedPickupDate, watchedDropoffDate, watchedPickupTime, form]);
 
   const { filters } = useMotorcycleStore();
   const branches = filters.distinctCities;
@@ -133,24 +158,24 @@ function SearchRides() {
     <div>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
-          <Card className="max-w-6xl mx-auto bg-white dark:bg-[#18181B] border border-gray-200 dark:border-gray-700 shadow">
-            <CardContent className="p-6 flex flex-col gap-4">
+          <Card className="max-w-6xl mx-auto bg-white dark:bg-[#18181B] border-gray-200 dark:border-gray-700 shadow">
+            <CardContent className="flex flex-col gap-4">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-2">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                   {/* Pickup Location */}
                   <FormField
                     name="pickupLocation"
                     control={form.control}
                     render={({ field }) => (
-                      <FormItem className="space-y-2">
+                      <FormItem className="space-y-2 grid grid-rows-2">
                         <FormLabel className="dark:text-white">
                           <MapPinIcon className="inline h-4 w-4 mr-1 text-yellow-primary" />
                           Pick Up Location
                         </FormLabel>
                         <Select
                           onValueChange={(value) => {
-                            field.onChange(value); // Update this field's value
-                            form.setValue("dropoffLocation", value); // Also update the dropoff location
+                            field.onChange(value);
+                            form.setValue("dropoffLocation", value);
                           }}
                           value={field.value}
                         >
@@ -176,7 +201,7 @@ function SearchRides() {
                     name="pickupDate"
                     control={form.control}
                     render={({ field }) => (
-                      <FormItem className="space-y-2">
+                      <FormItem className="space-y-2 grid grid-rows-2">
                         <FormLabel className="dark:text-white">
                           <CalendarIcon className="inline h-4 w-4 mr-1 text-yellow-primary" />
                           Pick Up Date
@@ -230,7 +255,7 @@ function SearchRides() {
                     name="pickupTime"
                     control={form.control}
                     render={({ field }) => (
-                      <FormItem className="space-y-2">
+                      <FormItem className="space-y-2 grid grid-rows-2">
                         <FormLabel className="dark:text-white">
                           <ClockIcon className="inline h-4 w-4 mr-1 text-yellow-primary" />
                           Pick Up Time
@@ -247,13 +272,13 @@ function SearchRides() {
                     )}
                   />
                 </div>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                   {/* Drop Off Location */}
                   <FormField
                     name="dropoffLocation"
                     control={form.control}
                     render={({ field }) => (
-                      <FormItem className="space-y-2">
+                      <FormItem className="space-y-2 grid grid-rows-2">
                         <FormLabel className="dark:text-white">
                           <MapPinIcon className="inline h-4 w-4 mr-1 text-yellow-primary" />
                           Drop Off Location
@@ -280,7 +305,7 @@ function SearchRides() {
                     name="dropoffDate"
                     control={form.control}
                     render={({ field }) => (
-                      <FormItem className="space-y-2">
+                      <FormItem className="space-y-2 grid grid-rows-2">
                         <FormLabel className="dark:text-white">
                           <CalendarIcon className="inline h-4 w-4 mr-1 text-yellow-primary" />
                           Drop Off Date
@@ -326,7 +351,7 @@ function SearchRides() {
                     name="dropoffTime"
                     control={form.control}
                     render={({ field }) => (
-                      <FormItem className="space-y-2">
+                      <FormItem className="space-y-2 grid grid-rows-2">
                         <FormLabel className="dark:text-white">
                           <ClockIcon className="inline h-4 w-4 mr-1 text-yellow-primary" />
                           Drop Off Time

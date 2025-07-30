@@ -41,6 +41,7 @@ import { MaintenanceTableRowSkeleton } from "@/app/(admin)/dashboard/__component
 import MaintenanceTableRow from "./__components/maintenance-table-row";
 import AddMotorcycleLogDialog from "./__components/add-log-dialog";
 import MaintenanceInfoDialog from "@/app/(admin)/dashboard/__components/logs/maintenance-info-dialog";
+import { getTodayPrice } from "@/lib/utils";
 
 export default function MotorcycleLogsPage() {
   const params = useParams();
@@ -242,7 +243,7 @@ export default function MotorcycleLogsPage() {
                   <div>
                     <span className="text-gray-500">Rent/Day:</span>
                     <span className="ml-1 font-medium">
-                      ₹{motorcycle.rentPerDay}
+                      ₹{getTodayPrice(motorcycle)}
                     </span>
                   </div>
                 </div>

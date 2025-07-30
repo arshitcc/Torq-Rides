@@ -137,7 +137,9 @@ export default function EditMotorcyclePage() {
     defaultValues: {
       make: "",
       vehicleModel: "",
-      rentPerDay: undefined,
+      pricePerDayMonThu: undefined,
+      pricePerDayFriSun: undefined,
+      pricePerWeek: undefined,
       description: "",
       categories: [],
       variant: "",
@@ -178,7 +180,9 @@ export default function EditMotorcyclePage() {
       form.reset({
         make: motorcycle.make,
         vehicleModel: motorcycle.vehicleModel,
-        rentPerDay: motorcycle.rentPerDay,
+        pricePerDayMonThu: motorcycle.pricePerDayMonThu,
+        pricePerDayFriSun: motorcycle.pricePerDayFriSun,
+        pricePerWeek: motorcycle.pricePerWeek,
         description: motorcycle.description,
         categories: motorcycle.categories,
         variant: motorcycle.variant,
@@ -298,7 +302,9 @@ export default function EditMotorcyclePage() {
     );
   }
 
-  const availableCategories = filters.categories;
+  const availableCategories = filters.categories.some((c) => c === "ELECTRIC")
+    ? filters.categories
+    : [...filters.categories, "ELECTRIC"];
   const availableMakes = filters.makes;
   const availableBranches = filters.distinctCities;
   const availableModels = filters.models;
@@ -627,10 +633,47 @@ export default function EditMotorcyclePage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField
                     control={form.control}
-                    name="rentPerDay"
+                    name="pricePerDayMonThu"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Rent per Day (₹) *</FormLabel>
+                        <FormLabel>
+                          Price for Days (Monday to Thursday) (₹) *
+                        </FormLabel>
+                        <FormControl>
+                          <NumericInput
+                            field={field}
+                            placeholder="e.g., 2000"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="pricePerDayFriSun"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          Price for Days (Friday to Sunday) (₹) *
+                        </FormLabel>
+                        <FormControl>
+                          <NumericInput
+                            field={field}
+                            placeholder="e.g., 2000"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="pricePerWeek"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Weekly Rental Price (₹) *</FormLabel>
                         <FormControl>
                           <NumericInput
                             field={field}

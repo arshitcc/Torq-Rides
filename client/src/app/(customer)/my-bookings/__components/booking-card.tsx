@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { Booking } from "@/types";
+import { Booking, CartItem } from "@/types";
 import { format } from "date-fns";
 import Image from "next/image";
 import React from "react";
@@ -14,12 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import {
-  EditIcon,
-  InfoIcon,
-  StarIcon,
-  XIcon,
-} from "lucide-react";
+import { EditIcon, InfoIcon, StarIcon, XIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   AlertDialog,
@@ -155,7 +150,7 @@ function BookingCard({
                         Booked Items
                       </h4>
                       <div className="space-y-3">
-                        {booking.items?.map((item: any, index: number) => (
+                        {booking.items?.map((item: CartItem, index: number) => (
                           <Card key={index}>
                             <CardContent className="p-4">
                               <div className="flex items-center space-x-4">
@@ -195,7 +190,10 @@ function BookingCard({
                                     <div>
                                       <p>Quantity: {item.quantity}</p>
                                       <p>
-                                        Rate: ₹{item.motorcycle?.rentPerDay}/day
+                                        Rate: W/D ₹
+                                        {item.motorcycle?.pricePerDayMonThu},
+                                        W/E ₹
+                                        {item.motorcycle?.pricePerDayFriSun}
                                       </p>
                                     </div>
                                   </div>
@@ -226,7 +224,7 @@ function BookingCard({
                             <span>Discount Applied</span>
                             <span>
                               -₹
-                              {booking.discountedTotal - booking.cartTotal}
+                              {booking.cartTotal - booking.discountedTotal}
                             </span>
                           </div>
                         )}

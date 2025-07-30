@@ -165,9 +165,6 @@ const bookingConfirmationTemplate = ({
       table: {
         data: booking.items.map((item) => {
           if (!item.motorcycle) return {};
-          const days = calculateRentalDays(item.pickupDate, item.dropoffDate);
-          const itemTotal = item.motorcycle.rentPerDay * item.quantity * days;
-
           return {
             Motorcycle: `${item.motorcycle.make} ${item.motorcycle.vehicleModel}`,
             "Pick-up": `${new Date(item.pickupDate).toLocaleDateString(
@@ -178,10 +175,8 @@ const bookingConfirmationTemplate = ({
               "en-IN",
               { day: "numeric", month: "short", year: "numeric" },
             )} at ${item.dropoffTime}`,
-            Days: days,
-            "Rate/Day": formatCurrency(item.motorcycle.rentPerDay),
             Qty: item.quantity,
-            Total: formatCurrency(itemTotal),
+            Total: formatCurrency(item.rentAmount),
           };
         }),
         columns: {
@@ -210,8 +205,8 @@ const bookingCancellationTemplate = ({
 }: BookingCancellationTemplate): Content => {
   const intro =
     booking.refundAmount > 0
-      ? `We have successfully processed the cancellation for your booking #${booking._id?.toString().slice(-6).toUpperCase()}. A refund is on its way.`
-      : `We have successfully processed the cancellation for your booking #${booking._id?.toString().slice(-6).toUpperCase()}.`;
+      ? `We have successfully recieved the cancellation request for your booking #${booking._id?.toString().slice(-6).toUpperCase()}. A refund is on its way.`
+      : `We have successfully recieved the cancellation request for your booking #${booking._id?.toString().slice(-6).toUpperCase()}.`;
 
   const outro = [
     "The motorcycle(s) from this booking are now available for others.",
@@ -231,7 +226,7 @@ const bookingCancellationTemplate = ({
       },
       action: {
         instructions:
-          "Your refund will be processed back to your original payment method within 5-7 business days. You can view your updated booking status here:",
+          "After evaluation of your cancellation request, Your refund will be processed back to your original payment method within 5-7 business days. You can view your updated booking status here:",
         button: {
           color: "#D9534F",
           text: "View My Bookings",

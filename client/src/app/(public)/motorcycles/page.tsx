@@ -60,6 +60,7 @@ import {
   LocationsSkeleton,
   SortBySkeleton,
 } from "./__components/filters-skeleton";
+import { getTodayPrice } from "@/lib/utils";
 
 export default function MotorcyclesPage() {
   const {
@@ -89,102 +90,57 @@ export default function MotorcyclesPage() {
   );
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useDebounceValue(
-    searchTerm,
-    700
-  );
+  const [debouncedSearchTerm] = useDebounceValue(searchTerm, 700);
+  const [debouncedMinPrice] = useDebounceValue(minPrice, 700);
+  const [debouncedMaxPrice] = useDebounceValue(maxPrice, 700);
   const [selectedSort, setSelectedSort] = useState("Newest");
-  const [cities, setCities] = useState<string[]>(
-    savedFilters.selectedCities || []
-  );
+  const [cities, setCities] = useState(savedFilters.selectedCities || []);
 
   const isInitialMount = useRef(true);
 
   useEffect(() => {
-    const filters: Record<string, any> = {
-      page: currentPage,
+    getAllFilters();
+  }, [getAllFilters]);
+
+  useEffect(() => {
+    const initialFilters: Record<string, any> = {
+      page: 1,
       offset: itemsPerPage,
+      sort: "Newest",
     };
 
     if (params.make?.trim()) {
-      filters.make = params.make.trim();
-      setSelectedMake(params.make);
+      initialFilters.make = params.make.trim();
       setFilters({ ...savedFilters, selectedMake: params.make });
+      setSelectedMake(params.make);
     }
-
     if (params.category?.trim()) {
-      filters.categories = params.category.trim();
-      setSelectedCategory(params.category as MotorcycleCategory);
+      initialFilters.categories = params.category.trim();
       setFilters({ ...savedFilters, selectedCategory: params.category });
+      setSelectedCategory(params.category as MotorcycleCategory);
     }
-
-    if (selectedSort?.trim()) {
-      filters.sort = selectedSort;
-    }
-
     if (params.location?.trim()) {
-      filters.cities = [params.location.trim()].join("$");
-      setCities([params.location.trim()]);
+      const locations = [params.location.trim()];
+      initialFilters.cities = locations.join("$");
       setFilters({ ...savedFilters, selectedCities: [params.location.trim()] });
+      setCities(locations);
     }
 
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    // router.replace(pathname, { scroll: false });
-    getAllFilters();
-    getAllMotorcycles(filters);
+    getAllMotorcycles(initialFilters);
   }, []);
 
-  const getMotorcycles = async () => {
-    const filters: Record<string, any> = {
-      page: currentPage,
-      offset: itemsPerPage,
-    };
-
-    if (debouncedSearchTerm?.trim()) {
-      filters.searchTerm = debouncedSearchTerm.trim();
-    }
-
-    if (selectedMake !== "All Makes") {
-      filters.make = selectedMake;
-      setFilters({ ...savedFilters, selectedMake });
-    }
-
-    if (selectedCategory !== "All Categories") {
-      filters.categories = selectedCategory;
-      setFilters({ ...savedFilters, selectedCategory });
-    }
-
-    if (cities.length > 0) {
-      filters.cities = cities.join("$");
-      setFilters({ ...savedFilters, selectedCities: cities });
-    }
-
-    const min = Number(minPrice);
-    const max = Number(maxPrice);
-
-    if (!isNaN(min) && min > 0) filters.minPrice = min;
-    if (!isNaN(max) && max > 0) filters.maxPrice = max;
-
-    filters.sort = selectedSort;
-
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    getAllMotorcycles(filters);
-  };
-
-  const clearFilters = () => {
-    setSelectedMake("All Makes");
-    setSelectedCategory("All Categories");
-    setCities([]);
-    setMinPrice(0);
-    setMaxPrice(0);
-    setDebouncedSearchTerm("");
-    getMotorcycles();
-  };
-
-  const applyFilters = () => {
+  useEffect(() => {
+    if (isInitialMount.current) return;
     setCurrentPage(1);
-    getMotorcycles();
-  };
+  }, [
+    debouncedSearchTerm,
+    selectedMake,
+    selectedCategory,
+    cities,
+    debouncedMinPrice,
+    debouncedMaxPrice,
+    selectedSort,
+  ]);
 
   useEffect(() => {
     if (isInitialMount.current) {
@@ -192,13 +148,61 @@ export default function MotorcyclesPage() {
       return;
     }
 
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    const getMotorcycles = async () => {
+      const filters: Record<string, any> = {
+        page: currentPage,
+        offset: itemsPerPage,
+        sort: selectedSort,
+      };
+
+      if (debouncedSearchTerm?.trim())
+        filters.searchTerm = debouncedSearchTerm.trim();
+      if (selectedMake !== "All Makes") {
+        filters.make = selectedMake;
+        setFilters({ ...savedFilters, selectedMake });
+      }
+      if (selectedCategory !== "All Categories") {
+        filters.categories = selectedCategory;
+        setFilters({ ...savedFilters, selectedCategory });
+      }
+      if (cities.length > 0) {
+        filters.cities = cities.join("$");
+        setFilters({ ...savedFilters, selectedCities: cities });
+      }
+      if (debouncedMinPrice > 0) filters.minPrice = debouncedMinPrice;
+      if (debouncedMaxPrice > 0) filters.maxPrice = debouncedMaxPrice;
+
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      getAllMotorcycles(filters);
+    };
+
     getMotorcycles();
-  }, [debouncedSearchTerm, currentPage, selectedSort, cities]);
+  }, [
+    debouncedSearchTerm,
+    currentPage,
+    selectedSort,
+    cities,
+    selectedMake,
+    selectedCategory,
+    debouncedMinPrice,
+    debouncedMaxPrice,
+    getAllMotorcycles,
+  ]);
+
+  const clearFilters = () => {
+    setSelectedMake("All Makes");
+    setSelectedCategory("All Categories");
+    setCities([]);
+    setMinPrice(0);
+    setMaxPrice(0);
+    setSearchTerm("");
+  };
 
   const totalPages = Math.ceil(metadata?.total / itemsPerPage) || 1;
-  const makes = savedFilters?.makes;
-  const categories = savedFilters.categories || AvailableMotorcycleCategories;
+  const makes = savedFilters?.makes.sort((a, b) => a.localeCompare(b));
+  const categories =
+    savedFilters.categories.sort((a, b) => a.localeCompare(b)) ||
+    AvailableMotorcycleCategories;
   const branches = savedFilters.distinctCities.sort((a, b) =>
     a.localeCompare(b)
   );
@@ -253,7 +257,6 @@ export default function MotorcyclesPage() {
                 >
                   {sortTypes.map((type) => (
                     <DialogClose asChild key={type.label}>
-                      {/* this div won’t produce a nested button */}
                       <div className="flex items-center gap-3 cursor-pointer">
                         <RadioGroupItem value={type.label} id={type.label} />
                         <Label htmlFor={type.label}>{type.value}</Label>
@@ -281,6 +284,32 @@ export default function MotorcyclesPage() {
                   <DialogTitle>Filter Motorcycles</DialogTitle>
                 </DialogHeader>
                 <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2 flex flex-col gap-2">
+                    <Label className="block text-sm font-medium text-gray-400 mb-1">
+                      Locations
+                    </Label>
+                    <div className="grid grid-cols-2">
+                      {branches &&
+                        branches.map((branch) => (
+                          <div key={branch} className="flex gap-4">
+                            <Checkbox
+                              checked={cities.includes(branch)}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setCurrentPage(1);
+                                  setCities([...cities, branch]);
+                                } else {
+                                  setCurrentPage(1);
+                                  setCities(cities.filter((b) => b !== branch));
+                                }
+                              }}
+                              className="data-[state=checked]:border-transparent data-[state=checked]:bg-yellow-500"
+                            />
+                            <Label>{branch}</Label>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
                   <div>
                     <Label
                       htmlFor="min-price"
@@ -389,14 +418,6 @@ export default function MotorcyclesPage() {
                 <div className="grid grid-cols-2 gap-3 mt-4 pt-4 border-t border-gray-100">
                   <DialogClose asChild>
                     <Button
-                      className="w-full sm:w-auto bg-yellow-primary text-white"
-                      onClick={applyFilters}
-                    >
-                      Apply Filters
-                    </Button>
-                  </DialogClose>
-                  <DialogClose asChild>
-                    <Button
                       variant="outline"
                       onClick={clearFilters}
                       className="w-full sm:w-auto"
@@ -413,7 +434,7 @@ export default function MotorcyclesPage() {
       </section>
 
       <div className="grid grid-cols-8 gap-6">
-        <div className="hidden md:flex sm:flex-col col-span-0 sm:col-span-2 space-y-4 sticky top-24 self-start">
+        <div className="hidden md:flex sm:flex-col col-span-0 sm:col-span-2 space-y-4 sticky top-24 self-start max-h-[calc(100vh-7rem)] overflow-y-auto scrollbar-hide">
           {loading ? (
             <SortBySkeleton />
           ) : (
@@ -597,12 +618,6 @@ export default function MotorcyclesPage() {
                     <FilterXIcon className="h-4 w-4 mr-2" />
                     Clear Filters
                   </Button>
-                  <Button
-                    className="w-full sm:w-auto bg-yellow-primary cursor-pointer text-white"
-                    onClick={applyFilters}
-                  >
-                    Apply Filters
-                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -653,28 +668,8 @@ export default function MotorcyclesPage() {
                             className="object-fit transform transition-transform duration-500 group-hover:scale-110"
                           />
                           <Badge className="absolute bottom-3 right-3 px-3 py-1 text-sm font-semibold bg-yellow-50 text-yellow-primary">
-                            ₹{motorcycle.rentPerDay}/day
+                            ₹{getTodayPrice(motorcycle)}/day
                           </Badge>
-
-                          {/* Color and Variant badges */}
-                          {/* <div className="absolute top-3 left-3 flex flex-col gap-1">
-                            {motorcycle.color && (
-                              <Badge
-                                variant="outline"
-                                className="text-xs bg-white/90 text-gray-800"
-                              >
-                                {motorcycle.color}
-                              </Badge>
-                            )}
-                            {motorcycle.variant && (
-                              <Badge
-                                variant="outline"
-                                className="text-xs bg-white/90 text-gray-800 border-gray-300"
-                              >
-                                {motorcycle.variant}
-                              </Badge>
-                            )}
-                          </div> */}
 
                           <div className="absolute top-3 left-3 flex flex-col gap-1">
                             {motorcycle.categories

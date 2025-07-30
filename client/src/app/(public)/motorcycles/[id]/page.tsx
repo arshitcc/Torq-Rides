@@ -52,6 +52,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import TimePickerPopover from "@/app/__components/select-time";
+import { getBookingPeriod, getTodayPrice } from "@/lib/utils";
 
 export default function MotorcycleDetailPage() {
   const pathname = usePathname();
@@ -107,6 +108,8 @@ export default function MotorcycleDetailPage() {
   const watchedPickupDate = cartForm.watch("pickupDate");
   const watchedDropoffDate = cartForm.watch("dropoffDate");
   const watchedPickupTime = cartForm.watch("pickupTime");
+  const watchedDropoffTime = cartForm.watch("dropoffTime");
+  const watchedQuantity = cartForm.watch("quantity");
 
   useEffect(() => {
     if (loading) return;
@@ -131,36 +134,90 @@ export default function MotorcycleDetailPage() {
   }, [inCart, cartForm]);
 
   useEffect(() => {
-    if (
-      watchedPickupDate &&
-      watchedDropoffDate &&
-      isSameDay(watchedPickupDate, watchedDropoffDate)
-    ) {
-      const currentDropoffTime = cartForm.getValues("dropoffTime");
-      if (currentDropoffTime && watchedPickupTime) {
-        const [pickupHour] = watchedPickupTime.split(":").map(Number);
-        const [dropoffHour] = currentDropoffTime.split(":").map(Number);
-        if (dropoffHour < pickupHour + 4) {
-          cartForm.setValue("dropoffTime", ""); // Reset for re-selection
-        }
+    const { pickupDate, dropoffDate, pickupTime } = cartForm.getValues();
+
+    if (!pickupDate || !dropoffDate) {
+      return;
+    }
+    const minDropoffDate = new Date(pickupDate);
+    minDropoffDate.setDate(pickupDate.getDate() + 1);
+    minDropoffDate.setHours(0, 0, 0, 0);
+
+    const currentDropoffDate = new Date(dropoffDate);
+    currentDropoffDate.setHours(0, 0, 0, 0);
+
+    if (currentDropoffDate < minDropoffDate) {
+      cartForm.setValue("dropoffDate", minDropoffDate);
+      return;
+    }
+
+    const dropoffTime = cartForm.getValues("dropoffTime");
+    if (!pickupTime || !dropoffTime) {
+      return;
+    }
+
+    const nextDayAfterPickup = new Date(pickupDate);
+    nextDayAfterPickup.setDate(pickupDate.getDate() + 1);
+
+    if (isSameDay(dropoffDate, nextDayAfterPickup)) {
+      const [pickupHour] = pickupTime.split(":").map(Number);
+      const [dropoffHour] = dropoffTime.split(":").map(Number);
+
+      if (dropoffHour < pickupHour) {
+        cartForm.setValue("dropoffTime", "");
       }
     }
-  }, [watchedPickupTime, watchedPickupDate, watchedDropoffDate, cartForm]);
+  }, [watchedPickupDate, watchedDropoffDate, watchedPickupTime, cartForm]);
 
   const calculateTotalCost = () => {
-    if (!motorcycle) {
-      return 0;
+    if (
+      !motorcycle ||
+      !watchedPickupDate ||
+      !watchedDropoffDate ||
+      !watchedPickupTime ||
+      !watchedDropoffTime ||
+      !watchedQuantity
+    ) {
+      return { totalCost: 0, duration: "N/A" };
     }
-    const pickupDate = cartForm.watch("pickupDate");
-    const dropoffDate = cartForm.watch("dropoffDate");
-    const quantity = cartForm.watch("quantity");
 
-    if (pickupDate && dropoffDate && quantity) {
-      const days = differenceInDays(dropoffDate, pickupDate);
-      return days >= 0 ? (days + 1) * motorcycle?.rentPerDay * quantity : 0;
+    const bookingPeriod = getBookingPeriod(
+      watchedPickupDate,
+      watchedPickupTime,
+      watchedDropoffDate,
+      watchedDropoffTime
+    );
+
+    if (bookingPeriod.totalHours <= 0) {
+      return { totalCost: 0, duration: "0 days 0 hours" };
     }
-    return 0;
+
+    const { weekdayCount, weekendCount, extraHours, lastDayTypeForExtraHours } =
+      bookingPeriod;
+
+    let totalCost = 0;
+    totalCost += weekdayCount * motorcycle.pricePerDayMonThu;
+    totalCost += weekendCount * motorcycle.pricePerDayFriSun;
+
+    if (extraHours > 0) {
+      const extraHourRate =
+        lastDayTypeForExtraHours === "weekday"
+          ? motorcycle.pricePerDayMonThu
+          : motorcycle.pricePerDayFriSun;
+      if (extraHours <= 4) {
+        totalCost += extraHourRate * 0.1; 
+      } else {
+        totalCost += extraHourRate;
+      }
+    }
+
+    return {
+      totalCost: totalCost * watchedQuantity,
+      duration: bookingPeriod.duration,
+    };
   };
+
+  const { totalCost, duration } = calculateTotalCost();
 
   const onCartSubmit = async (data: AddToCartFormData) => {
     if (user?.role === UserRolesEnum.ADMIN) {
@@ -268,7 +325,25 @@ export default function MotorcycleDetailPage() {
                 </h1>
                 <p className="text-gray-600 mb-4">{motorcycle?.description}</p>
                 <div className="text-3xl font-bold text-primary">
-                  ₹{motorcycle?.rentPerDay}/day
+                  ₹{motorcycle && getTodayPrice(motorcycle)}/day
+                </div>
+                <div className="flex flex-col sm:grid grid-cols-2 gap-4 text-sm dark:text-white">
+                  <div className="bg-gray-100 dark:bg-[#18181B] border-2 p-4 rounded-xl flex flex-row md:flex-col justify-between text-center">
+                    <div className="dark:text-white text-muted-foreground">
+                      Rental Price <span className="font-bold">(Monday - Thursday)</span>
+                    </div>
+                    <div className="font-medium">
+                      ₹ {motorcycle?.pricePerDayMonThu} / day
+                    </div>
+                  </div>
+                  <div className="bg-gray-100 dark:bg-[#18181B] border-2 p-4 rounded-xl flex flex-row md:flex-col justify-between text-center">
+                    <div className="dark:text-white text-muted-foreground">
+                      Rental Price <span className="font-bold">(Friday - Saturday)</span>
+                    </div>
+                    <div className="font-medium">
+                      ₹ {motorcycle?.pricePerDayFriSun} / day
+                    </div>
+                  </div>
                 </div>
                 <div className="flex flex-col sm:grid grid-cols-3 gap-4 text-sm dark:text-white">
                   <div className="bg-gray-100 dark:bg-[#18181B] border-2 p-4 rounded-xl flex flex-row md:flex-col justify-between text-center">
@@ -711,22 +786,16 @@ export default function MotorcycleDetailPage() {
                     />
                   )}
 
-                  {calculateTotalCost() > 0 && (
+                  {totalCost > 0 && (
                     <div className="p-4 dark:bg-transparent border-2 rounded-xl">
                       <div className="flex justify-between items-center">
                         <span className="font-medium">Total Cost:</span>
                         <span className="text-2xl font-bold text-primary">
-                          ₹{calculateTotalCost()}
+                          ₹{totalCost.toFixed(2)}
                         </span>
                       </div>
                       <p className="text-sm dark:text-whit mt-1">
-                        {differenceInDays(
-                          cartForm.watch("dropoffDate") || new Date(),
-                          cartForm.watch("pickupDate") || new Date()
-                        ) + 1}{" "}
-                        days × {cartForm.watch("quantity")} bikes × ₹
-                        {motorcycle?.rentPerDay}
-                        /day
+                        Duration: {duration}
                       </p>
                     </div>
                   )}
