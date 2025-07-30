@@ -314,7 +314,7 @@ export default function TempTermsAndConditionsPage() {
                 <ShieldCheckIcon className="h-8 w-8 text-white" />
               </div>
               <CardTitle className="text-3xl font-bold text-gray-900 dark:text-gray-100">
-                Terms & Conditions
+                Cancellation Policy
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-8 text-gray-700 dark:text-gray-300 px-6 md:px-10 pb-10">

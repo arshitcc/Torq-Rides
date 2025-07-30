@@ -795,7 +795,7 @@ export default function MotorcycleDetailPage() {
                         </span>
                       </div>
                       <p className="text-sm dark:text-whit mt-1">
-                        Duration: {duration}
+                        Duration: {duration} {watchedQuantity>1 && `(${watchedQuantity} motorcycles)`}
                       </p>
                     </div>
                   )}

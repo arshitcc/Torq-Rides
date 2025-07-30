@@ -28,7 +28,6 @@ import { sendWhatsappMessage } from "@/lib/wa_me";
 import WhatsappIcon from "@/components/WhatsappIcon";
 
 export default function OffRoadTripDetailPage() {
-
   const url = sendWhatsappMessage();
   const params = useParams();
   const trip = offRoadTrips.find((t) => t.id === params.tripId);
@@ -456,7 +455,7 @@ export default function OffRoadTripDetailPage() {
                     className="w-full text-md bg-yellow-primary text-white"
                   >
                     <WhatsappIcon />
-                    Send Query
+                    Enquire Now
                   </Button>
                 </Link>
               </div>

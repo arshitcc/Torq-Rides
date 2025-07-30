@@ -86,9 +86,12 @@ export default function TourDetailPage() {
           <div className="lg:sticky lg:top-8">
             <Card className="p-6">
               <Link href={url}>
-                <Button size="lg" className="w-full mb-4">
+                <Button
+                  size="lg"
+                  className="w-full mb-4 bg-yellow-500 text-white hover:bg-yellow-600 cursor-pointer"
+                >
                   <WhatsappIcon />
-                  Book Now
+                  Enquire Now
                 </Button>
               </Link>
 
