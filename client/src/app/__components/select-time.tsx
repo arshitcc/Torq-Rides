@@ -12,7 +12,7 @@ import { ClockIcon } from "lucide-react";
 import { useMemo } from "react";
 import { isToday, isSameDay } from "date-fns";
 
-const BUSINESS_HOURS = Array.from({ length: 14 }, (_, i) => {
+const BUSINESS_HOURS = Array.from({ length: 13 }, (_, i) => {
   const hour = i + 9;
   return `${hour.toString().padStart(2, "0")}:00`;
 });
